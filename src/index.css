@@ -130,35 +130,6 @@
     --color-primary-light: #FFDDB2;
   }
 
-  [data-theme="bayern"] {
-    --m3-primary: #DC052D; /* FC Bayern Rot */
-    --m3-primary-hover: #B80024;
-    --m3-primary-container: #FFEBEF;
-    --m3-on-primary: #FFFFFF;
-    --m3-on-primary-container: #4A000C;
-
-    --m3-secondary: #0066B2; /* FC Bayern Blau */
-    --m3-secondary-container: #DCEEFF;
-    --m3-on-secondary: #FFFFFF;
-    --m3-on-secondary-container: #001F3B;
-
-    --m3-tertiary: #004F9F;
-    --m3-tertiary-container: #CCE4FF;
-    --m3-on-tertiary: #FFFFFF;
-    --m3-on-tertiary-container: #001A38;
-
-    --m3-surface: #FFFFFF;
-    --m3-surface-container-lowest: #FFFFFF;
-    --m3-surface-container-low: #F6F8FC;
-    --m3-surface-container: #EDF2F8;
-    --m3-surface-container-high: #E3EBF4;
-    --m3-surface-container-highest: #D9E4EE;
-
-    --color-primary: #DC052D;
-    --color-primary-hover: #B80024;
-    --color-primary-light: #FFEBEF;
-  }
-
   /* Dark mode Material 3 Tonal system */
   .dark {
     --m3-primary: #BEC2FF;
@@ -239,35 +210,6 @@
     --m3-surface-container: #251F18;
     --m3-surface-container-high: #302922;
     --m3-surface-container-highest: #3B342C;
-  }
-
-  .dark[data-theme="bayern"] {
-    --m3-primary: #FF4A6B; /* Vibrant Bayern Rot */
-    --m3-primary-hover: #FF6E87;
-    --m3-primary-container: #820018;
-    --m3-on-primary: #45000A;
-    --m3-on-primary-container: #FFDADE;
-
-    --m3-secondary: #4DA7FF; /* Bayern Himmelsblau */
-    --m3-secondary-container: #00437A;
-    --m3-on-secondary: #00284D;
-    --m3-on-secondary-container: #CCE5FF;
-
-    --m3-tertiary: #80C0FF;
-    --m3-tertiary-container: #003666;
-    --m3-on-tertiary: #002244;
-    --m3-on-tertiary-container: #CCE7FF;
-
-    --m3-surface: #0B0E14; /* Deep Bavaria Dark */
-    --m3-surface-container-lowest: #07090E;
-    --m3-surface-container-low: #121722;
-    --m3-surface-container: #18202E;
-    --m3-surface-container-high: #212B3D;
-    --m3-surface-container-highest: #2C3950;
-
-    --color-primary: #FF4A6B;
-    --color-primary-hover: #FF6E87;
-    --color-primary-light: rgba(255, 74, 107, 0.2);
   }
 
   body {

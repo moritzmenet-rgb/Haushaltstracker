@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Home, Target, Calendar, Check, Sparkles, Building2, HelpCircle, Trophy, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { getNextBayernMatch, checkIsBayernMatchdayToday, formatMatchDate } from '../../utils/fcBayern';
 
 export const GeneralSettingsTab: React.FC = () => {
   const { data, updateSettings } = useApp();
@@ -265,66 +264,6 @@ export const GeneralSettingsTab: React.FC = () => {
               </motion.button>
             );
           })}
-        </div>
-      </div>
-
-      {/* 4. FC Bayern München Spieltags-Design Automatik */}
-      <div className="p-6 rounded-[28px] bg-gradient-to-br from-[#DC052D]/10 via-[#0066B2]/10 to-[var(--m3-surface-container-low)] border-2 border-[#DC052D]/30 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-3">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#DC052D] to-[#0066B2] text-white flex items-center justify-center shadow-xs shrink-0">
-              <Trophy className="w-6 h-6 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
-                  FC Bayern Matchday-Automatik
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#DC052D] text-white">
-                  Rot-Weiß-Blau
-                </span>
-              </div>
-              <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
-                Schaltet die gesamte App an Spieltagen des FC Bayern automatisch auf das Vereinsdesign um.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-[var(--m3-on-surface)]">
-              {settings.bayern_matchday_enabled !== false ? 'Aktiviert' : 'Deaktiviert'}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const newVal = !(settings.bayern_matchday_enabled !== false);
-                updateSettings({ bayern_matchday_enabled: newVal });
-                showSaved(newVal ? 'Bayern-Automatik aktiviert!' : 'Bayern-Automatik deaktiviert!');
-              }}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                settings.bayern_matchday_enabled !== false ? 'bg-[#DC052D]' : 'bg-[var(--m3-surface-container-highest)]'
-              }`}
-              role="switch"
-              aria-checked={settings.bayern_matchday_enabled !== false}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  settings.bayern_matchday_enabled !== false ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        <div className="text-xs text-[var(--m3-on-surface-variant)] pt-2 border-t border-[var(--m3-outline-variant)]/60 flex items-center justify-between">
-          <span>
-            {checkIsBayernMatchdayToday().isMatchday 
-              ? '🔴 Heute ist Spieltag! Rot-Weiß-Blau ist aktiv.' 
-              : `Nächstes Bayern-Spiel: ${formatMatchDate(getNextBayernMatch().date)} gegen ${getNextBayernMatch().opponent}`}
-          </span>
-          <span className="text-[11px] font-bold text-[var(--m3-primary)]">
-            Detail-Vorschau unter "Farben & Design"
-          </span>
         </div>
       </div>
     </motion.div>

@@ -3,7 +3,6 @@ import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, TaskIte
 import { INITIAL_FAMILY_DATA } from '../data/initialData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { applyColorTheme } from '../theme';
-import { checkIsBayernMatchdayToday, getNextBayernMatch, BayernMatch } from '../utils/fcBayern';
 import { 
   db, 
   auth, 
@@ -47,8 +46,6 @@ interface AppContextType {
   toggleTheme: () => void;
   colorTheme: ColorTheme;
   effectiveTheme: ColorTheme;
-  isBayernMatchdayActive: boolean;
-  bayernMatch?: BayernMatch;
   setColorTheme: (theme: ColorTheme) => void;
   setActiveUserId: (id: string | null) => void;
   
@@ -449,19 +446,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return activeUser.role === 'admin';
   }, [activeUser, firebaseUser, data.members]);
 
-  // FC Bayern München Matchday Detection & Auto-Theme
-  const bayernCheck = useMemo(() => {
-    return checkIsBayernMatchdayToday();
-  }, []);
-
-  const isBayernMatchdayActive = useMemo(() => {
-    const isEnabled = data.settings.bayern_matchday_enabled !== false; // enabled by default
-    const isForced = Boolean(data.settings.bayern_matchday_force);
-    return isEnabled && (bayernCheck.isMatchday || isForced);
-  }, [data.settings.bayern_matchday_enabled, data.settings.bayern_matchday_force, bayernCheck.isMatchday]);
-
-  // Effective color theme (Bayern on matchdays, else user's chosen theme)
-  const effectiveTheme: ColorTheme = isBayernMatchdayActive ? 'bayern' : colorTheme;
+  // Effective color theme (User's chosen theme)
+  const effectiveTheme: ColorTheme = colorTheme;
 
   // Color Theme handlers
   const setColorTheme = useCallback((newTheme: ColorTheme) => {
@@ -469,10 +455,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof window !== 'undefined') {
       localStorage.setItem(COLOR_THEME_KEY, newTheme);
     }
-    // If not currently in matchday mode, apply immediately
-    if (!isBayernMatchdayActive) {
-      applyColorTheme(newTheme);
-    }
+    applyColorTheme(newTheme);
+    
     if (data.settings.color_theme !== newTheme) {
       const updatedSettings = { ...data.settings, color_theme: newTheme };
       persistLocal({ ...data, settings: updatedSettings });
@@ -480,7 +464,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveSettingsToCloud(updatedSettings).catch(err => console.error('Firestore saveSettings error:', err));
       }
     }
-  }, [data, firebaseUser, isBayernMatchdayActive, persistLocal]);
+  }, [data, firebaseUser, persistLocal]);
 
   // Sync effective color theme attribute on mount and state change
   useEffect(() => {
@@ -1197,8 +1181,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleTheme,
         colorTheme,
         effectiveTheme,
-        isBayernMatchdayActive,
-        bayernMatch: bayernCheck.match || (data.settings.bayern_matchday_force ? getNextBayernMatch() : undefined),
         setColorTheme,
         setActiveUserId,
         firebaseUser,

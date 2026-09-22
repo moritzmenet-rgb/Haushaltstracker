@@ -37,8 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     toggleTheme, 
     firebaseUser, 
     syncStatus, 
-    loginWithGoogle,
-    isBayernMatchdayActive
+    loginWithGoogle
   } = useApp();
 
   const householdTitle = data.settings?.household_name || 'Haushalt';
@@ -91,15 +90,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight">
                     {householdTitle}
                   </span>
-                  {isBayernMatchdayActive && (
-                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#DC052D] text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                      Bayern Matchday
-                    </span>
-                  )}
                 </div>
                 <span className="text-[11px] text-[var(--m3-on-surface-variant)] font-semibold hidden sm:inline-block leading-tight">
-                  {isBayernMatchdayActive ? 'Rot • Weiß • Blau (Matchday)' : 'Material 3 Expressive'}
+                  Material 3 Expressive
                 </span>
               </div>
             </div>

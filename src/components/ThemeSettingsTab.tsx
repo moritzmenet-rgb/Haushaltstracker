@@ -4,7 +4,6 @@ import { Palette, Check, Sparkles, CheckCircle2, Star, CheckSquare, Shield, Trop
 import { useApp } from '../context/AppContext';
 import { COLOR_THEMES } from '../theme';
 import { ColorTheme } from '../types';
-import { getNextBayernMatch, checkIsBayernMatchdayToday, formatMatchDate } from '../utils/fcBayern';
 
 export const ThemeSettingsTab: React.FC = () => {
   const { 
@@ -13,15 +12,9 @@ export const ThemeSettingsTab: React.FC = () => {
     isAdmin, 
     colorTheme, 
     effectiveTheme, 
-    isBayernMatchdayActive, 
     setColorTheme 
   } = useApp();
   const [feedback, setFeedback] = useState<string | null>(null);
-
-  const bayernEnabled = data.settings.bayern_matchday_enabled !== false; // default true
-  const bayernForced = Boolean(data.settings.bayern_matchday_force);
-  const matchdayCheck = checkIsBayernMatchdayToday();
-  const nextMatch = getNextBayernMatch();
 
   const handleSelectTheme = (themeId: ColorTheme) => {
     setColorTheme(themeId);
@@ -29,18 +22,6 @@ export const ThemeSettingsTab: React.FC = () => {
     setTimeout(() => {
       setFeedback(null);
     }, 3500);
-  };
-
-  const handleToggleBayernMatchday = (enabled: boolean) => {
-    updateSettings({ bayern_matchday_enabled: enabled });
-    setFeedback(enabled ? 'FC Bayern Spieltags-Automatik aktiviert!' : 'FC Bayern Spieltags-Automatik deaktiviert.');
-    setTimeout(() => setFeedback(null), 3500);
-  };
-
-  const handleToggleBayernForce = (forced: boolean) => {
-    updateSettings({ bayern_matchday_force: forced });
-    setFeedback(forced ? 'FC Bayern Matchday-Design aktiviert (Vorschau)!' : 'Vorschau beendet – reguläres Design aktiv.');
-    setTimeout(() => setFeedback(null), 3500);
   };
 
   const themesList = Object.values(COLOR_THEMES);
@@ -62,113 +43,6 @@ export const ThemeSettingsTab: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* FC Bayern Matchday Feature Card */}
-      <div className="p-6 rounded-[28px] bg-gradient-to-br from-[#DC052D]/10 via-[#0066B2]/10 to-[var(--m3-surface-container-low)] border-2 border-[#DC052D]/30 shadow-md relative overflow-hidden">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-[#DC052D] via-[#B80024] to-[#0066B2] text-white flex items-center justify-center shrink-0 shadow-md">
-              <Trophy className="w-6 h-6 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-black text-[var(--m3-on-surface)]">
-                  FC Bayern München Spieltags-Design
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#DC052D] text-white">
-                  Rot • Weiß • Blau
-                </span>
-              </div>
-              <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
-                Automatische Verwandlung der gesamten App an FC Bayern Spieltagen (Mia san mia!).
-              </p>
-            </div>
-          </div>
-
-          {/* Active status indicator badge */}
-          <div className="flex items-center gap-2">
-            {isBayernMatchdayActive ? (
-              <span className="px-3.5 py-1.5 rounded-full bg-[#DC052D] text-white text-xs font-black flex items-center gap-1.5 shadow-sm animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-white" />
-                Heute Matchday-Design aktiv!
-              </span>
-            ) : (
-              <span className="px-3 py-1.5 rounded-full bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] text-[var(--m3-on-surface-variant)] text-xs font-bold flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                {matchdayCheck.isMatchday ? 'Matchday' : `Nächstes Spiel: ${formatMatchDate(nextMatch.date)}`}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Match info pill */}
-        <div className="p-3.5 rounded-2xl bg-[var(--m3-surface)]/80 backdrop-blur-xs border border-[var(--m3-outline-variant)] mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 font-bold text-[var(--m3-on-surface)]">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#DC052D]" />
-            <span>FC Bayern München vs. {matchdayCheck.match?.opponent || nextMatch.opponent}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#0066B2]/15 text-[#0066B2] dark:text-[#4DA7FF] font-black">
-              {matchdayCheck.match?.competition || nextMatch.competition}
-            </span>
-          </div>
-          <div className="text-[11px] text-[var(--m3-on-surface-variant)] font-semibold flex items-center gap-3">
-            <span>Anstoß: {matchdayCheck.match?.time || nextMatch.time} Uhr</span>
-            <span>•</span>
-            <span>{matchdayCheck.match?.location || nextMatch.location}</span>
-          </div>
-        </div>
-
-        {/* Admin Controls */}
-        <div className="pt-2 border-t border-[var(--m3-outline-variant)]/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="text-xs font-black text-[var(--m3-on-surface)] flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-[var(--m3-primary)]" />
-              <span>Admin-Einstellung: Spieltags-Automatik</span>
-            </div>
-            <p className="text-[11px] text-[var(--m3-on-surface-variant)]">
-              {isAdmin 
-                ? 'Du kannst die automatische Farb-Umschaltung für die Familie aktivieren oder deaktivieren.' 
-                : 'Kann nur von Moritz in den Admin-Einstellungen angepasst werden.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {/* Toggle Preview Button */}
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              type="button"
-              onClick={() => handleToggleBayernForce(!bayernForced)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border ${
-                bayernForced
-                  ? 'bg-[#DC052D] border-[#DC052D] text-white shadow-xs'
-                  : 'bg-[var(--m3-surface)] border-[var(--m3-outline-variant)] text-[var(--m3-on-surface)] hover:bg-[var(--m3-surface-container-high)]'
-              }`}
-            >
-              {bayernForced ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              <span>{bayernForced ? 'Vorschau beenden' : 'Design testen'}</span>
-            </motion.button>
-
-            {/* Toggle Enable/Disable Switch (Admin) */}
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => handleToggleBayernMatchday(!bayernEnabled)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  bayernEnabled ? 'bg-[#DC052D]' : 'bg-[var(--m3-surface-container-highest)]'
-                }`}
-                role="switch"
-                aria-checked={bayernEnabled}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    bayernEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Intro Header */}
       <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
         <div className="flex items-start gap-4">
@@ -180,7 +54,7 @@ export const ThemeSettingsTab: React.FC = () => {
               Farbkonzepte zur Auswahl
             </h2>
             <p className="text-xs text-[var(--m3-on-surface-variant)] max-w-xl leading-relaxed">
-              Wähle dein bevorzugtes Farbschema für normale Tage. Wenn der FC Bayern spielt und die Automatik aktiv ist, erstrahlt die App für den Matchday automatisch in Rot-Weiß-Blau.
+              Wähle dein bevorzugtes Farbschema für den Haushalt Tracker.
             </p>
           </div>
         </div>
@@ -189,7 +63,7 @@ export const ThemeSettingsTab: React.FC = () => {
       {/* Theme Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {themesList.map((t) => {
-          const isSelected = effectiveTheme === t.id || (!isBayernMatchdayActive && colorTheme === t.id);
+          const isSelected = effectiveTheme === t.id || colorTheme === t.id;
 
           return (
             <motion.div

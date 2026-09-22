@@ -61,18 +61,6 @@ export const COLOR_THEMES: Record<ColorTheme, ThemeConfig> = {
     borderHex: '#FDE68A',
     dotColor: '#F59E0B',
     gradient: 'from-amber-600 to-orange-600'
-  },
-  bayern: {
-    id: 'bayern',
-    name: 'FC Bayern Matchday',
-    subtitle: 'Rot-Weiß-Blau • Mia san mia',
-    description: 'Exklusives Spieltags-Design für Fans des FC Bayern München in edlem Bayern-Rot, reinem Weiß und traditionellem Königsblau.',
-    primaryHex: '#DC052D',
-    hoverHex: '#B80024',
-    lightBgHex: '#FFEBEF',
-    borderHex: '#FFCCD5',
-    dotColor: '#0066B2',
-    gradient: 'from-[#DC052D] via-[#B80024] to-[#0066B2]'
   }
 };
 
@@ -142,19 +130,6 @@ export const THEME_SCALES: Record<ColorTheme, PaletteScale> = {
     800: '#92400E',
     900: '#78350F',
     950: '#451A03'
-  },
-  bayern: {
-    50: '#FFF0F2',
-    100: '#FFE1E6',
-    200: '#FFC7D1',
-    300: '#FFA0B0',
-    400: '#FF6B85',
-    500: '#EF2346',
-    600: '#DC052D',
-    700: '#B80024',
-    800: '#99021F',
-    900: '#80051E',
-    950: '#48000C'
   }
 };
 

@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'member';
 
-export type ColorTheme = 'indigo' | 'emerald' | 'rose' | 'amber' | 'bayern';
+export type ColorTheme = 'indigo' | 'emerald' | 'rose' | 'amber';
 
 export interface FamilyMember {
   id: string;
@@ -43,8 +43,6 @@ export interface FamilySettings {
   firebase_url?: string;
   last_reset_date?: string;
   color_theme?: ColorTheme;
-  bayern_matchday_enabled?: boolean; // When true, automatically switches to FC Bayern theme on matchdays (default: true)
-  bayern_matchday_force?: boolean; // When true, forces the FC Bayern theme on for preview/testing
   star_multiplier_1?: number; // e.g. 50 (%)
   star_multiplier_2?: number; // e.g. 75 (%)
   star_multiplier_3?: number; // e.g. 100 (%)

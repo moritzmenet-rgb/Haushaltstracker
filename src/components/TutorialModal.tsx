@@ -127,8 +127,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
       badge: 'Rechte & Personalisierung',
       icon: <Palette className="w-8 h-8 text-white" />,
       colorGradient: 'from-rose-600 to-pink-600',
-      title: 'Editierrechte, PIN & Designs',
-      subtitle: 'Volle Kontrolle, Sicherheit & FC Bayern Special',
+      title: 'Editierrechte & Designs',
+      subtitle: 'Volle Kontrolle & Personalisierung',
       description: 'In den Einstellungen kannst du deine App ganz nach deinen Wünschen anpassen:',
       highlights: [
         { 
@@ -136,8 +136,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
           desc: 'Tippfehler beim Eintragen? Du kannst deine eigenen geloggten Einträge jederzeit nachträglich bearbeiten oder löschen. Moritz als Admin hat Vollzugriff.' 
         },
         { 
-          title: '4 Farbthemen + FC Bayern Matchday', 
-          desc: 'Wähle Indigo, Emerald, Rose oder Amber. Und an FC Bayern Spieltagen wechselt die App automatisch in edles Rot-Weiß-Blau (abschaltbar in den Admin-Einstellungen)!' 
+          title: '4 Farbthemen', 
+          desc: 'Wähle Indigo, Emerald, Rose oder Amber als dein persönliches Lieblings-Farbkonzept aus!' 
         },
         { 
           title: 'Immer fest im Griff am Handy', 
