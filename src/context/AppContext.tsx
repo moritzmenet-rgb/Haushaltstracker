@@ -111,11 +111,11 @@ const AppContext = createContext<AppContextType | null>(null);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAppLoaded, setIsAppLoaded] = useState(false);
 
-  // Force app to show after 3 seconds even if sync is still connecting
+  // Force app to show after 2 seconds even if sync is still connecting
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsAppLoaded(true);
-    }, 3000);
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 

@@ -37,33 +37,41 @@
   </head>
   <body class="h-full bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-50 transition-colors duration-200">
     <div id="root" class="min-h-full flex flex-col">
-      <div id="app-loading" style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; flex-direction: column; gap: 16px;">
-        <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <p style="color: #64748b; font-weight: 500;">Lade Haushalt Tracker...</p>
+      <!-- Minimalist Inline Loader -->
+      <div id="app-loading" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: #f8fafc; flex-direction: column; gap: 16px;">
+        <div style="width: 40px; height: 40px; border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 14px;">Haushalt Tracker lädt...</p>
       </div>
-      <style>
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    
+    <style>
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+
+    <script type="module" src="./src/main.tsx"></script>
+    
     <script>
-      // Graceful fallback for production environments
+      // FAIL-SAFE: If React doesn't mount and hide the loader within 5 seconds, 
+      // we assume a crash and show a recovery interface.
       setTimeout(function() {
-        var loading = document.getElementById('app-loading');
-        // Only show recovery UI if the app hasn't taken over the DOM
-        if (loading && document.getElementById('root').children.length === 1) {
-          loading.style.opacity = '1';
-          loading.innerHTML = '<div style="padding: 24px; text-align: center; max-width: 350px; background: white; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;">' +
-            '<div style="font-size: 40px; margin-bottom: 16px;">🏠</div>' +
-            '<h2 style="color: #0f172a; margin: 0 0 8px 0; font-size: 20px; font-weight: 800;">Haushalt Tracker</h2>' +
-            '<p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Die App lädt ungewöhnlich lange. Bitte versuchen Sie die Seite neu zu laden oder den Browser-Cache zu leeren.</p>' +
+        var loader = document.getElementById('app-loading');
+        var root = document.getElementById('root');
+        
+        // If loader is still fully visible and root hasn't been populated by React
+        if (loader && root && (root.children.length <= 1)) {
+          loader.style.background = '#ffffff';
+          loader.innerHTML = '<div style="padding: 32px; text-align: center; max-width: 400px; font-family: system-ui, -apple-system, sans-serif;">' +
+            '<div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>' +
+            '<h2 style="color: #1e293b; margin: 0 0 12px 0; font-size: 24px; font-weight: 800;">Start-Problem</h2>' +
+            '<p style="color: #64748b; font-size: 15px; line-height: 1.6; margin-bottom: 32px;">Die App konnte nicht geladen werden. Das liegt meist an blockierten Scripten oder veralteten Browser-Daten.</p>' +
             '<div style="display: flex; flex-direction: column; gap: 12px;">' +
-            '<button onclick="location.reload()" style="padding: 14px; background: #4f46e5; color: white; border: none; border-radius: 14px; cursor: pointer; font-weight: 700; font-size: 14px; transition: opacity 0.2s;">Seite neu laden</button>' +
-            '<button onclick="localStorage.clear(); sessionStorage.clear(); location.reload();" style="padding: 14px; background: #f1f5f9; color: #475569; border: none; border-radius: 14px; cursor: pointer; font-weight: 600; font-size: 14px;">Cache & Daten leeren</button>' +
+            '<button onclick="location.reload()" style="padding: 16px; background: #4f46e5; color: white; border: none; border-radius: 16px; cursor: pointer; font-weight: 700; font-size: 15px;">Seite neu laden</button>' +
+            '<button onclick="localStorage.clear(); sessionStorage.clear(); location.reload();" style="padding: 16px; background: #f1f5f9; color: #475569; border: none; border-radius: 16px; cursor: pointer; font-weight: 600; font-size: 15px;">Daten-Cache löschen</button>' +
             '</div>' +
+            '<p style="margin-top: 24px; font-size: 12px; color: #94a3b8;">Falls das Problem weiterhin besteht, prüfen Sie die Internetverbindung.</p>' +
             '</div>';
         }
-      }, 7000);
+      }, 5000);
     </script>
   </body>
 </html>
