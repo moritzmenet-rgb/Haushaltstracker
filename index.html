@@ -45,7 +45,26 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="src/main.tsx"></script>
+    <script>
+      // Safety timeout: If app hasn't loaded in 8 seconds, show help
+      setTimeout(function() {
+        var loading = document.getElementById('app-loading');
+        if (loading && loading.parentNode) {
+          var help = document.createElement('div');
+          help.style.padding = '20px';
+          help.style.textAlign = 'center';
+          help.style.color = '#64748b';
+          help.style.fontFamily = 'sans-serif';
+          help.innerHTML = '<p style="margin-bottom: 10px;">Laden dauert ungewöhnlich lange...</p>' +
+            '<div style="display: flex; gap: 8px; justify-content: center;">' +
+            '<button onclick="window.location.reload()" style="padding: 8px 16px; border-radius: 8px; background: #4f46e5; color: white; border: none; cursor: pointer;">Neu laden</button>' +
+            '<button onclick="localStorage.clear(); window.location.reload();" style="padding: 8px 16px; border-radius: 8px; background: #ef4444; color: white; border: none; cursor: pointer;">Cache leeren</button>' +
+            '</div>';
+          loading.appendChild(help);
+        }
+      }, 8000);
+    </script>
   </body>
 </html>
 

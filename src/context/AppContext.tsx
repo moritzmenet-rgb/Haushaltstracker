@@ -230,46 +230,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       householdRef,
       async (snap) => {
         console.log('Firestore: Household snapshot received', snap.exists() ? 'exists' : 'does not exist');
-        if (!snap.exists()) {
-          if (!hasSeeded) {
-            hasSeeded = true;
-            // Seed cloud database with initial data
-            await seedAllDataToCloud(data);
-            setSyncStatus('synced');
+        try {
+          if (!snap.exists()) {
+            if (!hasSeeded) {
+              hasSeeded = true;
+              // Seed cloud database with initial data
+              await seedAllDataToCloud(data);
+              setSyncStatus('synced');
+            }
+          } else {
+            const hData = snap.data();
+            if (hData) {
+              setData(prev => {
+                const nextData: FamilyData = {
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    household_name: hData.household_name || hData.name || prev.settings.household_name,
+                    default_weekly_target: hData.default_weekly_target || prev.settings.default_weekly_target,
+                    categories: hData.categories || prev.settings.categories,
+                    last_reset_date: hData.last_reset_date || prev.settings.last_reset_date,
+                    color_theme: hData.color_theme || prev.settings.color_theme,
+                    star_multiplier_1: hData.star_multiplier_1 ?? prev.settings.star_multiplier_1,
+                    star_multiplier_2: hData.star_multiplier_2 ?? prev.settings.star_multiplier_2,
+                    star_multiplier_3: hData.star_multiplier_3 ?? prev.settings.star_multiplier_3,
+                    rollover_surplus_factor: hData.rollover_surplus_factor ?? prev.settings.rollover_surplus_factor,
+                    rollover_deficit_factor: hData.rollover_deficit_factor ?? prev.settings.rollover_deficit_factor,
+                    rollover_min_target: hData.rollover_min_target ?? prev.settings.rollover_min_target,
+                    rollover_max_target: hData.rollover_max_target ?? prev.settings.rollover_max_target,
+                    week_start_day: hData.week_start_day || prev.settings.week_start_day,
+                  }
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                return nextData;
+              });
+              setSyncStatus('synced');
+            }
           }
-        } else {
-          const hData = snap.data();
-          if (hData) {
-            setData(prev => {
-              const nextData: FamilyData = {
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  household_name: hData.household_name || hData.name || prev.settings.household_name,
-                  default_weekly_target: hData.default_weekly_target || prev.settings.default_weekly_target,
-                  categories: hData.categories || prev.settings.categories,
-                  last_reset_date: hData.last_reset_date || prev.settings.last_reset_date,
-                  color_theme: hData.color_theme || prev.settings.color_theme,
-                  star_multiplier_1: hData.star_multiplier_1 ?? prev.settings.star_multiplier_1,
-                  star_multiplier_2: hData.star_multiplier_2 ?? prev.settings.star_multiplier_2,
-                  star_multiplier_3: hData.star_multiplier_3 ?? prev.settings.star_multiplier_3,
-                  rollover_surplus_factor: hData.rollover_surplus_factor ?? prev.settings.rollover_surplus_factor,
-                  rollover_deficit_factor: hData.rollover_deficit_factor ?? prev.settings.rollover_deficit_factor,
-                  rollover_min_target: hData.rollover_min_target ?? prev.settings.rollover_min_target,
-                  rollover_max_target: hData.rollover_max_target ?? prev.settings.rollover_max_target,
-                  week_start_day: hData.week_start_day || prev.settings.week_start_day,
-                }
-              };
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
-              return nextData;
-            });
-            setSyncStatus('synced');
-          }
+        } catch (err) {
+          console.error('Error processing household snapshot:', err);
+          setSyncStatus('error');
         }
       },
       (err) => {
+        console.warn('Household snapshot listener failed (likely permissions):', err.message);
         setSyncStatus('error');
-        handleFirestoreError(err, OperationType.GET, `households/${HOUSEHOLD_ID}`);
+        // Do NOT throw here, as it blocks the listener
       }
     );
 
