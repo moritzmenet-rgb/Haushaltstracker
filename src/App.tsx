@@ -10,6 +10,7 @@ import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TutorialModal } from './components/TutorialModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
 const MainContent: React.FC = () => {
@@ -155,8 +156,10 @@ const MainContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <MainContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MainContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

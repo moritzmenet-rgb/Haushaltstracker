@@ -14,10 +14,24 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+// Safe initialization
+const isConfigValid = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId;
+
+if (!isConfigValid) {
+  console.warn('Firebase configuration is invalid or missing. Some features may not work.');
+}
+
+const app = initializeApp(isConfigValid ? firebaseConfig : {
+  apiKey: "mock-key",
+  authDomain: "mock.firebaseapp.com",
+  projectId: "mock-project",
+  storageBucket: "mock.appspot.com",
+  messagingSenderId: "123",
+  appId: "1:123:web:123"
+});
 
 // Critical: specify databaseId as configured
-export const db = firebaseConfig.firestoreDatabaseId 
+export const db = (isConfigValid && firebaseConfig.firestoreDatabaseId) 
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(app);
 
