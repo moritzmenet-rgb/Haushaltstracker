@@ -45,48 +45,28 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
     <script>
-      // Global error reporting for debugging on GitHub Pages
-      window.onerror = function(msg, url, line, col, error) {
-        var loading = document.getElementById('app-loading');
-        if (loading) {
-          var errBox = document.getElementById('debug-error');
-          if (!errBox) {
-            errBox = document.createElement('div');
-            errBox.id = 'debug-error';
-            errBox.style.color = '#ef4444';
-            errBox.style.fontSize = '11px';
-            errBox.style.marginTop = '15px';
-            errBox.style.padding = '10px';
-            errBox.style.background = '#fee2e2';
-            errBox.style.borderRadius = '8px';
-            errBox.style.maxWidth = '300px';
-            errBox.style.wordBreak = 'break-all';
-            loading.appendChild(errBox);
-          }
-          errBox.innerText = 'Fehler: ' + msg + '\nDatei: ' + url + '\nZeile: ' + line;
-        }
-        return false;
-      };
-
-      // Fallback: Show help if app doesn't mount in 4 seconds
+      // DEBUG: Log if script starts loading
+      console.log("Loader: Initializing fallback logic...");
+      
+      // Fallback: If the app hasn't replaced this screen in 4 seconds, something is wrong with paths or DB
       setTimeout(function() {
         var loading = document.getElementById('app-loading');
-        if (loading) {
-          var isAppRunning = document.getElementById('root').children.length > 0;
-          if (!isAppRunning) {
-            var p = loading.querySelector('p');
-            if (p && !p.innerHTML.includes('Start-Problem')) {
-              p.style.color = '#1e293b';
-              p.innerHTML = '<strong style="color:#ef4444">Start-Problem erkannt</strong><br><br>' +
-                'Die App lädt ungewöhnlich lange. Bitte versuche:<br><br>' +
-                '<button onclick="location.reload()" style="padding:8px 16px;background:#4f46e5;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;margin-bottom:8px;width:100%">Seite neu laden</button><br>' +
-                '<button onclick="localStorage.clear();location.reload()" style="padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%">Daten-Cache leeren</button>';
-            }
-          }
+        if (loading && !document.querySelector('.m3-ambient-canvas')) {
+          console.warn("Loader: App stuck. Showing recovery UI.");
+          loading.style.background = '#f8fafc';
+          loading.innerHTML = '<div style="padding:24px;text-align:center;max-width:320px;background:white;border-radius:24px;box-shadow:0 10px 25px rgba(0,0,0,0.05);border:1px solid #e2e8f0">' +
+            '<h2 style="color:#0f172a;margin-bottom:8px;font-size:18px">Lade-Problem</h2>' +
+            '<p style="color:#64748b;font-size:13px;margin-bottom:20px">Die App konnte nicht automatisch starten. Das liegt meist an den GitHub-Pfaden.</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px">' +
+            '<button onclick="location.reload()" style="padding:12px;background:#4f46e5;color:white;border:none;border-radius:12px;cursor:pointer;font-weight:bold">Seite neu laden</button>' +
+            '<button onclick="localStorage.clear();location.reload()" style="padding:12px;background:#ef4444;color:white;border:none;border-radius:12px;cursor:pointer;font-weight:bold">Cache leeren</button>' +
+            '</div>' +
+            '<p style="margin-top:16px;font-size:11px;color:#94a3b8">Hinweis: Falls du weise Buttons siehst, klicke "Cache leeren".</p>' +
+            '</div>';
         }
-      }, 5000);
+      }, 4000);
     </script>
   </body>
 </html>
