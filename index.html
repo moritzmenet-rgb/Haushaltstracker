@@ -45,28 +45,25 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </div>
-    <script type="module" src="./src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
     <script>
-      // DEBUG: Log if script starts loading
-      console.log("Loader: Initializing fallback logic...");
-      
-      // Fallback: If the app hasn't replaced this screen in 4 seconds, something is wrong with paths or DB
+      // Graceful fallback for production environments
       setTimeout(function() {
         var loading = document.getElementById('app-loading');
-        if (loading && !document.querySelector('.m3-ambient-canvas')) {
-          console.warn("Loader: App stuck. Showing recovery UI.");
-          loading.style.background = '#f8fafc';
-          loading.innerHTML = '<div style="padding:24px;text-align:center;max-width:320px;background:white;border-radius:24px;box-shadow:0 10px 25px rgba(0,0,0,0.05);border:1px solid #e2e8f0">' +
-            '<h2 style="color:#0f172a;margin-bottom:8px;font-size:18px">Lade-Problem</h2>' +
-            '<p style="color:#64748b;font-size:13px;margin-bottom:20px">Die App konnte nicht automatisch starten. Das liegt meist an den GitHub-Pfaden.</p>' +
-            '<div style="display:flex;flex-direction:column;gap:10px">' +
-            '<button onclick="location.reload()" style="padding:12px;background:#4f46e5;color:white;border:none;border-radius:12px;cursor:pointer;font-weight:bold">Seite neu laden</button>' +
-            '<button onclick="localStorage.clear();location.reload()" style="padding:12px;background:#ef4444;color:white;border:none;border-radius:12px;cursor:pointer;font-weight:bold">Cache leeren</button>' +
+        // Only show recovery UI if the app hasn't taken over the DOM
+        if (loading && document.getElementById('root').children.length === 1) {
+          loading.style.opacity = '1';
+          loading.innerHTML = '<div style="padding: 24px; text-align: center; max-width: 350px; background: white; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;">' +
+            '<div style="font-size: 40px; margin-bottom: 16px;">🏠</div>' +
+            '<h2 style="color: #0f172a; margin: 0 0 8px 0; font-size: 20px; font-weight: 800;">Haushalt Tracker</h2>' +
+            '<p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Die App lädt ungewöhnlich lange. Bitte versuchen Sie die Seite neu zu laden oder den Browser-Cache zu leeren.</p>' +
+            '<div style="display: flex; flex-direction: column; gap: 12px;">' +
+            '<button onclick="location.reload()" style="padding: 14px; background: #4f46e5; color: white; border: none; border-radius: 14px; cursor: pointer; font-weight: 700; font-size: 14px; transition: opacity 0.2s;">Seite neu laden</button>' +
+            '<button onclick="localStorage.clear(); sessionStorage.clear(); location.reload();" style="padding: 14px; background: #f1f5f9; color: #475569; border: none; border-radius: 14px; cursor: pointer; font-weight: 600; font-size: 14px;">Cache & Daten leeren</button>' +
             '</div>' +
-            '<p style="margin-top:16px;font-size:11px;color:#94a3b8">Hinweis: Falls du weise Buttons siehst, klicke "Cache leeren".</p>' +
             '</div>';
         }
-      }, 4000);
+      }, 7000);
     </script>
   </body>
 </html>

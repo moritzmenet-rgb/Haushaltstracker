@@ -27,8 +27,7 @@ export const SyncSettingsTab: React.FC = () => {
     logoutFirebase, 
     uploadAllToCloud,
     exportDataJSON,
-    importDataJSON,
-    isFirebaseDisabled
+    importDataJSON
   } = useApp();
 
   const [isUploading, setIsUploading] = useState(false);
@@ -80,12 +79,7 @@ export const SyncSettingsTab: React.FC = () => {
                 <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
                   Firebase Cloud-Synchronisation
                 </h2>
-                {isFirebaseDisabled ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300 text-xs font-black border border-rose-500/30">
-                    <Cloud className="w-3 h-3" />
-                    Deaktiviert (Test)
-                  </span>
-                ) : firebaseUser ? (
+                {firebaseUser ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-xs font-black border border-emerald-500/30">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Live & Aktiv
@@ -98,11 +92,9 @@ export const SyncSettingsTab: React.FC = () => {
               </div>
 
               <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
-                {isFirebaseDisabled 
-                  ? 'Firebase ist aktuell deaktiviert, um Startprobleme auf GitHub Pages zu untersuchen.' 
-                  : firebaseUser
-                    ? `Verbunden mit Google-Konto: ${firebaseUser.email}`
-                    : 'Aktuell sind deine Daten lokal im Browser gespeichert. Melde dich mit Google an für automatische Live-Synchronisation.'}
+                {firebaseUser
+                  ? `Verbunden mit Google-Konto: ${firebaseUser.email}`
+                  : 'Aktuell sind deine Daten lokal im Browser gespeichert. Melde dich mit Google an für automatische Live-Synchronisation.'}
               </p>
             </div>
           </div>

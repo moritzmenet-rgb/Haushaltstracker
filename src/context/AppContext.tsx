@@ -40,7 +40,6 @@ export type SyncStatus = 'offline' | 'connecting' | 'synced' | 'error';
 
 interface AppContextType {
   isAppLoaded: boolean;
-  isFirebaseDisabled: boolean;
   data: FamilyData;
   activeUser: FamilyMember | null;
   isAdmin: boolean;
@@ -532,10 +531,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth actions
   const loginWithGoogle = useCallback(async () => {
-    if (!isConfigValid) {
-      alert('Firebase ist aktuell zu Testzwecken deaktiviert. Nutze den manuellen JSON-Sync in den Einstellungen.');
-      return;
-    }
     try {
       setSyncStatus('connecting');
       await signInWithPopup(auth, googleProvider);
@@ -1192,7 +1187,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         isAppLoaded,
-        isFirebaseDisabled: !isConfigValid,
         data,
         activeUser,
         isAdmin,

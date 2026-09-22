@@ -14,11 +14,11 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
-// FORCED DISABLE FOR DEBUGGING: Set this to false to bypass Firebase entirely
-export const isConfigValid = false; 
+// Safe initialization
+export const isConfigValid = !!(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId);
 
 if (!isConfigValid) {
-  console.warn('Firebase is TEMPORARILY DISABLED for debugging.');
+  console.warn('Firebase configuration is invalid or missing. Some features may not work.');
 }
 
 const app = initializeApp(isConfigValid ? firebaseConfig : {
