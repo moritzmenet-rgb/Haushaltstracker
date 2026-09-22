@@ -38,6 +38,7 @@ const COLOR_THEME_KEY = 'household_chore_color_theme';
 export type SyncStatus = 'offline' | 'connecting' | 'synced' | 'error';
 
 interface AppContextType {
+  isAppLoaded: boolean;
   data: FamilyData;
   activeUser: FamilyMember | null;
   isAdmin: boolean;
@@ -107,6 +108,16 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAppLoaded, setIsAppLoaded] = useState(false);
+
+  // Force app to show after 3 seconds even if sync is still connecting
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsAppLoaded(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -194,6 +205,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Firebase Auth & Sync state
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('offline');
+
+  // Update isAppLoaded when sync state is settled
+  useEffect(() => {
+    if (syncStatus === 'synced' || syncStatus === 'error' || syncStatus === 'offline') {
+      setIsAppLoaded(true);
+    }
+  }, [syncStatus]);
 
   // Test Firestore connection on boot
   useEffect(() => {
@@ -1163,6 +1181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        isAppLoaded,
         data,
         activeUser,
         isAdmin,

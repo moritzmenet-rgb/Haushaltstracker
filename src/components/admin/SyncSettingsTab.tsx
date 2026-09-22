@@ -13,7 +13,10 @@ import {
   Check, 
   DollarSign, 
   UploadCloud,
-  HelpCircle 
+  HelpCircle,
+  FileDown,
+  FileUp,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -22,12 +25,16 @@ export const SyncSettingsTab: React.FC = () => {
     firebaseUser, 
     loginWithGoogle, 
     logoutFirebase, 
-    uploadAllToCloud 
+    uploadAllToCloud,
+    exportDataJSON,
+    importDataJSON
   } = useApp();
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonSuccess, setJsonSuccess] = useState<string | null>(null);
 
   const handleUploadAll = async () => {
     setIsUploading(true);
@@ -179,7 +186,100 @@ export const SyncSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. TRANSPARENTE KOSTENERKLÄRUNG (SPARK-PLAN) */}
+      {/* 2. MANUELLER WORKAROUND: JSON EXPORT/IMPORT */}
+      <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
+        <div className="flex items-center gap-3.5 mb-5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-xs">
+            <Database className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
+              Manueller Datentransfer (Workaround)
+            </h2>
+            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
+              Wenn die Cloud-Synchronisation nicht funktioniert, kannst du deine Daten hier manuell sichern oder übertragen.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Export */}
+          <div className="p-4 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] flex flex-col gap-3">
+            <div>
+              <h3 className="text-sm font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+                <FileDown className="w-4 h-4 text-emerald-500" />
+                Daten exportieren
+              </h3>
+              <p className="text-[11px] text-[var(--m3-on-surface-variant)] mt-1">
+                Lade alle Aufgaben, Mitglieder und Logs als Datei herunter.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const json = exportDataJSON();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `haushalt_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+              }}
+              className="m3-btn-tonal py-2 text-xs font-black w-full"
+            >
+              Backup herunterladen
+            </button>
+          </div>
+
+          {/* Import */}
+          <div className="p-4 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] flex flex-col gap-3">
+            <div>
+              <h3 className="text-sm font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+                <FileUp className="w-4 h-4 text-amber-500" />
+                Daten importieren
+              </h3>
+              <p className="text-[11px] text-[var(--m3-on-surface-variant)] mt-1">
+                Wähle eine Backup-Datei aus, um Daten in diesen Browser zu laden.
+              </p>
+            </div>
+            <label className="m3-btn-tonal py-2 text-xs font-black w-full text-center cursor-pointer">
+              Datei auswählen
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (re) => {
+                    const content = re.target?.result as string;
+                    if (importDataJSON(content)) {
+                      setJsonSuccess('Daten erfolgreich importiert! Die App wird neu geladen...');
+                      setJsonError(null);
+                      setTimeout(() => window.location.reload(), 2000);
+                    } else {
+                      setJsonError('Fehler beim Importieren. Ungültige Datei.');
+                      setJsonSuccess(null);
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {(jsonError || jsonSuccess) && (
+          <div className={`mt-4 p-3 rounded-xl flex items-center gap-2 text-xs font-bold ${
+            jsonError ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+          }`}>
+            {jsonError ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+            <span>{jsonError || jsonSuccess}</span>
+          </div>
+        )}
+      </div>
+
+      {/* 3. TRANSPARENTE KOSTENERKLÄRUNG (SPARK-PLAN) */}
       <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
         <div className="flex items-center gap-3.5 mb-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-xs">

@@ -45,25 +45,32 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </div>
-    <script type="module" src="src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
     <script>
-      // Safety timeout: If app hasn't loaded in 8 seconds, show help
+      // Fallback: If React doesn't mount in 4 seconds, show a manual start button
+      // and check if the script even loaded
       setTimeout(function() {
         var loading = document.getElementById('app-loading');
-        if (loading && loading.parentNode) {
+        if (loading && !document.querySelector('.m3-ambient-canvas')) {
           var help = document.createElement('div');
           help.style.padding = '20px';
           help.style.textAlign = 'center';
           help.style.color = '#64748b';
-          help.style.fontFamily = 'sans-serif';
-          help.innerHTML = '<p style="margin-bottom: 10px;">Laden dauert ungewöhnlich lange...</p>' +
-            '<div style="display: flex; gap: 8px; justify-content: center;">' +
-            '<button onclick="window.location.reload()" style="padding: 8px 16px; border-radius: 8px; background: #4f46e5; color: white; border: none; cursor: pointer;">Neu laden</button>' +
-            '<button onclick="localStorage.clear(); window.location.reload();" style="padding: 8px 16px; border-radius: 8px; background: #ef4444; color: white; border: none; cursor: pointer;">Cache leeren</button>' +
-            '</div>';
+          help.style.background = 'white';
+          help.style.borderRadius = '12px';
+          help.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+          help.style.margin = '20px';
+          help.innerHTML = '<h3 style="margin-bottom:10px;color:#1e293b">Start-Problem?</h3>' +
+            '<p style="font-size:14px;margin-bottom:16px">Die App konnte nicht automatisch starten.</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px">' +
+            '<button onclick="location.reload()" style="padding:10px;border-radius:8px;background:#4f46e5;color:white;border:none;cursor:pointer;font-weight:600">Seite neu laden</button>' +
+            '<button onclick="localStorage.clear();location.reload()" style="padding:10px;border-radius:8px;background:#ef4444;color:white;border:none;cursor:pointer;font-weight:600">Daten-Cache leeren</button>' +
+            '</div>' +
+            '<p style="margin-top:15px;font-size:11px">Hinweis: Auf GitHub Pages kann der erste Start etwas länger dauern.</p>';
+          loading.innerHTML = '';
           loading.appendChild(help);
         }
-      }, 8000);
+      }, 6000);
     </script>
   </body>
 </html>

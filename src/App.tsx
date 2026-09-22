@@ -14,8 +14,19 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
 const MainContent: React.FC = () => {
-  const { activeUser, isTutorialOpen, closeTutorial, completeTutorial } = useApp();
+  const { isAppLoaded, activeUser, isTutorialOpen, closeTutorial, completeTutorial } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'settings'>('dashboard');
+
+  // Hide the HTML loading screen when app is ready
+  useEffect(() => {
+    if (isAppLoaded) {
+      const loader = document.getElementById('app-loading');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 500);
+      }
+    }
+  }, [isAppLoaded]);
 
   // Modal states
   const [showProfileSelector, setShowProfileSelector] = useState(false);
