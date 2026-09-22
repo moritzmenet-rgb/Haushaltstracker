@@ -215,7 +215,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Test Firestore connection on boot
   useEffect(() => {
-    testFirestoreConnection();
+    try {
+      testFirestoreConnection();
+    } catch (e) {
+      console.error('Firestore connection test failed:', e);
+    }
   }, []);
 
   // Firebase Auth listener

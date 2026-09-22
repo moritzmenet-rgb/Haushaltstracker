@@ -45,31 +45,48 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </div>
-    <script type="module" src="src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Fallback: Show help if app doesn't mount
+      // Global error reporting for debugging on GitHub Pages
+      window.onerror = function(msg, url, line, col, error) {
+        var loading = document.getElementById('app-loading');
+        if (loading) {
+          var errBox = document.getElementById('debug-error');
+          if (!errBox) {
+            errBox = document.createElement('div');
+            errBox.id = 'debug-error';
+            errBox.style.color = '#ef4444';
+            errBox.style.fontSize = '11px';
+            errBox.style.marginTop = '15px';
+            errBox.style.padding = '10px';
+            errBox.style.background = '#fee2e2';
+            errBox.style.borderRadius = '8px';
+            errBox.style.maxWidth = '300px';
+            errBox.style.wordBreak = 'break-all';
+            loading.appendChild(errBox);
+          }
+          errBox.innerText = 'Fehler: ' + msg + '\nDatei: ' + url + '\nZeile: ' + line;
+        }
+        return false;
+      };
+
+      // Fallback: Show help if app doesn't mount in 4 seconds
       setTimeout(function() {
         var loading = document.getElementById('app-loading');
         if (loading) {
-          // Check if the app actually started by looking for a specific class or child in root
-          var isAppRunning = document.getElementById('root').children.length > 1;
+          var isAppRunning = document.getElementById('root').children.length > 0;
           if (!isAppRunning) {
-            loading.style.background = '#fef2f2';
-            loading.style.padding = '20px';
-            loading.style.borderRadius = '20px';
-            loading.style.border = '2px dashed #f87171';
-            
             var p = loading.querySelector('p');
-            if (p) {
-              p.style.color = '#991b1b';
-              p.innerHTML = '<strong>Start-Problem erkannt</strong><br><br>' +
-                'Die App lädt ungewöhnlich lange. Das passiert oft auf GitHub Pages beim ersten Mal.<br><br>' +
-                '<button onclick="location.reload()" style="padding:10px 20px;background:#4f46e5;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold;margin-right:10px">Neu laden</button>' +
-                '<button onclick="localStorage.clear();location.reload()" style="padding:10px 20px;background:#ef4444;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold">Cache leeren</button>';
+            if (p && !p.innerHTML.includes('Start-Problem')) {
+              p.style.color = '#1e293b';
+              p.innerHTML = '<strong style="color:#ef4444">Start-Problem erkannt</strong><br><br>' +
+                'Die App lädt ungewöhnlich lange. Bitte versuche:<br><br>' +
+                '<button onclick="location.reload()" style="padding:8px 16px;background:#4f46e5;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;margin-bottom:8px;width:100%">Seite neu laden</button><br>' +
+                '<button onclick="localStorage.clear();location.reload()" style="padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%">Daten-Cache leeren</button>';
             }
           }
         }
-      }, 4000);
+      }, 5000);
     </script>
   </body>
 </html>
