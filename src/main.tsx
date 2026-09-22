@@ -5,7 +5,8 @@ import './index.css';
 
 console.log('🚀 App booting...');
 
-// Register Service Worker for PWA
+// Register Service Worker for PWA - DISABLED TEMPORARILY FOR DEBUGGING
+/*
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
@@ -13,6 +14,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       .catch(err => console.error('❌ Service Worker registration failed', err));
   });
 }
+*/
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

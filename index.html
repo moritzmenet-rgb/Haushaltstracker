@@ -36,13 +36,13 @@
     </script>
   </head>
   <body class="h-full bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-50 transition-colors duration-200">
-    <div id="root" class="min-h-full flex flex-col">
-      <!-- Minimalist Inline Loader -->
-      <div id="app-loading" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: #f8fafc; flex-direction: column; gap: 16px;">
-        <div style="width: 40px; height: 40px; border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 14px;">Haushalt Tracker lädt...</p>
-      </div>
+    <!-- Minimalist Inline Loader (OUTSIDE root to prevent React from deleting it too early) -->
+    <div id="app-loading" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: #f8fafc; flex-direction: column; gap: 16px; transition: opacity 0.5s ease-out;">
+      <div style="width: 40px; height: 40px; border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 14px;">Haushalt Tracker lädt...</p>
     </div>
+
+    <div id="root" class="min-h-full flex flex-col"></div>
     
     <style>
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -57,8 +57,8 @@
         var loader = document.getElementById('app-loading');
         var root = document.getElementById('root');
         
-        // If loader is still fully visible and root hasn't been populated by React
-        if (loader && root && (root.children.length <= 1)) {
+        // If loader is still fully visible
+        if (loader && loader.style.display !== 'none' && loader.parentNode) {
           loader.style.background = '#ffffff';
           loader.innerHTML = '<div style="padding: 32px; text-align: center; max-width: 400px; font-family: system-ui, -apple-system, sans-serif;">' +
             '<div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>' +

@@ -20,6 +20,7 @@ const MainContent: React.FC = () => {
   // Hide the HTML loading screen when app is ready
   useEffect(() => {
     if (isAppLoaded) {
+      console.log('MainContent: isAppLoaded is true. Hiding loader...');
       const loader = document.getElementById('app-loading');
       if (loader) {
         loader.style.opacity = '0';

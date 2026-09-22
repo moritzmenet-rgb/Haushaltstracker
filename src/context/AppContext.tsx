@@ -113,7 +113,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Force app to show after 2 seconds even if sync is still connecting
   useEffect(() => {
+    console.log('AppContext: Initializing AppProvider...');
     const timer = setTimeout(() => {
+      console.log('AppContext: 2s Force-Load Triggered');
       setIsAppLoaded(true);
     }, 2000);
     return () => clearTimeout(timer);
@@ -209,6 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Update isAppLoaded when sync state is settled
   useEffect(() => {
+    console.log('AppContext: syncStatus changed:', syncStatus);
     if (syncStatus === 'synced' || syncStatus === 'error' || syncStatus === 'offline') {
       setIsAppLoaded(true);
     }
