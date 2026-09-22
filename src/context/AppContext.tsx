@@ -229,6 +229,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubHousehold = onSnapshot(
       householdRef,
       async (snap) => {
+        console.log('Firestore: Household snapshot received', snap.exists() ? 'exists' : 'does not exist');
         if (!snap.exists()) {
           if (!hasSeeded) {
             hasSeeded = true;
@@ -504,9 +505,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setSyncStatus('connecting');
       await signInWithPopup(auth, googleProvider);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
       setSyncStatus('error');
+      
+      // Handle unauthorized domain specifically
+      if (err.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        alert(`Diese Domain (${domain}) ist nicht für Firebase Authentication freigeschaltet.\n\nBitte füge sie in der Firebase Console unter "Authentication > Settings > Authorized Domains" hinzu.`);
+      } else {
+        alert(`Login fehlgeschlagen: ${err.message}`);
+      }
     }
   }, []);
 

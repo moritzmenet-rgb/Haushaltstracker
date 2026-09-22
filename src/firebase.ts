@@ -30,6 +30,16 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
   appId: "1:123:web:123"
 });
 
+if (import.meta.env.PROD) {
+  console.log('Firebase initialized for project:', isConfigValid ? firebaseConfig.projectId : 'MOCK');
+  if (typeof window !== 'undefined') {
+    console.log('Current Domain:', window.location.hostname);
+    if (window.location.hostname.includes('github.io')) {
+      console.info('Tip: Ensure your GitHub domain is added to "Authorized Domains" in Firebase Authentication settings.');
+    }
+  }
+}
+
 // Critical: specify databaseId as configured
 export const db = (isConfigValid && firebaseConfig.firestoreDatabaseId) 
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
@@ -88,9 +98,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Test connection on boot
 export async function testFirestoreConnection() {
   try {
+    console.log('Firebase: Testing connection...');
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
+    console.log('Firebase: Connection test finished.');
+  } catch (error: any) {
+    console.error('Firebase Connection Error:', error.code, error.message);
+    if (error.message.includes('the client is offline')) {
       console.warn('Firebase connection: client appears offline.');
     }
   }
