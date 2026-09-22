@@ -250,18 +250,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let hasSeeded = false;
 
+    let initialLoads = { household: false, members: false, tasks: false };
+    
+    const checkInitialSyncComplete = () => {
+      if (initialLoads.household && initialLoads.members && initialLoads.tasks) {
+        setSyncStatus('synced');
+      }
+    };
+
     // 1. Household settings listener
     const unsubHousehold = onSnapshot(
       householdRef,
       async (snap) => {
-        console.log('Firestore: Household snapshot received', snap.exists() ? 'exists' : 'does not exist');
         try {
           if (!snap.exists()) {
             if (!hasSeeded) {
               hasSeeded = true;
-              // Seed cloud database with initial data
               await seedAllDataToCloud(data);
-              setSyncStatus('synced');
             }
           } else {
             const hData = snap.data();
@@ -290,18 +295,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
                 return nextData;
               });
-              setSyncStatus('synced');
             }
           }
+          initialLoads.household = true;
+          checkInitialSyncComplete();
         } catch (err) {
           console.error('Error processing household snapshot:', err);
           setSyncStatus('error');
         }
       },
       (err) => {
-        console.warn('Household snapshot listener failed (likely permissions):', err.message);
+        console.warn('Household snapshot listener failed:', err.message);
         setSyncStatus('error');
-        // Do NOT throw here, as it blocks the listener
       }
     );
 
@@ -319,7 +324,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
           return nextData;
         });
-        setSyncStatus('synced');
+        initialLoads.members = true;
+        checkInitialSyncComplete();
       },
       (err) => {
         setSyncStatus('error');
@@ -341,7 +347,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
           return nextData;
         });
-        setSyncStatus('synced');
+        initialLoads.tasks = true;
+        checkInitialSyncComplete();
       },
       (err) => {
         setSyncStatus('error');

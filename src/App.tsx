@@ -25,12 +25,18 @@ const MainContent: React.FC = () => {
   const isDataEmpty = Object.keys(data.members).length === 0;
 
   useEffect(() => {
-    if (isAppLoaded && isDataEmpty && !firebaseUser) {
+    // Show onboarding if:
+    // 1. App is loaded
+    // 2. Local data is empty
+    // 3. User is NOT logged in OR sync is still connecting
+    const isConnecting = firebaseUser && (syncStatus === 'connecting' || syncStatus === 'error');
+    
+    if (isAppLoaded && isDataEmpty && (!firebaseUser || isConnecting)) {
       setShowCloudOnboarding(true);
     } else {
       setShowCloudOnboarding(false);
     }
-  }, [isAppLoaded, isDataEmpty, firebaseUser]);
+  }, [isAppLoaded, isDataEmpty, firebaseUser, syncStatus]);
 
   // Hide the HTML loading screen when app is ready
   useEffect(() => {

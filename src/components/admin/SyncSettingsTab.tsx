@@ -39,8 +39,23 @@ export const SyncSettingsTab: React.FC = () => {
 
   const [newEmail, setNewEmail] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleForceResync = async () => {
+    if (!window.confirm('Möchtest du den lokalen Cache leeren und alle Daten neu aus der Cloud laden? Deine lokalen (unsynchronisierten) Änderungen könnten verloren gehen.')) return;
+    
+    setIsResetting(true);
+    try {
+      localStorage.removeItem('household_chore_tracker_data_v3');
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsResetting(false);
+    }
+  };
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonSuccess, setJsonSuccess] = useState<string | null>(null);
 
@@ -170,6 +185,23 @@ export const SyncSettingsTab: React.FC = () => {
               </motion.button>
             )}
           </div>
+
+          {firebaseUser && (
+            <div className="mt-4 pt-4 border-t border-[var(--m3-outline-variant)]">
+              <button
+                onClick={handleForceResync}
+                disabled={isResetting}
+                className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition flex items-center gap-2"
+              >
+                {isResetting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                Lokalen Cache leeren & neu laden
+              </button>
+            </div>
+          )}
         </div>
 
         {firebaseError === 'unauthorized-domain' && (
