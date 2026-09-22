@@ -14,11 +14,11 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
-// Safe initialization
-const isConfigValid = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId;
+// FORCED DISABLE FOR DEBUGGING: Set this to false to bypass Firebase entirely
+export const isConfigValid = false; 
 
 if (!isConfigValid) {
-  console.warn('Firebase configuration is invalid or missing. Some features may not work.');
+  console.warn('Firebase is TEMPORARILY DISABLED for debugging.');
 }
 
 const app = initializeApp(isConfigValid ? firebaseConfig : {
@@ -97,6 +97,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Test connection on boot
 export async function testFirestoreConnection() {
+  if (!isConfigValid) {
+    console.log('Firebase: Connection test skipped (Disabled).');
+    return;
+  }
   try {
     console.log('Firebase: Testing connection...');
     await getDocFromServer(doc(db, 'test', 'connection'));

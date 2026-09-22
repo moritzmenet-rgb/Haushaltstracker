@@ -38,7 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     firebaseUser, 
     syncStatus, 
     loginWithGoogle,
-    isBayernMatchdayActive 
+    isBayernMatchdayActive,
+    isFirebaseDisabled
   } = useApp();
 
   const householdTitle = data.settings?.household_name || 'Haushalt';
@@ -146,7 +147,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Controls: Quick Log FAB + Cloud Sync + Theme + Profile Switcher */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Cloud Sync Status / Connect */}
-            {firebaseUser ? (
+            {isFirebaseDisabled ? (
+              <div 
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                title="Firebase ist aktuell deaktiviert (Test-Modus)"
+              >
+                <div className="w-2 h-2 rounded-full bg-rose-500" />
+                <Cloud className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Sync Deaktiviert</span>
+              </div>
+            ) : firebaseUser ? (
               <div 
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"
                 title={`Live synchronisiert über Firebase (${firebaseUser.email})`}
