@@ -19,17 +19,14 @@ service cloud.firestore {
     match /households/{householdId} {
       allow read, write: if isSignedIn();
       
-      match /members/{memberId} {
+      match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
+    }
 
-      match /tasks/{taskId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /logs/{logId} {
-        allow read, write: if isSignedIn();
-      }
+    // Allow connection test
+    match /test/connection {
+      allow read: if true;
     }
   }
 }
