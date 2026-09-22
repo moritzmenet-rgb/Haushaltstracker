@@ -128,6 +128,10 @@ const MainContent: React.FC = () => {
       <ProfileSelector
         isOpen={showProfileSelector || !activeUser}
         onClose={() => setShowProfileSelector(false)}
+        onOpenSettings={() => {
+          setCurrentTab('settings');
+          setShowProfileSelector(false);
+        }}
         canClose={!!activeUser}
       />
 

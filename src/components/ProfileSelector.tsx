@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, UserPlus, Sparkles, Check, Lock, KeyRound } from 'lucide-react';
+import { ShieldCheck, UserPlus, Sparkles, Check, Lock, KeyRound, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
 import { FamilyMember } from '../types';
@@ -9,12 +9,14 @@ import { PinModal } from './PinModal';
 interface ProfileSelectorProps {
   isOpen: boolean;
   onClose?: () => void;
+  onOpenSettings?: () => void;
   canClose?: boolean;
 }
 
 export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   isOpen,
   onClose,
+  onOpenSettings,
   canClose = false
 }) => {
   const { data, activeUser, isAdmin, setActiveUserId, addMember } = useApp();
@@ -84,6 +86,16 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
             className="w-full max-w-4xl text-center my-auto py-8 px-6 sm:px-10 rounded-[32px] bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] shadow-2xl relative"
           >
             {/* Header */}
+            <div className="absolute top-6 right-6 flex gap-2">
+              <button
+                onClick={onOpenSettings}
+                className="p-2.5 rounded-2xl bg-[var(--m3-surface-container-highest)] border border-[var(--m3-outline-variant)] text-[var(--m3-on-surface-variant)] hover:text-[var(--m3-primary)] transition shadow-sm group"
+                title="Einstellungen & Cloud-Sync"
+              >
+                <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
+              </button>
+            </div>
+
             <div className="mb-8 sm:mb-12">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] text-[var(--m3-on-surface-variant)] text-xs font-black uppercase tracking-wider mb-4 shadow-2xs">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />

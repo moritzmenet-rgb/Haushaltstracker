@@ -52,6 +52,7 @@ export interface FamilySettings {
   rollover_surplus_factor?: number; // Surplus roll-over factor in % (e.g. 100%)
   rollover_deficit_factor?: number; // Deficit roll-over factor in % (e.g. 100%)
   week_start_day?: 'monday' | 'sunday' | 'saturday';
+  allowed_emails?: string[];
 }
 
 export interface FamilyData {

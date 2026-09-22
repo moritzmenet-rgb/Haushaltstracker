@@ -16,11 +16,19 @@ service cloud.firestore {
       );
     }
 
+    function isAllowed(householdId) {
+      let household = get(/databases/$(database)/documents/households/$(householdId));
+      return isSignedIn() && (
+        isAdmin() || 
+        (household.data.allowed_emails != null && request.auth.token.email in household.data.allowed_emails)
+      );
+    }
+
     match /households/{householdId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() && (isAdmin() || resource == null || request.auth.token.email in resource.data.allowed_emails);
       
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() && (isAdmin() || get(/databases/$(database)/documents/households/$(householdId)).data.allowed_emails != null && request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.allowed_emails);
       }
     }
 

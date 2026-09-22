@@ -16,7 +16,11 @@ import {
   HelpCircle,
   FileDown,
   FileUp,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  UserPlus2,
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -28,9 +32,12 @@ export const SyncSettingsTab: React.FC = () => {
     logoutFirebase, 
     uploadAllToCloud,
     exportDataJSON,
-    importDataJSON
+    importDataJSON,
+    data,
+    updateSettings
   } = useApp();
 
+  const [newEmail, setNewEmail] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -48,6 +55,29 @@ export const SyncSettingsTab: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleAddEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail.trim() || !newEmail.includes('@')) return;
+    
+    const currentEmails = data.settings.allowed_emails || [];
+    if (currentEmails.includes(newEmail.trim().toLowerCase())) {
+      setNewEmail('');
+      return;
+    }
+    
+    updateSettings({
+      allowed_emails: [...currentEmails, newEmail.trim().toLowerCase()]
+    });
+    setNewEmail('');
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    const currentEmails = data.settings.allowed_emails || [];
+    updateSettings({
+      allowed_emails: currentEmails.filter(e => e !== email)
+    });
   };
 
   const handleCopyAppUrl = () => {
@@ -247,6 +277,114 @@ export const SyncSettingsTab: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* CLOUD WHITELIST: FREIGABEN FÜR ANDERE GOOGLE-KONTEN */}
+      {firebaseUser && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-sm"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 rounded-2xl bg-[var(--m3-primary)] text-white shadow-sm">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
+                Familien-Zugriff (Whitelist)
+              </h2>
+              <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
+                Wer darf diesen Haushalt mit seinem eigenen Google-Konto sehen?
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Add Email Form */}
+            <form onSubmit={handleAddEmail} className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--m3-outline)]" />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="E-Mail des Familienmitglieds..."
+                  className="w-full pl-10 pr-4 py-2.5 text-sm font-bold rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)] placeholder-[var(--m3-outline)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)] shadow-xs transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!newEmail.trim() || !newEmail.includes('@')}
+                className="m3-btn-filled px-5 py-2.5 text-xs font-black disabled:opacity-40 disabled:grayscale whitespace-nowrap"
+              >
+                <UserPlus2 className="w-4 h-4 mr-2" />
+                Hinzufügen
+              </button>
+            </form>
+
+            {/* Email List */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] uppercase font-black text-[var(--m3-on-surface-variant)] tracking-wider px-1">
+                Berechtigte Google-Konten
+              </h3>
+              <div className="space-y-2">
+                {/* Owner is always listed but cannot be removed */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                      <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-[var(--m3-on-surface)]">
+                        moritz.menet.bfsu@gmail.com
+                      </span>
+                      <span className="text-[10px] font-bold text-indigo-500 uppercase">Besitzer / Admin</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Whitelisted Emails */}
+                {data.settings.allowed_emails && data.settings.allowed_emails.length > 0 ? (
+                  data.settings.allowed_emails.map((email) => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      key={email}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] shadow-2xs group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[var(--m3-surface-container-high)] flex items-center justify-center border border-[var(--m3-outline-variant)]">
+                          <Mail className="w-4 h-4 text-[var(--m3-on-surface-variant)]" />
+                        </div>
+                        <span className="text-xs font-bold text-[var(--m3-on-surface)]">{email}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveEmail(email)}
+                        className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100"
+                        title="Zugriff entziehen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 px-6 rounded-2xl border border-dashed border-[var(--m3-outline-variant)] text-[var(--m3-on-surface-variant)] text-[11px] font-medium italic">
+                    Noch keine weiteren Familienmitglieder hinzugefügt.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+              <HelpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+              <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed font-medium">
+                <strong>Hinweis:</strong> Eingetragene Personen müssen sich auf ihrem Gerät mit diesem Google-Konto anmelden, um Zugriff auf den Haushalt zu erhalten.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* 2. MANUELLER WORKAROUND: JSON EXPORT/IMPORT */}
       <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">

@@ -284,6 +284,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     rollover_min_target: hData.rollover_min_target ?? prev.settings.rollover_min_target,
                     rollover_max_target: hData.rollover_max_target ?? prev.settings.rollover_max_target,
                     week_start_day: hData.week_start_day || prev.settings.week_start_day,
+                    allowed_emails: hData.allowed_emails || prev.settings.allowed_emails,
                   }
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));

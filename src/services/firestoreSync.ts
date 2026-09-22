@@ -48,6 +48,7 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
       rollover_min_target: data.settings.rollover_min_target ?? 10,
       rollover_max_target: data.settings.rollover_max_target ?? 200,
       week_start_day: data.settings.week_start_day || 'monday',
+      allowed_emails: data.settings.allowed_emails || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -269,6 +270,7 @@ export async function saveSettingsToCloud(settings: FamilySettings): Promise<voi
       rollover_min_target: settings.rollover_min_target ?? 10,
       rollover_max_target: settings.rollover_max_target ?? 200,
       week_start_day: settings.week_start_day || 'monday',
+      allowed_emails: settings.allowed_emails || [],
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (error) {
