@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#4F46E5" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#brandGrad)"/>
+  <g transform="translate(106, 106)" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#softGlow)">
+    <!-- House outline -->
+    <path d="M30 140 L150 40 L270 140 V260 C270 270 262 278 252 278 H48 C38 278 30 270 30 260 Z" />
+    <!-- Door -->
+    <path d="M120 278 V190 C120 180 128 172 138 172 H162 C172 172 180 180 180 190 V278" />
+    <!-- Checkmark spark on top right -->
+    <path d="M210 60 L240 90 L300 30" stroke="#34D399" stroke-width="28" />
+  </g>
+</svg>

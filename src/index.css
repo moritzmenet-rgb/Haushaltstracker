@@ -1,0 +1,635 @@
+@import "tailwindcss";
+
+@layer base {
+  :root, [data-theme="indigo"] {
+    --m3-primary: #4F46E5;
+    --m3-primary-hover: #4338CA;
+    --m3-primary-container: #E0E0FF;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #100068;
+
+    --m3-secondary: #5B5D72;
+    --m3-secondary-container: #E0E1F9;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #181A2C;
+
+    --m3-tertiary: #77536D;
+    --m3-tertiary-container: #FFD7F3;
+    --m3-on-tertiary: #FFFFFF;
+    --m3-on-tertiary-container: #2E1127;
+
+    --m3-surface: #FAF8FD;
+    --m3-surface-container-lowest: #FFFFFF;
+    --m3-surface-container-low: #F5F2F8;
+    --m3-surface-container: #EFEBF2;
+    --m3-surface-container-high: #E9E6EC;
+    --m3-surface-container-highest: #E3E0E6;
+
+    --m3-on-surface: #1B1B1F;
+    --m3-on-surface-variant: #45464F;
+    --m3-outline: #767680;
+    --m3-outline-variant: #C6C5D0;
+
+    --m3-error: #BA1A1A;
+    --m3-error-container: #FFDAD6;
+    --m3-on-error: #FFFFFF;
+    --m3-on-error-container: #410002;
+
+    /* Legacy colors mapped to M3 tonal system */
+    --color-primary: #4F46E5;
+    --color-primary-hover: #4338CA;
+    --color-primary-light: #E0E0FF;
+    --color-primary-border: #C6C5D0;
+    --color-primary-text: #4F46E5;
+  }
+
+  [data-theme="emerald"] {
+    --m3-primary: #006C4C;
+    --m3-primary-hover: #005239;
+    --m3-primary-container: #89F8C7;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #002114;
+
+    --m3-secondary: #4D6357;
+    --m3-secondary-container: #CFE9D9;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #0B1F16;
+
+    --m3-tertiary: #3D6473;
+    --m3-tertiary-container: #C1E9FB;
+    --m3-on-tertiary: #FFFFFF;
+    --m3-on-tertiary-container: #001F29;
+
+    --m3-surface: #F5FAF6;
+    --m3-surface-container-lowest: #FFFFFF;
+    --m3-surface-container-low: #EFF5F0;
+    --m3-surface-container: #E9EFEA;
+    --m3-surface-container-high: #E4EAE4;
+    --m3-surface-container-highest: #DEE4DF;
+
+    --color-primary: #006C4C;
+    --color-primary-hover: #005239;
+    --color-primary-light: #89F8C7;
+  }
+
+  [data-theme="rose"] {
+    --m3-primary: #BA1A5D;
+    --m3-primary-hover: #970D48;
+    --m3-primary-container: #FFD9E2;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #3E001A;
+
+    --m3-secondary: #74565F;
+    --m3-secondary-container: #FFD9E2;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #2B151C;
+
+    --m3-tertiary: #7C5635;
+    --m3-tertiary-container: #FFDCC1;
+    --m3-on-tertiary: #FFFFFF;
+    --m3-on-tertiary-container: #2E1500;
+
+    --m3-surface: #FFF8F8;
+    --m3-surface-container-lowest: #FFFFFF;
+    --m3-surface-container-low: #FAF1F2;
+    --m3-surface-container: #F5EBEC;
+    --m3-surface-container-high: #EFE5E6;
+    --m3-surface-container-highest: #E9E0E1;
+
+    --color-primary: #BA1A5D;
+    --color-primary-hover: #970D48;
+    --color-primary-light: #FFD9E2;
+  }
+
+  [data-theme="amber"] {
+    --m3-primary: #825500;
+    --m3-primary-hover: #654100;
+    --m3-primary-container: #FFDDB2;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #2A1800;
+
+    --m3-secondary: #6F5B40;
+    --m3-secondary-container: #FBE0BE;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #271904;
+
+    --m3-tertiary: #516440;
+    --m3-tertiary-container: #D3EABB;
+    --m3-on-tertiary: #FFFFFF;
+    --m3-on-tertiary-container: #101F04;
+
+    --m3-surface: #FFF8F4;
+    --m3-surface-container-lowest: #FFFFFF;
+    --m3-surface-container-low: #F9F2EB;
+    --m3-surface-container: #F4ECE5;
+    --m3-surface-container-high: #EEE6DF;
+    --m3-surface-container-highest: #E8E1DA;
+
+    --color-primary: #825500;
+    --color-primary-hover: #654100;
+    --color-primary-light: #FFDDB2;
+  }
+
+  [data-theme="bayern"] {
+    --m3-primary: #DC052D; /* FC Bayern Rot */
+    --m3-primary-hover: #B80024;
+    --m3-primary-container: #FFEBEF;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #4A000C;
+
+    --m3-secondary: #0066B2; /* FC Bayern Blau */
+    --m3-secondary-container: #DCEEFF;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #001F3B;
+
+    --m3-tertiary: #004F9F;
+    --m3-tertiary-container: #CCE4FF;
+    --m3-on-tertiary: #FFFFFF;
+    --m3-on-tertiary-container: #001A38;
+
+    --m3-surface: #FFFFFF;
+    --m3-surface-container-lowest: #FFFFFF;
+    --m3-surface-container-low: #F6F8FC;
+    --m3-surface-container: #EDF2F8;
+    --m3-surface-container-high: #E3EBF4;
+    --m3-surface-container-highest: #D9E4EE;
+
+    --color-primary: #DC052D;
+    --color-primary-hover: #B80024;
+    --color-primary-light: #FFEBEF;
+  }
+
+  /* Dark mode Material 3 Tonal system */
+  .dark {
+    --m3-primary: #BEC2FF;
+    --m3-primary-hover: #A5AAFF;
+    --m3-primary-container: #3733A0;
+    --m3-on-primary: #1B1089;
+    --m3-on-primary-container: #E0E0FF;
+
+    --m3-secondary: #C4C5DD;
+    --m3-secondary-container: #434559;
+    --m3-on-secondary: #2D2F42;
+    --m3-on-secondary-container: #E0E1F9;
+
+    --m3-tertiary: #E5B8DA;
+    --m3-tertiary-container: #5D3C55;
+    --m3-on-tertiary: #44243D;
+    --m3-on-tertiary-container: #FFD7F3;
+
+    --m3-surface: #131318;
+    --m3-surface-container-lowest: #0E0E13;
+    --m3-surface-container-low: #1B1B20;
+    --m3-surface-container: #1F1F24;
+    --m3-surface-container-high: #2A292F;
+    --m3-surface-container-highest: #35343A;
+
+    --m3-on-surface: #E4E1E6;
+    --m3-on-surface-variant: #C6C5D0;
+    --m3-outline: #90909A;
+    --m3-outline-variant: #45464F;
+
+    --m3-error: #FFB4AB;
+    --m3-error-container: #93000A;
+    --m3-on-error: #690005;
+    --m3-on-error-container: #FFDAD6;
+
+    --color-primary: #BEC2FF;
+    --color-primary-hover: #A5AAFF;
+    --color-primary-light: rgba(190, 194, 255, 0.2);
+  }
+
+  .dark[data-theme="emerald"] {
+    --m3-primary: #6CDBAC;
+    --m3-primary-hover: #86F2C2;
+    --m3-primary-container: #005138;
+    --m3-on-primary: #003825;
+    --m3-on-primary-container: #89F8C7;
+
+    --m3-surface: #101412;
+    --m3-surface-container-low: #181C1A;
+    --m3-surface-container: #1C211E;
+    --m3-surface-container-high: #272B28;
+    --m3-surface-container-highest: #323633;
+  }
+
+  .dark[data-theme="rose"] {
+    --m3-primary: #FFB1C8;
+    --m3-primary-hover: #FFC4D5;
+    --m3-primary-container: #8D0041;
+    --m3-on-primary: #65002D;
+    --m3-on-primary-container: #FFD9E2;
+
+    --m3-surface: #181113;
+    --m3-surface-container-low: #21191B;
+    --m3-surface-container: #261D1F;
+    --m3-surface-container-high: #312729;
+    --m3-surface-container-highest: #3C3234;
+  }
+
+  .dark[data-theme="amber"] {
+    --m3-primary: #FFB959;
+    --m3-primary-hover: #FFC97D;
+    --m3-primary-container: #644000;
+    --m3-on-primary: #452B00;
+    --m3-on-primary-container: #FFDDB2;
+
+    --m3-surface: #17130E;
+    --m3-surface-container-low: #201A14;
+    --m3-surface-container: #251F18;
+    --m3-surface-container-high: #302922;
+    --m3-surface-container-highest: #3B342C;
+  }
+
+  .dark[data-theme="bayern"] {
+    --m3-primary: #FF4A6B; /* Vibrant Bayern Rot */
+    --m3-primary-hover: #FF6E87;
+    --m3-primary-container: #820018;
+    --m3-on-primary: #45000A;
+    --m3-on-primary-container: #FFDADE;
+
+    --m3-secondary: #4DA7FF; /* Bayern Himmelsblau */
+    --m3-secondary-container: #00437A;
+    --m3-on-secondary: #00284D;
+    --m3-on-secondary-container: #CCE5FF;
+
+    --m3-tertiary: #80C0FF;
+    --m3-tertiary-container: #003666;
+    --m3-on-tertiary: #002244;
+    --m3-on-tertiary-container: #CCE7FF;
+
+    --m3-surface: #0B0E14; /* Deep Bavaria Dark */
+    --m3-surface-container-lowest: #07090E;
+    --m3-surface-container-low: #121722;
+    --m3-surface-container: #18202E;
+    --m3-surface-container-high: #212B3D;
+    --m3-surface-container-highest: #2C3950;
+
+    --color-primary: #FF4A6B;
+    --color-primary-hover: #FF6E87;
+    --color-primary-light: rgba(255, 74, 107, 0.2);
+  }
+
+  body {
+    font-family: 'Outfit', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    background-color: var(--m3-surface);
+    color: var(--m3-on-surface);
+    transition: background-color 0.25s cubic-bezier(0.2, 0, 0, 1), color 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+/* =========================================================================
+   GOOGLE MATERIAL 3 EXPRESSIVE UTILITIES
+   ========================================================================= */
+
+/* Elevation Shadows (Ambient + Key Shadows according to M3 Spec) */
+.m3-elevation-0 {
+  box-shadow: none !important;
+}
+
+.m3-elevation-1 {
+  box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.12) !important;
+}
+
+.m3-elevation-2 {
+  box-shadow: 0px 2px 6px 2px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.14) !important;
+}
+
+.m3-elevation-3 {
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.1), 0px 1px 3px 0px rgba(0, 0, 0, 0.15) !important;
+}
+
+.m3-elevation-4 {
+  box-shadow: 0px 6px 10px 4px rgba(0, 0, 0, 0.1), 0px 2px 3px 0px rgba(0, 0, 0, 0.15) !important;
+}
+
+.m3-elevation-5 {
+  box-shadow: 0px 8px 14px 6px rgba(0, 0, 0, 0.12), 0px 4px 4px 0px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Material 3 Expressive Tonal Surfaces */
+.bg-m3-surface {
+  background-color: var(--m3-surface) !important;
+}
+.bg-m3-surface-low {
+  background-color: var(--m3-surface-container-low) !important;
+}
+.bg-m3-surface-container {
+  background-color: var(--m3-surface-container) !important;
+}
+.bg-m3-surface-high {
+  background-color: var(--m3-surface-container-high) !important;
+}
+.bg-m3-surface-highest {
+  background-color: var(--m3-surface-container-highest) !important;
+}
+.bg-m3-primary-container {
+  background-color: var(--m3-primary-container) !important;
+  color: var(--m3-on-primary-container) !important;
+}
+.bg-m3-secondary-container {
+  background-color: var(--m3-secondary-container) !important;
+  color: var(--m3-on-secondary-container) !important;
+}
+.bg-m3-tertiary-container {
+  background-color: var(--m3-tertiary-container) !important;
+  color: var(--m3-on-tertiary-container) !important;
+}
+
+/* Material 3 Expressive Cards */
+.m3-card-elevated,
+.liquid-glass-card,
+.apple-glass-card {
+  background-color: var(--m3-surface-container-low);
+  border-radius: 24px;
+  box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--m3-outline-variant);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease-out, background-color 0.2s ease;
+}
+
+.m3-card-elevated:hover,
+.liquid-glass-card:hover,
+.apple-glass-card:hover {
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.1), 0px 1px 3px 0px rgba(0, 0, 0, 0.15);
+}
+
+.m3-card-filled {
+  background-color: var(--m3-surface-container-highest);
+  border-radius: 24px;
+  border: none;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+}
+
+.m3-card-outlined {
+  background-color: var(--m3-surface);
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 24px;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+}
+
+/* M3 Expressive Floating Action Button (FAB) */
+.m3-fab {
+  border-radius: 20px;
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.12), 0px 1px 3px 0px rgba(0, 0, 0, 0.16);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.m3-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 6px 12px 4px rgba(0, 0, 0, 0.15), 0px 2px 4px 0px rgba(0, 0, 0, 0.18);
+}
+.m3-fab:active {
+  transform: scale(0.95);
+}
+
+.m3-fab-primary {
+  border-radius: 20px;
+  background-color: var(--m3-primary);
+  color: var(--m3-on-primary);
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.16), 0px 1px 3px 0px rgba(0, 0, 0, 0.18);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.m3-fab-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 6px 12px 4px rgba(0, 0, 0, 0.2), 0px 2px 4px 0px rgba(0, 0, 0, 0.2);
+}
+.m3-fab-primary:active {
+  transform: scale(0.95);
+}
+
+/* M3 Expressive Filter & Assist Chips */
+.m3-chip,
+.apple-glass-pill,
+.liquid-glass-pill {
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--m3-outline-variant);
+  background-color: var(--m3-surface);
+  color: var(--m3-on-surface-variant);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.m3-chip:hover,
+.apple-glass-pill:hover,
+.liquid-glass-pill:hover {
+  background-color: var(--m3-surface-container-high);
+  color: var(--m3-on-surface);
+}
+
+.m3-chip-selected {
+  border: 1px solid transparent !important;
+  background-color: var(--m3-secondary-container) !important;
+  color: var(--m3-on-secondary-container) !important;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* M3 Expressive Navigation Bar & Top App Bar */
+.m3-top-app-bar,
+.apple-glass-nav {
+  background-color: var(--m3-surface);
+  border-bottom: 1px solid var(--m3-outline-variant);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.m3-nav-bar,
+.apple-glass-dock {
+  background-color: var(--m3-surface-container);
+  border-radius: 32px;
+  border: 1px solid var(--m3-outline-variant);
+  box-shadow: 0px 4px 12px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* M3 Iconic Active Pill Indicator */
+.m3-active-indicator,
+.apple-glass-segment {
+  background-color: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border-radius: 20px;
+}
+
+/* Material 3 Expressive Sliders */
+.m3-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--m3-surface-container-highest);
+  outline: none;
+  transition: background 0.2s;
+}
+
+.m3-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--m3-primary);
+  border: 4px solid var(--m3-surface-container-lowest);
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+}
+
+.m3-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.m3-slider::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+  box-shadow: 0px 0px 0px 10px rgba(79, 70, 229, 0.15);
+}
+
+.m3-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--m3-primary);
+  border: 4px solid var(--m3-surface-container-lowest);
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Material 3 Expressive Tonal Buttons */
+.m3-btn-filled {
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 9999px;
+  background-color: var(--m3-primary);
+  color: var(--m3-on-primary);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.15);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.m3-btn-filled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.2);
+}
+.m3-btn-filled:active {
+  transform: scale(0.97);
+}
+
+.m3-btn-tonal {
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 9999px;
+  background-color: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.m3-btn-tonal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.12);
+}
+.m3-btn-tonal:active {
+  transform: scale(0.97);
+}
+
+.m3-btn-outlined {
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 9999px;
+  background-color: transparent;
+  border: 1px solid var(--m3-outline);
+  color: var(--m3-primary);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.m3-btn-outlined:hover {
+  background-color: var(--m3-surface-container-high);
+}
+.m3-btn-outlined:active {
+  transform: scale(0.97);
+}
+
+/* Subtle Material Dynamic Background Canvas */
+.m3-ambient-canvas {
+  position: relative;
+  background-color: var(--m3-surface);
+}
+
+/* Material 3 Expressive Interactive Pulse / Float */
+@keyframes m3-bouncy-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-m3-pop {
+  animation: m3-bouncy-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Material 3 Dialog Frame */
+.m3-dialog {
+  border-radius: 28px;
+  background-color: var(--m3-surface-container-high);
+  border: 1px solid var(--m3-outline-variant);
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Clean scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--m3-outline-variant);
+  border-radius: 9999px;
+}
+
+/* Playful Button Spring Bounce & Elastic Feedback */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.interactive-playful {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.16s ease,
+              background-color 0.15s ease,
+              border-color 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+.interactive-playful:active {
+  transform: scale(0.92) translateY(1px);
+}
+
+/* Playful Star Wiggle Keyframes */
+@keyframes playful-star-wiggle {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.35) rotate(-14deg); }
+  50% { transform: scale(1.15) rotate(14deg); }
+  75% { transform: scale(1.25) rotate(-6deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.animate-playful-wiggle {
+  animation: playful-star-wiggle 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+

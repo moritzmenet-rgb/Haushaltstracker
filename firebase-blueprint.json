@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "Household": {
+      "title": "Household",
+      "description": "Represents the shared family/flatshare household profile and general settings",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the household",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the family or household",
+          "maxLength": 100
+        },
+        "default_weekly_target": {
+          "type": "number",
+          "description": "Default weekly points goal for new members"
+        },
+        "categories": {
+          "type": "array",
+          "description": "List of chore categories in the household"
+        },
+        "last_reset_date": {
+          "type": "string",
+          "description": "ISO timestamp of the last weekly rollover reset",
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when household was created",
+          "maxLength": 40
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp when household was last updated",
+          "maxLength": 40
+        }
+      },
+      "required": ["id", "name", "default_weekly_target", "categories"]
+    },
+    "FamilyMember": {
+      "title": "FamilyMember",
+      "description": "Represents a household member with points and weekly target",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the family member",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the member",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "description": "Role in household",
+          "enum": ["admin", "member"]
+        },
+        "avatar_color": {
+          "type": "string",
+          "description": "Hex color code for the avatar circle",
+          "maxLength": 20
+        },
+        "total_points": {
+          "type": "number",
+          "description": "All-time accumulated points"
+        },
+        "weekly_target": {
+          "type": "number",
+          "description": "Personal target points per week"
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference ID of the parent household",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "name", "role", "avatar_color", "total_points", "weekly_target", "householdId"]
+    },
+    "TaskItem": {
+      "title": "TaskItem",
+      "description": "A chore definition in the catalog",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for the chore task",
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the task",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed notes or checklist for the task",
+          "maxLength": 500
+        },
+        "category": {
+          "type": "string",
+          "description": "Category for filtering",
+          "maxLength": 50
+        },
+        "base_points": {
+          "type": "number",
+          "description": "Base points awarded for 2-star normal quality"
+        },
+        "estimated_duration": {
+          "type": "number",
+          "description": "Estimated duration in minutes"
+        },
+        "interval_days": {
+          "type": "number",
+          "description": "Recommended repetition interval in days"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "Name or ID of creator",
+          "maxLength": 64
+        },
+        "last_done": {
+          "type": "string",
+          "description": "ISO timestamp of when this chore was last completed",
+          "maxLength": 40
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Parent household ID",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "title", "category", "base_points", "estimated_duration", "interval_days", "householdId"]
+    },
+    "ChoreLog": {
+      "title": "ChoreLog",
+      "description": "A log entry recording an executed chore",
+      "type": "object",
+      "properties": {
+        "log_id": {
+          "type": "string",
+          "description": "Unique log ID",
+          "maxLength": 64
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Associated task ID",
+          "maxLength": 64
+        },
+        "user_id": {
+          "type": "string",
+          "description": "ID of member who performed the chore",
+          "maxLength": 64
+        },
+        "stars": {
+          "type": "number",
+          "description": "Quality rating: 1, 2, or 3 stars",
+          "enum": [1, 2, 3]
+        },
+        "points_awarded": {
+          "type": "number",
+          "description": "Computed points awarded including quality factor"
+        },
+        "actual_duration": {
+          "type": "number",
+          "description": "Actual duration spent in minutes"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp when the task was executed",
+          "maxLength": 40
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or comments",
+          "maxLength": 300
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Parent household ID",
+          "maxLength": 64
+        }
+      },
+      "required": ["log_id", "task_id", "user_id", "stars", "points_awarded", "actual_duration", "timestamp", "householdId"]
+    }
+  },
+  "firestore": {
+    "/households/{householdId}": {
+      "schema": "Household",
+      "description": "Main household configuration, categories, and cycle settings"
+    },
+    "/households/{householdId}/members/{memberId}": {
+      "schema": "FamilyMember",
+      "description": "Family members participating in chores and points tracking"
+    },
+    "/households/{householdId}/tasks/{taskId}": {
+      "schema": "TaskItem",
+      "description": "Catalog of chores with intervals, points, and durations"
+    },
+    "/households/{householdId}/logs/{logId}": {
+      "schema": "ChoreLog",
+      "description": "Historical log entries of completed household chores"
+    }
+  }
+}

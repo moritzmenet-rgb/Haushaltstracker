@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'moritz.menet.bfsu@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Household document validation
+    function isValidHousehold(data) {
+      return data.id is string && data.id.size() <= 64 &&
+             data.default_weekly_target is number &&
+             data.categories is list && data.categories.size() <= 30;
+    }
+
+    // Family Member validation
+    function isValidFamilyMember(data) {
+      return data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 50 &&
+             data.role in ['admin', 'member'] &&
+             data.avatar_color is string && data.avatar_color.size() <= 20 &&
+             data.total_points is number &&
+             data.weekly_target is number &&
+             data.householdId is string && data.householdId.size() <= 64;
+    }
+
+    // Task Item validation
+    function isValidTaskItem(data) {
+      return data.id is string && data.id.size() <= 64 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.base_points is number &&
+             data.estimated_duration is number &&
+             data.interval_days is number &&
+             data.householdId is string && data.householdId.size() <= 64;
+    }
+
+    // Chore Log validation
+    function isValidChoreLog(data) {
+      return data.log_id is string && data.log_id.size() <= 64 &&
+             data.task_id is string && data.task_id.size() <= 64 &&
+             data.user_id is string && data.user_id.size() <= 64 &&
+             data.stars in [1, 2, 3] &&
+             data.points_awarded is number &&
+             data.actual_duration is number &&
+             data.timestamp is string && data.timestamp.size() <= 40 &&
+             data.householdId is string && data.householdId.size() <= 64;
+    }
+
+    match /households/{householdId} {
+      allow get: if isSignedIn() && isValidId(householdId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow update: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow delete: if isAdmin() && isValidId(householdId);
+
+      match /members/{memberId} {
+        allow get: if isSignedIn() && isValidId(memberId);
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(memberId) && isValidFamilyMember(request.resource.data);
+        allow update: if isSignedIn() && isValidId(memberId) && isValidFamilyMember(request.resource.data);
+        allow delete: if (isAdmin() || isSignedIn()) && isValidId(memberId);
+      }
+
+      match /tasks/{taskId} {
+        allow get: if isSignedIn() && isValidId(taskId);
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(taskId) && isValidTaskItem(request.resource.data);
+        allow update: if isSignedIn() && isValidId(taskId) && isValidTaskItem(request.resource.data);
+        allow delete: if (isAdmin() || isSignedIn()) && isValidId(taskId);
+      }
+
+      match /logs/{logId} {
+        allow get: if isSignedIn() && isValidId(logId);
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(logId) && isValidChoreLog(request.resource.data);
+        allow update: if isSignedIn() && isValidId(logId) && isValidChoreLog(request.resource.data);
+        allow delete: if (isAdmin() || isSignedIn()) && isValidId(logId);
+      }
+    }
+  }
+}

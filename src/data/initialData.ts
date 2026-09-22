@@ -1,0 +1,22 @@
+import { FamilyData } from '../types';
+
+export const INITIAL_FAMILY_DATA: FamilyData = {
+  settings: {
+    household_name: 'Unser Haushalt',
+    default_weekly_target: 50,
+    categories: ['Küche', 'Bad', 'Wohnbereich', 'Schlafzimmer', 'Garten', 'Allgemein'],
+    last_reset_date: new Date().toISOString(),
+    color_theme: 'indigo',
+    star_multiplier_1: 50,
+    star_multiplier_2: 75,
+    star_multiplier_3: 100,
+    rollover_surplus_factor: 100,
+    rollover_deficit_factor: 100,
+    rollover_min_target: 10,
+    rollover_max_target: 200,
+    week_start_day: 'monday'
+  },
+  members: {},
+  tasks: {},
+  logs: []
+};
