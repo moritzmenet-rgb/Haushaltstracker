@@ -23,6 +23,7 @@ import { useApp } from '../../context/AppContext';
 export const SyncSettingsTab: React.FC = () => {
   const { 
     firebaseUser, 
+    firebaseError,
     loginWithGoogle, 
     logoutFirebase, 
     uploadAllToCloud,
@@ -140,6 +141,67 @@ export const SyncSettingsTab: React.FC = () => {
             )}
           </div>
         </div>
+
+        {firebaseError === 'unauthorized-domain' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-6 p-5 rounded-3xl bg-rose-500/10 border-2 border-rose-500/20 text-rose-700 dark:text-rose-400"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-rose-500 text-white shadow-sm">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-wider">Domain nicht autorisiert</h3>
+            </div>
+            
+            <p className="text-xs leading-relaxed mb-4 font-bold opacity-90">
+              Firebase blockiert den Login von dieser Seite, weil die Adresse noch nicht in deiner "Whitelist" steht.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-[var(--m3-surface)] border border-rose-500/20 shadow-xs space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-black opacity-60">1. Kopiere diese Adresse:</label>
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]">
+                  <code className="text-xs font-mono font-bold flex-1 truncate">{window.location.hostname}</code>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.hostname);
+                      setUploadSuccess('Domain kopiert!');
+                      setTimeout(() => setUploadSuccess(null), 2000);
+                    }}
+                    className="p-1.5 rounded-lg bg-[var(--m3-primary)] text-white hover:opacity-90 transition"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-black opacity-60">2. In Firebase Console einfügen:</label>
+                <a 
+                  href="https://console.firebase.google.com/project/household-411e7/authentication/settings" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-highest)] transition group"
+                >
+                  <span className="text-xs font-bold underline">Einstellungen öffnen</span>
+                  <Share2 className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" />
+                </a>
+                <p className="text-[10px] opacity-70 italic mt-1">
+                  Dort unter "Authorized Domains" auf "Add Domain" klicken.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {firebaseError && firebaseError !== 'unauthorized-domain' && (
+          <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>Fehler: {firebaseError}</span>
+          </div>
+        )}
 
         {uploadSuccess && (
           <motion.div

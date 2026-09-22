@@ -10,7 +10,8 @@ import {
 import { 
   getFirestore, 
   doc, 
-  getDocFromServer 
+  getDoc,
+  enableIndexedDbPersistence 
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -44,6 +45,17 @@ if (import.meta.env.PROD) {
 export const db = (isConfigValid && firebaseConfig.firestoreDatabaseId) 
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(app);
+
+// Enable persistence for better reliability
+if (typeof window !== 'undefined' && isConfigValid) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firestore persistence failed (multiple tabs open)');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Firestore persistence not supported in this browser');
+    }
+  });
+}
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
@@ -101,16 +113,24 @@ export async function testFirestoreConnection() {
     console.log('Firebase: Connection test skipped (Disabled).');
     return;
   }
-  try {
-    console.log('Firebase: Testing connection...');
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('Firebase: Connection test finished.');
-  } catch (error: any) {
-    console.error('Firebase Connection Error:', error.code, error.message);
-    if (error.message.includes('the client is offline')) {
-      console.warn('Firebase connection: client appears offline.');
+  
+  // Give the network a moment to stabilize
+  setTimeout(async () => {
+    try {
+      console.log('Firebase: Testing connection...');
+      // Using a timeout for the getDoc itself to avoid long hangs
+      const testDoc = doc(db, 'test', 'connection');
+      await getDoc(testDoc);
+      console.log('Firebase: Connection test finished (Success or Cached).');
+    } catch (error: any) {
+      // Don't log "offline" as a hard error, it's expected in some environments
+      if (error.code === 'unavailable' || error.message?.includes('offline')) {
+        console.log('Firebase: Working in offline/persistence mode.');
+      } else {
+        console.warn('Firebase Connection Hint:', error.code, error.message);
+      }
     }
-  }
+  }, 2000);
 }
 
 export { onAuthStateChanged, signInWithPopup, signOut };

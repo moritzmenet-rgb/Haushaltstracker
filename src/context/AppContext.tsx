@@ -52,6 +52,7 @@ interface AppContextType {
   // Firebase Live Sync status & actions
   firebaseUser: User | null;
   syncStatus: SyncStatus;
+  firebaseError: string | null;
   loginWithGoogle: () => Promise<void>;
   logoutFirebase: () => Promise<void>;
   uploadAllToCloud: () => Promise<void>;
@@ -205,6 +206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Firebase Auth & Sync state
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('offline');
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   // Update isAppLoaded when sync state is settled
   useEffect(() => {
@@ -520,17 +522,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginWithGoogle = useCallback(async () => {
     try {
       setSyncStatus('connecting');
+      setFirebaseError(null);
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       console.error('Login error:', err);
       setSyncStatus('error');
       
-      // Handle unauthorized domain specifically
       if (err.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        alert(`Diese Domain (${domain}) ist nicht für Firebase Authentication freigeschaltet.\n\nBitte füge sie in der Firebase Console unter "Authentication > Settings > Authorized Domains" hinzu.`);
+        setFirebaseError('unauthorized-domain');
       } else {
-        alert(`Login fehlgeschlagen: ${err.message}`);
+        setFirebaseError(err.message || 'Login fehlgeschlagen');
       }
     }
   }, []);
@@ -1185,6 +1186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveUserId,
         firebaseUser,
         syncStatus,
+        firebaseError,
         loginWithGoogle,
         logoutFirebase,
         uploadAllToCloud,
