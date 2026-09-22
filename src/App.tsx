@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { TaskCatalog } from './components/TaskCatalog';
 import { AdminSettings } from './components/AdminSettings';
 import { ProfileSelector } from './components/ProfileSelector';
+import { CloudOnboarding } from './components/CloudOnboarding';
 import { LogChoreModal } from './components/LogChoreModal';
 import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
@@ -14,8 +15,22 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
 const MainContent: React.FC = () => {
-  const { isAppLoaded, activeUser, isTutorialOpen, closeTutorial, completeTutorial } = useApp();
+  const { isAppLoaded, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'settings'>('dashboard');
+  
+  // Decide if we should show the cloud onboarding screen
+  // (Empty local data + not logged in = likely new family member or fresh start)
+  const [showCloudOnboarding, setShowCloudOnboarding] = useState(false);
+
+  const isDataEmpty = Object.keys(data.members).length === 0;
+
+  useEffect(() => {
+    if (isAppLoaded && isDataEmpty && !firebaseUser) {
+      setShowCloudOnboarding(true);
+    } else {
+      setShowCloudOnboarding(false);
+    }
+  }, [isAppLoaded, isDataEmpty, firebaseUser]);
 
   // Hide the HTML loading screen when app is ready
   useEffect(() => {
@@ -124,9 +139,16 @@ const MainContent: React.FC = () => {
         </div>
       </footer>
 
-      {/* Screen 0: Netflix-Style Profile Selector */}
+      {/* Screen 0: Cloud Onboarding (For fresh installs / family joins) */}
+      {showCloudOnboarding && (
+        <CloudOnboarding 
+          onLocalSetup={() => setShowCloudOnboarding(false)} 
+        />
+      )}
+
+      {/* Screen 1: Netflix-Style Profile Selector */}
       <ProfileSelector
-        isOpen={showProfileSelector || !activeUser}
+        isOpen={(showProfileSelector || !activeUser) && !showCloudOnboarding}
         onClose={() => setShowProfileSelector(false)}
         onOpenSettings={() => {
           setCurrentTab('settings');
