@@ -20,7 +20,8 @@ import {
   Mail,
   UserPlus2,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 

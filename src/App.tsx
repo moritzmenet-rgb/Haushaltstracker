@@ -15,7 +15,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
 const MainContent: React.FC = () => {
-  const { isAppLoaded, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial } = useApp();
+  const { isAppLoaded, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'settings'>('dashboard');
   
   // Decide if we should show the cloud onboarding screen

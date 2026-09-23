@@ -11,9 +11,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'moritz.menet.bfsu@gmail.com' && request.auth.token.email_verified == true
-      );
+      return isSignedIn() && request.auth.token.email == 'moritz.menet.bfsu@gmail.com';
     }
 
     function isAllowed(householdId) {
@@ -25,10 +23,14 @@ service cloud.firestore {
     }
 
     match /households/{householdId} {
-      allow read, write: if isSignedIn() && (isAdmin() || resource == null || request.auth.token.email in resource.data.allowed_emails);
+      allow read, write: if isSignedIn() && (
+        isAdmin() || 
+        resource == null || 
+        (resource.data.allowed_emails != null && request.auth.token.email in resource.data.allowed_emails)
+      );
       
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() && (isAdmin() || get(/databases/$(database)/documents/households/$(householdId)).data.allowed_emails != null && request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.allowed_emails);
+        allow read, write: if isAllowed(householdId);
       }
     }
 
