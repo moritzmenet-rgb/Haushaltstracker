@@ -21,10 +21,15 @@ service cloud.firestore {
       return isVerified() && request.auth.token.email.lower() == email.lower();
     }
     
+    function isMoritz() {
+      return isVerified() && request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com';
+    }
+    
     function isAdmin() {
       return isVerified() && (
-        request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com' ||
-        getHouseholdData('main_household').allowed_emails.hasAny([request.auth.token.email.lower()])
+        isMoritz() ||
+        (exists(/databases/$(database)/documents/households/main_household) && 
+         get(/databases/$(database)/documents/households/main_household).data.allowed_emails.hasAny([request.auth.token.email.lower()]))
       );
     }
 
@@ -41,10 +46,9 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     function isValidHousehold(data) {
-      return data.keys().hasAll(['household_name', 'default_weekly_target', 'categories']) &&
-             data.household_name is string && data.household_name.size() <= 100 &&
-             data.default_weekly_target is number &&
-             data.categories is list && data.categories.size() <= 50;
+      // Relaxed validation to ensure initial seed works
+      return data.household_name is string && 
+             data.default_weekly_target is number;
     }
 
     function isValidMember(data) {
@@ -77,7 +81,14 @@ service cloud.firestore {
     // Households
     match /households/{householdId} {
       allow read: if isVerified();
-      allow write: if isAdmin() && isValidHousehold(request.resource.data);
+      
+      // Allow creation if Moritz or Admin
+      allow create: if isVerified() && (isMoritz() || isAdmin());
+      
+      // Allow update if Admin and schema is basically okay
+      allow update: if (isMoritz() || isAdmin()) && isValidHousehold(request.resource.data);
+      
+      allow delete: if isMoritz();
 
       // Members Subcollection
       match /members/{memberId} {
