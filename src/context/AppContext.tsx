@@ -178,7 +178,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!firebaseUser) {
       setSyncFeedback({
         status: 'saved',
-        text: `${actionName} lokal gesichert`,
+        text: `${actionName} gesichert`,
         timestamp: Date.now()
       });
       syncTimeoutRef.current = setTimeout(() => {
@@ -208,7 +208,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Sync failed:', err);
           setSyncFeedback({
             status: 'error',
-            text: `${actionName} lokal gesichert (Cloud verzögert)`
+            text: `Cloud-Synchronisierung verzögert...`
           });
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
@@ -233,7 +233,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const persistLocal = useCallback((newData: FamilyData) => {
     setData(newData);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    // Only persist to localStorage if NOT logged in to Firebase
+    // User requested "direct cloud" and "not local"
+    if (!auth.currentUser) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    }
   }, []);
 
   const [syncRetryKey, setSyncRetryKey] = useState(0);

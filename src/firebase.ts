@@ -29,9 +29,11 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
 
 // Primary services
 export const auth = getAuth(app);
+auth.useDeviceLanguage(); // Set language to device default
+
 export const googleProvider = new GoogleAuthProvider();
 
-// Database initialization as specified in skill guidelines
+// Database initialization
 export const db = isConfigValid ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : getFirestore(app);
 
 /**

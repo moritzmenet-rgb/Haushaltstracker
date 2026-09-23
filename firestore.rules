@@ -38,10 +38,8 @@ service cloud.firestore {
     }
 
     // RBAC: Check if user is an admin of the household
-    // We check the 'allowed_emails' list in the household doc OR if they are Moritz
     function isHouseholdAdmin(householdId) {
-      let household = get(/databases/$(database)/documents/households/$(householdId)).data;
-      return isMoritz() || (isSignedIn() && request.auth.token.email in household.allowed_emails);
+      return isMoritz() || (isSignedIn() && request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.get('allowed_emails', []));
     }
 
     // Validation Blueprints
@@ -59,8 +57,8 @@ service cloud.firestore {
         data.id is string && isValidId(data.id) &&
         data.name is string && data.name.size() <= 100 &&
         data.role in ['admin', 'member'] &&
-        data.avatar_color is string && data.avatar_color.matches('^#[0-9a-fA-F]{6}$') &&
-        (data.pin_code == null || (data.pin_code is string && data.pin_code.size() <= 10));
+        data.avatar_color is string && data.avatar_color.size() <= 10 &&
+        (data.get('pin_code', null) == null || (data.pin_code is string && data.pin_code.size() <= 20));
     }
 
     function isValidTask(data) {
@@ -68,27 +66,25 @@ service cloud.firestore {
         data.keys().hasOnly(['id', 'title', 'description', 'category', 'base_points', 'estimated_duration', 'interval_days', 'created_by', 'last_done', 'householdId']) &&
         data.id is string && isValidId(data.id) &&
         data.title is string && data.title.size() <= 200 &&
-        data.base_points is int && data.base_points >= 0 && data.base_points <= 5000;
+        data.base_points is number && data.base_points >= 0 && data.base_points <= 5000;
     }
 
     function isValidLog(data) {
       return data.keys().hasAll(['log_id', 'task_id', 'user_id', 'stars', 'points_awarded', 'timestamp']) &&
         data.keys().hasOnly(['log_id', 'task_id', 'user_id', 'stars', 'points_awarded', 'actual_duration', 'timestamp', 'notes', 'householdId']) &&
         data.log_id is string && isValidId(data.log_id) &&
-        data.stars is int && data.stars >= 1 && data.stars <= 3 &&
-        data.timestamp is string && data.timestamp.size() <= 50;
+        data.stars is number && data.stars >= 1 && data.stars <= 3 &&
+        data.timestamp is string && data.timestamp.size() <= 64;
     }
 
     // 4. Match Blocks
     match /households/{householdId} {
-      // Access: Any signed-in user can get/list (since it's a shared app with potential guest access via email)
-      // BUT list is restricted by allowed_emails or Moritz
       allow get: if isSignedIn() && isValidId(householdId);
-      allow list: if isMoritz(); // Only Moritz can list all households
+      allow list: if isMoritz(); 
 
       allow create: if isMoritz() && isValidId(householdId) && isValidHousehold(incoming());
       
-      allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+      allow update: if isHouseholdAdmin(householdId) 
                     && isValidId(householdId) 
                     && isValidHousehold(incoming())
                     && incoming().id == existing().id;
@@ -98,32 +94,31 @@ service cloud.firestore {
       // Subcollections
       match /members/{memberId} {
         allow read: if isSignedIn() && isValidId(householdId);
-        allow create: if (isMoritz() || isHouseholdAdmin(householdId)) && isValidId(memberId) && isValidMember(incoming());
-        allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+        allow create: if isHouseholdAdmin(householdId) && isValidId(memberId) && isValidMember(incoming());
+        allow update: if isHouseholdAdmin(householdId) 
                       && isValidMember(incoming())
                       && incoming().id == existing().id;
-        allow delete: if (isMoritz() || isHouseholdAdmin(householdId));
+        allow delete: if isHouseholdAdmin(householdId);
       }
 
       match /tasks/{taskId} {
         allow read: if isSignedIn() && isValidId(householdId);
-        allow create: if (isMoritz() || isHouseholdAdmin(householdId)) && isValidId(taskId) && isValidTask(incoming());
-        allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+        allow create: if isHouseholdAdmin(householdId) && isValidId(taskId) && isValidTask(incoming());
+        allow update: if isHouseholdAdmin(householdId) 
                       && isValidTask(incoming())
                       && incoming().id == existing().id;
-        allow delete: if (isMoritz() || isHouseholdAdmin(householdId));
+        allow delete: if isHouseholdAdmin(householdId);
       }
 
       match /logs/{logId} {
         allow read: if isSignedIn() && isValidId(householdId);
         allow create: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(incoming());
         
-        // Members can only update their own logs, Admins can update all
-        allow update: if (isMoritz() || isHouseholdAdmin(householdId) || (incoming().user_id == request.auth.uid))
+        allow update: if (isHouseholdAdmin(householdId) || (existing().user_id == request.auth.uid))
                       && isValidLog(incoming())
                       && incoming().log_id == existing().log_id;
                       
-        allow delete: if isMoritz() || isHouseholdAdmin(householdId);
+        allow delete: if isHouseholdAdmin(householdId);
       }
     }
   }
