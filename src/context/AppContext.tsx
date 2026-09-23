@@ -189,20 +189,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setSyncFeedback({
       status: 'uploading',
-      text: `${actionName} wird in Cloud hochgeladen...`
+      text: `${actionName} wird gespeichert...`
     });
 
     if (cloudPromise) {
       cloudPromise
         .then(() => {
+          // Keep the "saved" state a bit longer for visual confirmation
           setSyncFeedback({
             status: 'saved',
-            text: `${actionName} in Cloud gesichert ✓`,
+            text: `${actionName} erfolgreich gespeichert ✓`,
             timestamp: Date.now()
           });
           syncTimeoutRef.current = setTimeout(() => {
-            setSyncFeedback(prev => prev.status === 'saved' ? { status: 'idle', text: '' } : prev);
-          }, 3500);
+            setSyncFeedback(prev => (prev.status === 'saved' || prev.status === 'uploading') ? { status: 'idle', text: '' } : prev);
+          }, 1500);
         })
         .catch((err) => {
           console.warn('Sync failed:', err);
@@ -293,8 +294,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isCancelled) return;
       try {
         if (!snap.exists()) {
-          // If household doesn't exist, seed it with current or initial settings
-          await seedAllDataToCloud(data);
+          // If household doesn't exist, only seed if current user is Moritz (original admin)
+          // otherwise wait for Moritz to set it up
+          if (firebaseUser.email === 'moritz.menet.bfsu@gmail.com') {
+            await seedAllDataToCloud(data);
+          }
         } else {
           const cloudSettings = snap.data() as FamilySettings;
           setData(prev => {
@@ -670,6 +674,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const logoutFirebase = useCallback(async () => {
+    // Preserve activeUserId in localStorage even on logout 
+    // so the profile stays selected when switching accounts
     await signOut(auth);
     setSyncStatus('offline');
   }, []);

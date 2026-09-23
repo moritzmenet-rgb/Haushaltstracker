@@ -12,6 +12,7 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { TutorialModal } from './components/TutorialModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
+import { SyncOverlay } from './components/SyncOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
@@ -34,7 +35,8 @@ const MainContent: React.FC = () => {
     // 4. User is NOT logged in OR sync is actively connecting
     const isConnecting = firebaseUser && syncStatus === 'connecting';
     
-    if (!dismissedOnboarding && isAppLoaded && isDataEmpty && (!firebaseUser || isConnecting)) {
+    // Only show onboarding if app is loaded and data is definitively empty (not just connecting)
+    if (!dismissedOnboarding && isAppLoaded && isDataEmpty && !isConnecting && !firebaseUser) {
       setShowCloudOnboarding(true);
     } else {
       setShowCloudOnboarding(false);
@@ -99,6 +101,9 @@ const MainContent: React.FC = () => {
 
       {/* Real-time Cloud Upload & Saved Banner */}
       <SyncFeedbackBanner />
+      
+      {/* Blocking Sync Overlay for critical updates */}
+      <SyncOverlay />
 
       {/* Main App Navigation Bar */}
       <Navbar

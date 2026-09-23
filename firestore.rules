@@ -39,7 +39,14 @@ service cloud.firestore {
 
     // RBAC: Check if user is an admin of the household
     function isHouseholdAdmin(householdId) {
-      return isMoritz() || (isSignedIn() && request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.get('allowed_emails', []));
+      return isMoritz() || (
+        isSignedIn() && (
+          request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.get('allowed_emails', []) ||
+          // Allow all verified users to be "admins" for this specific household if it's the main one
+          // (User requested all accounts in same household)
+          (householdId == 'main_household' && isVerified())
+        )
+      );
     }
 
     // Validation Blueprints
