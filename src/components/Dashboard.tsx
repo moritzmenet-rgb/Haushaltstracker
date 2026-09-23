@@ -199,8 +199,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* 2. Personal Progress Bar & Family Summary in Material 3 Expressive Card */}
       {activeUserProgress && (
         <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          whileHover={{ scale: 1.01 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm relative overflow-hidden"
         >
@@ -267,7 +268,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {prioritizedTasks.length === 0 ? (
-          <div className="p-8 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] space-y-3">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-8 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] space-y-3"
+          >
             <p className="text-xs text-[var(--m3-on-surface-variant)] font-semibold">
               Noch keine Aufgaben angelegt. Erstelle jetzt Aufgaben für deinen Haushalt!
             </p>
@@ -278,9 +283,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
               <span>Aufgabe erstellen</span>
             </button>
-          </div>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
+              }
+            }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
             {prioritizedTasks.slice(0, 4).map(({ task, due }) => {
               const isOverdue = due.status === 'overdue';
               const isDueSoon = due.status === 'due-soon';
@@ -288,6 +306,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               return (
                 <motion.div
                   key={task.id}
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    visible: { opacity: 1, x: 0 }
+                  }}
                   whileHover={{ y: -3, scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -340,7 +362,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </section>
 
@@ -359,13 +381,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {membersWithProgress.length === 0 ? (
-            <div className="p-6 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-6 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]"
+            >
               <p className="text-xs text-[var(--m3-on-surface-variant)]">
                 Noch keine Familienmitglieder angelegt.
               </p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] divide-y divide-[var(--m3-outline-variant)]/50 overflow-hidden shadow-sm">
+            <motion.div 
+              initial={{ opacity: 0, x: -15 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] divide-y divide-[var(--m3-outline-variant)]/50 overflow-hidden shadow-sm"
+            >
               {membersWithProgress.map((member, index) => {
                 const isSelf = activeUser?.id === member.id;
                 const isGoalReached = member.cyclePoints >= member.target;
@@ -421,7 +452,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
         </section>
 
@@ -437,7 +468,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </span>
           </div>
 
-          <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] p-5 shadow-sm space-y-3.5">
+          <motion.div 
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] p-5 shadow-sm space-y-3.5"
+          >
             <div className="grid grid-cols-3 gap-2.5 text-center">
               {/* 1 Star */}
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
@@ -476,7 +512,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <p className="text-xs text-[var(--m3-on-surface-variant)] leading-relaxed">
               Jeder Eintrag wird transparent berechnet. Bei 3 Sternen nennst du 2 besondere Qualitätsmerkmale. Bei 2 Sternen begründest du, was gefehlt hat. Mindestens 1 Punkt wird garantiert!
             </p>
-          </div>
+          </motion.div>
         </section>
       </div>
 
@@ -501,7 +537,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Filter Toolbar: M3 Filter Chips & Search Bar */}
-        <div className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4"
+        >
           {/* Person Filter Chips */}
           <div>
             <label className="text-[11px] font-black text-[var(--m3-on-surface-variant)] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -631,7 +672,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* List of Filtered Logs in Material 3 Elevated Cards */}
         {filteredLogs.length === 0 ? (

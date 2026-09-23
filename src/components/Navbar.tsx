@@ -71,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       {/* Material 3 Expressive Top App Bar */}
-      <header className="sticky top-0 z-40 bg-[var(--m3-surface)]/95 backdrop-blur-md border-b border-[var(--m3-outline-variant)]/60 transition-colors">
+      <header className="sticky top-0 z-40 m3-glass-surface border-b border-[var(--m3-outline-variant)]/40 transition-colors">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           {/* Brand Logo & Desktop Tabs */}
           <div className="flex items-center gap-6">
@@ -248,7 +248,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Material 3 Expressive Bottom Navigation Bar for Mobile - Fixed always at bottom */}
       <nav 
         aria-label="Mobile Navigation"
-        className="md:hidden fixed bottom-6 inset-x-4 z-50 bg-[var(--m3-surface-container)]/80 backdrop-blur-2xl border border-[var(--m3-outline-variant)]/60 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.2)] pt-2 pb-2 transition-colors"
+        className="md:hidden fixed bottom-6 inset-x-4 z-50 m3-glass-container border border-[var(--m3-outline-variant)]/40 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] pt-2 pb-2 transition-colors"
       >
         <div className="max-w-md mx-auto px-1 flex items-center justify-around relative">
           {/* Dashboard Tab */}

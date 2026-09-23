@@ -48,6 +48,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
   const [star3Highlight2, setStar3Highlight2] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const prevOpenRef = useRef(false);
 
@@ -56,6 +57,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
     if (isOpen && !prevOpenRef.current) {
       setShowDeleteConfirm(false);
       setErrorMsg(null);
+      setIsSubmitting(false);
 
       if (logToEdit) {
         // EDIT MODE: Populate from existing log
@@ -183,6 +185,8 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
     }
 
     try {
+      setIsSubmitting(true);
+      // Wait a bit for the animation to start before actually closing/updating
       if (logToEdit) {
         // UPDATE EXISTING LOG
         await updateLog(logToEdit.log_id, {
@@ -196,9 +200,13 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
         // CREATE NEW LOG
         await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
       }
-      // ONLY CLOSE AFTER SUCCESS
-      onClose();
+      
+      // Delay slightly to show the playful disappearance animation
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (err) {
+      setIsSubmitting(false);
       setErrorMsg('Fehler beim Speichern. Bitte Internetverbindung prüfen.');
     }
   };
@@ -211,9 +219,17 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          exit={{ 
+            scale: 0.3, 
+            opacity: 0, 
+            rotate: 25,
+            transition: { 
+              duration: 0.5, 
+              ease: [0.34, 1.56, 0.64, 1] 
+            } 
+          }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-12"
+          className={`w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-12 ${isSubmitting ? 'animate-playful-exit' : ''}`}
         >
           {/* M3 Dialog Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">

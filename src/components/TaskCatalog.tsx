@@ -87,7 +87,12 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
       </div>
 
       {/* Filter & Search Bar in Material 3 Style */}
-      <div className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4"
+      >
         {/* Search Input */}
         <div className="relative">
           <Search className="w-4 h-4 text-[var(--m3-outline)] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -163,11 +168,15 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
             <span>Nur fällige anzeigen</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Task Cards Grid */}
       {filteredTasks.length === 0 ? (
-        <div className="p-12 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="p-12 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm"
+        >
           <CheckSquare className="w-12 h-12 text-[var(--m3-primary)] mx-auto mb-3 opacity-60" />
           <h3 className="text-base font-bold text-[var(--m3-on-surface)]">
             {tasksList.length === 0 ? 'Noch keine Aufgaben vorhanden' : 'Keine passenden Aufgaben gefunden'}
@@ -189,9 +198,22 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.05
+              }
+            }
+          }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
           {filteredTasks.map((task, index) => {
             const dueStatus = getTaskDueStatus(task);
             const isOverdue = dueStatus.status === 'overdue';
@@ -200,9 +222,11 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
             return (
               <motion.div
                 key={task.id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03, duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+                variants={{
+                  hidden: { opacity: 0, scale: 0.95 },
+                  visible: { opacity: 1, scale: 1 }
+                }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 whileHover={{ y: -3 }}
                 className="p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 group"
               >
@@ -305,7 +329,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       {/* Delete Confirmation Modal */}
