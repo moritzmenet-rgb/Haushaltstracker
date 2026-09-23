@@ -18,6 +18,11 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Safe initialization
 export const isConfigValid = !!(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId);
 
+console.log('Firebase: Config status:', isConfigValid ? 'Valid' : 'INVALID');
+if (isConfigValid) {
+  console.log('Firebase: Target Project:', firebaseConfig.projectId);
+}
+
 const app = initializeApp(isConfigValid ? firebaseConfig : {
   apiKey: "mock-key",
   authDomain: "mock.firebaseapp.com",
@@ -27,6 +32,16 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
 // Primary services
 export const auth = getAuth(app);
 auth.useDeviceLanguage();
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log('Firebase: Current User UID:', user.uid);
+    console.log('Firebase: Current User Email:', user.email);
+    console.log('Firebase: Email Verified:', user.emailVerified);
+  } else {
+    console.log('Firebase: No user logged in.');
+  }
+});
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -80,35 +95,40 @@ export function handleFirestoreError(error: any, operationType: OperationType, p
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
     }
   };
 
-  console.error('[Firestore Critical Error]', JSON.stringify(errInfo));
+  // Log full details to console for debugging
+  console.error('[Firestore Critical Error]', JSON.stringify(errInfo, null, 2));
   
   // Create a user-friendly message
   let userMessage = 'Verbindung zum Cloud-Speicher fehlgeschlagen.';
   if (errCode === 'permission-denied') {
-    userMessage = 'Zugriff verweigert: Du hast keine Berechtigung für diese Aktion.';
+    userMessage = 'Zugriff verweigert: Du hast keine Berechtigung für diese Aktion oder dein Profil ist noch nicht verifiziert.';
   } else if (errCode === 'unavailable') {
     userMessage = 'Cloud-Dienst vorübergehend nicht erreichbar. Bitte Internetverbindung prüfen.';
   } else if (errMsg.includes('Quota exceeded')) {
     userMessage = 'Limit erreicht: Das tägliche Cloud-Kontingent ist erschöpft.';
+  } else if (errCode === 'not-found') {
+    userMessage = 'Daten wurden nicht gefunden.';
   }
   
   throw new Error(userMessage);
 }
 
 export async function testFirestoreConnection() {
-  if (!isConfigValid) return;
+  if (!isConfigValid || !auth.currentUser) return;
   try {
-    const testDoc = doc(db, 'test', 'last_check');
+    const testDoc = doc(db, 'test', auth.currentUser.uid);
     await setDoc(testDoc, {
       timestamp: new Date().toISOString(),
-      user: auth.currentUser?.email || 'anonymous'
-    });
-    console.log('Firebase: Connection & Write Test established.');
+      user: auth.currentUser?.email || 'anonymous',
+      check: true
+    }, { merge: true });
+    console.log('Firebase: Connection & Write Test established for', auth.currentUser.email);
   } catch (error) {
-    console.warn('Firebase: Connection write test failed (this is normal if not logged in):', error);
+    console.warn('Firebase: Connection write test notice:', error);
   }
 }
 

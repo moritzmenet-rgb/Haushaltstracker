@@ -17,9 +17,9 @@ export const HOUSEHOLD_ID = 'main_household';
  */
 function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, any> {
   const s = settings || {};
-  return {
+  const cleaned: Record<string, any> = {
     id: HOUSEHOLD_ID,
-    household_name: s.household_name || 'Familie Menet',
+    household_name: String(s.household_name || 'Familie Menet'),
     default_weekly_target: Number(s.default_weekly_target ?? 50),
     categories: Array.isArray(s.categories) && s.categories.length > 0 
       ? s.categories 
@@ -34,11 +34,12 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
     rollover_min_target: Number(s.rollover_min_target ?? 10),
     rollover_max_target: Number(s.rollover_max_target ?? 200),
     week_start_day: s.week_start_day || 'monday',
-    allowed_emails: Array.isArray(s.allowed_emails) && s.allowed_emails.length > 0 
+    allowed_emails: Array.isArray(s.allowed_emails) 
       ? s.allowed_emails 
       : ['moritz.menet.bfsu@gmail.com'],
     updatedAt: new Date().toISOString()
   };
+  return cleaned;
 }
 
 /**
@@ -46,14 +47,14 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
  */
 function sanitizeMember(member: FamilyMember): Record<string, any> {
   return {
-    id: member.id,
-    name: member.name || 'Familienmitglied',
+    id: String(member.id),
+    name: String(member.name || 'Familienmitglied'),
     role: member.role === 'admin' ? 'admin' : 'member',
-    avatar_color: member.avatar_color || '#4F46E5',
+    avatar_color: String(member.avatar_color || '#4F46E5'),
     total_points: Number(member.total_points || 0),
     weekly_target: Number(member.weekly_target || 50),
     has_seen_tutorial: Boolean(member.has_seen_tutorial),
-    pin_code: member.pin_code || '',
+    pin_code: String(member.pin_code || ''),
     householdId: HOUSEHOLD_ID
   };
 }
@@ -63,14 +64,14 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
  */
 function sanitizeTask(task: TaskItem): Record<string, any> {
   return {
-    id: task.id,
-    title: task.title || 'Aufgabe',
-    description: task.description || '',
-    category: task.category || 'Allgemein',
+    id: String(task.id),
+    title: String(task.title || 'Aufgabe'),
+    description: String(task.description || ''),
+    category: String(task.category || 'Allgemein'),
     base_points: Number(task.base_points || 10),
     estimated_duration: Number(task.estimated_duration || 15),
     interval_days: Number(task.interval_days || 7),
-    created_by: task.created_by || 'Admin',
+    created_by: String(task.created_by || 'Admin'),
     last_done: task.last_done || null,
     householdId: HOUSEHOLD_ID
   };
@@ -81,14 +82,14 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
  */
 function sanitizeLog(log: ChoreLog): Record<string, any> {
   return {
-    log_id: log.log_id,
-    task_id: log.task_id,
-    user_id: log.user_id,
+    log_id: String(log.log_id),
+    task_id: String(log.task_id),
+    user_id: String(log.user_id),
     stars: Number(log.stars || 2),
     points_awarded: Number(log.points_awarded || 10),
     actual_duration: Number(log.actual_duration || 10),
-    timestamp: log.timestamp || new Date().toISOString(),
-    notes: log.notes || '',
+    timestamp: String(log.timestamp || new Date().toISOString()),
+    notes: String(log.notes || ''),
     householdId: HOUSEHOLD_ID
   };
 }
@@ -117,6 +118,8 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
   try {
     // 1. Household doc (set directly with merge)
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
+    
+    // Check if we can write to the household doc
     await setDoc(householdRef, sanitizeSettings(data.settings), { merge: true });
 
     // 2. Subcollections if any items exist

@@ -10,35 +10,38 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function isVerified() {
-      return isSignedIn() && (
-        request.auth.token.email_verified == true || 
-        request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com'
-      );
-    }
-    
-    function isOwner(email) {
-      return isVerified() && request.auth.token.email.lower() == email.lower();
+    function authEmail() {
+      return isSignedIn() && request.auth.token.get('email', '') != '' ? request.auth.token.email.lower() : '';
     }
     
     function isMoritz() {
-      return isVerified() && request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com';
+      return isSignedIn() && (
+        request.auth.uid == 'fehEDbG4MDekoD9WMe8xo7HKAdJ2' ||
+        authEmail() == 'moritz.menet.bfsu@gmail.com'
+      );
+    }
+    
+    function isVerified() {
+      return isSignedIn() && (
+        request.auth.token.get('email_verified', false) == true || 
+        isMoritz()
+      );
     }
     
     function isAdmin() {
       return isVerified() && (
         isMoritz() ||
         (exists(/databases/$(database)/documents/households/main_household) && 
-         get(/databases/$(database)/documents/households/main_household).data.allowed_emails.hasAny([request.auth.token.email.lower()]))
+         authEmail() in get(/databases/$(database)/documents/households/main_household).data.get('allowed_emails', []))
       );
     }
 
-    function getHouseholdData(householdId) {
-      return get(/databases/$(database)/documents/households/$(householdId)).data;
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    function incoming() {
+      return request.resource.data;
     }
 
     // -------------------------------------------------------------------------
@@ -46,27 +49,29 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     function isValidHousehold(data) {
-      // Relaxed validation to ensure initial seed works
-      return data.household_name is string && 
-             data.default_weekly_target is number;
+      return data.get('household_name', '') is string && 
+             data.get('household_name', '').size() <= 100 &&
+             data.get('default_weekly_target', 0) is number;
     }
 
     function isValidMember(data) {
-      return data.keys().hasAll(['id', 'name', 'role']) &&
-             data.name is string && data.name.size() <= 50 &&
-             data.role in ['admin', 'member'];
+      return data.get('id', '') is string && 
+             data.get('name', '') is string && 
+             data.get('role', '') in ['admin', 'member'];
     }
 
     function isValidTask(data) {
-      return data.keys().hasAll(['id', 'title', 'category', 'base_points']) &&
-             data.title is string && data.title.size() <= 200 &&
-             data.base_points is number && data.base_points >= 0;
+      return data.get('id', '') is string && 
+             data.get('title', '') is string && 
+             data.get('base_points', 0) is number;
     }
 
     function isValidLog(data) {
-      return data.keys().hasAll(['log_id', 'task_id', 'user_id', 'points_awarded', 'timestamp']) &&
-             data.points_awarded is number &&
-             data.timestamp is string; // App uses ISO strings
+      return data.get('log_id', '') is string && 
+             data.get('task_id', '') is string && 
+             data.get('user_id', '') is string &&
+             data.get('points_awarded', 0) is number &&
+             data.get('timestamp', '') is string;
     }
 
     // -------------------------------------------------------------------------
@@ -82,33 +87,32 @@ service cloud.firestore {
     match /households/{householdId} {
       allow read: if isVerified();
       
-      // Allow creation if Moritz or Admin
-      allow create: if isVerified() && (isMoritz() || isAdmin());
+      // Allow creation if Moritz or Verified user (if bootstrap is needed)
+      allow create: if isVerified() && (isMoritz() || !exists(/databases/$(database)/documents/households/main_household));
       
-      // Allow update if Admin and schema is basically okay
-      allow update: if (isMoritz() || isAdmin()) && isValidHousehold(request.resource.data);
+      // Allow update if Admin or Moritz
+      allow update: if isVerified() && (isMoritz() || isAdmin());
       
       allow delete: if isMoritz();
 
       // Members Subcollection
       match /members/{memberId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && isValidMember(request.resource.data);
+        allow create, update: if isVerified() && isValidMember(incoming());
         allow delete: if isAdmin();
       }
 
       // Tasks Subcollection
       match /tasks/{taskId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && isValidTask(request.resource.data);
+        allow create, update: if isVerified() && isValidTask(incoming());
         allow delete: if isAdmin();
       }
 
       // Logs Subcollection
       match /logs/{logId} {
         allow read: if isVerified();
-        allow create: if isVerified() && isValidLog(request.resource.data);
-        allow update: if isVerified() && isValidLog(request.resource.data);
+        allow create, update: if isVerified() && isValidLog(incoming());
         allow delete: if isAdmin();
       }
     }

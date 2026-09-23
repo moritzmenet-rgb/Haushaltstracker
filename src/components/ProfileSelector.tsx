@@ -61,18 +61,18 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
     }
   };
 
-  const handleQuickStartAdmin = () => {
-    const admin = initializeAdminProfile(suggestedAdminName, '#4F46E5', false);
+  const handleQuickStartAdmin = async () => {
+    const admin = await initializeAdminProfile(suggestedAdminName, '#4F46E5', false);
     setActiveUserId(admin.id);
     if (onClose) onClose();
   };
 
-  const handleCreateProfile = (e: React.FormEvent) => {
+  const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = newName.trim() || (isInitialSetup ? suggestedAdminName : '');
     if (!finalName) return;
     const roleToAssign = isInitialSetup ? 'admin' : newRole;
-    const created = addMember(finalName, newColor, roleToAssign, 50, newPin.trim() || undefined);
+    const created = await addMember(finalName, newColor, roleToAssign, 50, newPin.trim() || undefined);
     if (isInitialSetup && created) {
       setActiveUserId(created.id);
       if (onClose) onClose();

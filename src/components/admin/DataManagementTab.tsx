@@ -22,6 +22,7 @@ export const DataManagementTab: React.FC = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -55,16 +56,30 @@ export const DataManagementTab: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleExecuteClear = () => {
-    clearAllData();
-    setShowClearModal(false);
-    showToast('Haushaltsdaten wurden vollständig geleert.');
+  const handleExecuteClear = async () => {
+    setIsProcessing(true);
+    try {
+      await clearAllData();
+      showToast('Haushaltsdaten wurden vollständig geleert.');
+    } catch (err) {
+      console.error('Clear failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setShowClearModal(false);
+    }
   };
 
-  const handleExecuteDemo = () => {
-    resetToDemoData();
-    setShowDemoModal(false);
-    showToast('Demo-Haushalt "Familie Menet" erfolgreich geladen!');
+  const handleExecuteDemo = async () => {
+    setIsProcessing(true);
+    try {
+      await resetToDemoData();
+      showToast('Demo-Haushalt "Familie Menet" erfolgreich geladen!');
+    } catch (err) {
+      console.error('Demo reset failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setShowDemoModal(false);
+    }
   };
 
   return (

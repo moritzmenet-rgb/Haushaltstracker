@@ -62,6 +62,7 @@ interface AppContextType {
   syncStatus: SyncStatus;
   syncFeedback: SyncFeedback;
   firebaseError: string | null;
+  isAuthResolving: boolean;
   loginWithGoogle: () => Promise<void>;
   logoutFirebase: () => Promise<void>;
   uploadAllToCloud: () => Promise<void>;
@@ -69,7 +70,7 @@ interface AppContextType {
   retrySync: () => void;
 
   // Chore logging
-  logChore: (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string) => number;
+  logChore: (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string) => Promise<number>;
   updateLog: (logId: string, updates: {
     task_id?: string;
     user_id?: string;
@@ -77,8 +78,8 @@ interface AppContextType {
     actual_duration?: number;
     notes?: string;
     timestamp?: string;
-  }) => boolean;
-  deleteLog: (logId: string) => boolean;
+  }) => Promise<boolean>;
+  deleteLog: (logId: string) => Promise<boolean>;
 
   // Task CRUD (Admin)
   createTask: (task: Omit<TaskItem, 'id' | 'created_by' | 'last_done'>) => void;
@@ -91,8 +92,8 @@ interface AppContextType {
   deleteCategory: (category: string) => boolean;
 
   // Member CRUD (Admin & Account editing)
-  addMember: (name: string, avatarColor: string, role: UserRole, weeklyTarget?: number, pinCode?: string) => FamilyMember;
-  initializeAdminProfile: (name: string, avatarColor?: string, withDefaultTasks?: boolean) => FamilyMember;
+  addMember: (name: string, avatarColor: string, role: UserRole, weeklyTarget?: number, pinCode?: string) => Promise<FamilyMember>;
+  initializeAdminProfile: (name: string, avatarColor?: string, withDefaultTasks?: boolean) => Promise<FamilyMember>;
   updateMember: (memberId: string, updates: Partial<FamilyMember>) => void;
   updateProfile: (updates: Partial<Pick<FamilyMember, 'name' | 'avatar_color' | 'weekly_target' | 'pin_code'>>) => void;
   deleteMember: (memberId: string) => void;
@@ -111,7 +112,7 @@ interface AppContextType {
 
   // Data helpers
   clearAllData: () => Promise<void>;
-  resetToDemoData: () => void;
+  resetToDemoData: () => Promise<void>;
   exportDataJSON: () => string;
   importDataJSON: (jsonStr: string) => boolean;
 }
@@ -236,7 +237,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
-    if (firebaseUser?.email === 'moritz.menet.bfsu@gmail.com') return true;
+    if (firebaseUser?.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') return true;
     const currentMember = activeUserId ? data.members[activeUserId] : null;
     return currentMember?.role === 'admin';
   }, [firebaseUser, activeUserId, data.members]);
@@ -322,7 +323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!snap.exists()) {
           // If household doesn't exist, only seed if current user is Moritz (original admin)
           // otherwise wait for Moritz to set it up
-          if (firebaseUser.email === 'moritz.menet.bfsu@gmail.com') {
+          if (firebaseUser.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
             await seedAllDataToCloud(data);
           }
         } else {
@@ -912,13 +913,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           triggerSyncFeedback('Daten gelöscht');
         }
       },
-      resetToDemoData: () => {
+      resetToDemoData: async () => {
         persistLocal(INITIAL_FAMILY_DATA);
         setActiveUserIdState(null);
         localStorage.removeItem(ACTIVE_USER_KEY);
         if (firebaseUser) {
           const p = clearAllCloudData();
-          triggerSyncFeedback('Haushalt geleert', p);
+          await triggerSyncFeedback('Haushalt geleert', p);
+          await p;
         } else {
           triggerSyncFeedback('Haushalt geleert');
         }
