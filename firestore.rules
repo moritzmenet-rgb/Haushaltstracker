@@ -115,6 +115,13 @@ service cloud.firestore {
         allow create, update: if isVerified() && isValidLog(incoming());
         allow delete: if isAdmin();
       }
+
+      // Sessions Subcollection (Admin only read, anyone can create their own)
+      match /sessions/{sessionId} {
+        allow read: if isAdmin();
+        allow create: if isSignedIn();
+        allow update, delete: if isMoritz();
+      }
     }
 
     // Public Test Collection (for connectivity checks)

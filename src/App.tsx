@@ -71,6 +71,9 @@ const MainContent: React.FC = () => {
   useEffect(() => {
     if (!activeUser) {
       setShowProfileSelector(true);
+    } else {
+      // Whenever the active user changes (and is not null), always reset to dashboard
+      setCurrentTab('dashboard');
     }
   }, [activeUser]);
 

@@ -55,6 +55,17 @@ export interface FamilySettings {
   allowed_emails?: string[];
 }
 
+export interface SessionLog {
+  id: string;
+  user_id: string;
+  email: string;
+  ip_address: string;
+  user_agent: string;
+  device_type: string;
+  timestamp: string;
+  is_blocked?: boolean;
+}
+
 export interface FamilyData {
   settings: FamilySettings;
   members: Record<string, FamilyMember>;

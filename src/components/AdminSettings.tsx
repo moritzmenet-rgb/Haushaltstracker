@@ -20,8 +20,9 @@ import { RuleSettingsTab } from './admin/RuleSettingsTab';
 import { CategoryManagementTab } from './admin/CategoryManagementTab';
 import { SyncSettingsTab } from './admin/SyncSettingsTab';
 import { DataManagementTab } from './admin/DataManagementTab';
+import { SessionsTab } from './admin/SessionsTab';
 
-type SubTabId = 'profile' | 'theme' | 'general' | 'users' | 'rules' | 'categories' | 'sync' | 'data';
+type SubTabId = 'profile' | 'theme' | 'general' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions';
 
 export const AdminSettings: React.FC = () => {
   const { data, isAdmin, firebaseUser } = useApp();
@@ -38,6 +39,7 @@ export const AdminSettings: React.FC = () => {
     { id: 'theme', label: 'Farben & Design', icon: <Palette className="w-4 h-4" /> },
     { id: 'general', label: 'Haushalt & Basis', icon: <Building2 className="w-4 h-4" />, adminOnly: true },
     { id: 'users', label: 'Mitglieder & Rollen', icon: <Users className="w-4 h-4" />, adminOnly: true },
+    { id: 'sessions', label: 'Sicherheit & Sitzungen', icon: <ShieldCheck className="w-4 h-4" />, adminOnly: true },
     { id: 'rules', label: 'Sterne & Roll-Over', icon: <Calculator className="w-4 h-4" />, adminOnly: true },
     { id: 'categories', label: 'Kategorien', icon: <Layers className="w-4 h-4" />, adminOnly: true },
     { id: 'sync', label: 'Live-Sync & Cloud', icon: <Cloud className="w-4 h-4" />, adminOnly: true },
@@ -130,6 +132,7 @@ export const AdminSettings: React.FC = () => {
               {activeSubTab === 'categories' && <CategoryManagementTab />}
               {activeSubTab === 'sync' && <SyncSettingsTab />}
               {activeSubTab === 'data' && <DataManagementTab />}
+              {activeSubTab === 'sessions' && <SessionsTab />}
             </>
           )}
         </motion.div>

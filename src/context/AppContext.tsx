@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS } from '../data/initialData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { applyColorTheme } from '../theme';
@@ -15,7 +15,7 @@ import {
   OperationType, 
   User
 } from '../firebase';
-import { doc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, collection, onSnapshot, setDoc } from 'firebase/firestore';
 import { 
   HOUSEHOLD_ID, 
   seedAllDataToCloud, 
@@ -98,6 +98,13 @@ interface AppContextType {
   updateProfile: (updates: Partial<Pick<FamilyMember, 'name' | 'avatar_color' | 'weekly_target' | 'pin_code'>>) => void;
   deleteMember: (memberId: string) => void;
 
+  // Session & Security
+  sessions: SessionLog[];
+  recordSession: (user: User) => Promise<void>;
+  blockUserByEmail: (email: string) => Promise<void>;
+  unblockUserByEmail: (email: string) => Promise<void>;
+  blockedEmails: string[];
+
   // Comprehensive Onboarding Tutorial
   isTutorialOpen: boolean;
   openTutorial: () => void;
@@ -172,6 +179,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('offline');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<SyncFeedback>({ status: 'idle', text: '' });
+  const [sessions, setSessions] = useState<SessionLog[]>([]);
+  const [blockedEmails, setBlockedEmails] = useState<string[]>([]);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
@@ -246,6 +255,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const effectiveTheme = useMemo(() => data.settings.color_theme || colorTheme, [data.settings.color_theme, colorTheme]);
 
+  const recordSession = useCallback(async (user: User) => {
+    try {
+      console.log('Firebase: Attempting to record session for', user.email);
+      // Get IP via public API
+      const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
+      const ipData = ipRes ? await ipRes.json() : { ip: 'unknown' };
+      
+      const userAgent = navigator.userAgent;
+      let deviceType = 'Desktop';
+      if (/Mobi|Android/i.test(userAgent)) deviceType = 'Mobile';
+      if (/Tablet|iPad/i.test(userAgent)) deviceType = 'Tablet';
+
+      const session: SessionLog = {
+        id: `sess_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        user_id: user.uid,
+        email: user.email || 'unknown',
+        ip_address: ipData.ip,
+        user_agent: userAgent,
+        device_type: deviceType,
+        timestamp: new Date().toISOString()
+      };
+
+      const sessionRef = doc(db, 'households', HOUSEHOLD_ID, 'sessions', session.id);
+      await setDoc(sessionRef, session);
+      console.log('Firebase: Session recorded successfully:', session.id);
+    } catch (err) {
+      console.error('Firebase: Session record failed:', err);
+    }
+  }, []);
+
+  const blockUserByEmail = useCallback(async (email: string) => {
+    if (!isAdmin) return;
+    const nextBlocked = [...new Set([...blockedEmails, email.toLowerCase()])];
+    const settingsRef = doc(db, 'households', HOUSEHOLD_ID);
+    await setDoc(settingsRef, { blocked_emails: nextBlocked }, { merge: true });
+  }, [isAdmin, blockedEmails]);
+
+  const unblockUserByEmail = useCallback(async (email: string) => {
+    if (!isAdmin) return;
+    const nextBlocked = blockedEmails.filter(e => e !== email.toLowerCase());
+    const settingsRef = doc(db, 'households', HOUSEHOLD_ID);
+    await setDoc(settingsRef, { blocked_emails: nextBlocked }, { merge: true });
+  }, [isAdmin, blockedEmails]);
+
+  const setColorTheme = useCallback((theme: ColorTheme) => {
+    setColorThemeState(theme);
+    localStorage.setItem(COLOR_THEME_KEY, theme);
+    
+    // Also persist to settings so it's synced and effective
+    const nextSettings = { ...data.settings, color_theme: theme };
+    setData(prev => ({ ...prev, settings: nextSettings }));
+    
+    if (firebaseUser) {
+      saveSettingsToCloud(nextSettings).catch(console.error);
+    }
+  }, [data.settings, firebaseUser]);
+
   useEffect(() => {
     applyColorTheme(effectiveTheme);
   }, [effectiveTheme]);
@@ -279,6 +345,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (user) {
         try {
           await user.getIdToken();
+          // Record session on login
+          recordSession(user);
         } catch (e) {
           console.warn('Could not refresh auth token:', e);
         }
@@ -321,13 +389,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isCancelled) return;
       try {
         if (!snap.exists()) {
-          // If household doesn't exist, only seed if current user is Moritz (original admin)
-          // otherwise wait for Moritz to set it up
           if (firebaseUser.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
             await seedAllDataToCloud(data);
           }
         } else {
-          const cloudSettings = snap.data() as FamilySettings;
+          const cloudData = snap.data();
+          const cloudSettings = cloudData as FamilySettings;
+          const cloudBlocked = (cloudData as any).blocked_emails || [];
+          setBlockedEmails(cloudBlocked);
+
+          // Security check: if current user is blocked, sign them out
+          if (firebaseUser.email && cloudBlocked.includes(firebaseUser.email.toLowerCase())) {
+            console.warn('User is blocked. Signing out...');
+            await signOut(auth);
+            return;
+          }
+
           setData(prev => {
             const next = { 
               ...prev, 
@@ -444,6 +521,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkDone();
     });
 
+    // 5. Sessions (Admin only)
+    let unsubSessions = () => {};
+    if (isAdmin) {
+      console.log('Firebase: Setting up sessions listener (Admin access granted)');
+      unsubSessions = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'sessions'), (snap) => {
+        if (isCancelled) return;
+        const sessList: SessionLog[] = [];
+        snap.forEach(d => sessList.push(d.data() as SessionLog));
+        console.log(`Firebase: Loaded ${sessList.length} sessions`);
+        setSessions(sessList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }, (err) => {
+        console.warn('Sessions sync notice:', err);
+      });
+    }
+
     // Safety fallback: Never leave user stuck on connection screen
     const safetyTimer = setTimeout(() => {
       if (!isCancelled) {
@@ -459,8 +551,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubMembers();
       unsubTasks();
       unsubLogs();
+      unsubSessions();
     };
-  }, [firebaseUser, syncRetryKey]);
+  }, [firebaseUser, syncRetryKey, isAdmin]);
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
@@ -773,7 +866,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{
       isAppLoaded, isAuthResolving, data, activeUser, isAdmin, theme, toggleTheme,
-      colorTheme, effectiveTheme, setColorTheme: setColorThemeState,
+      colorTheme, effectiveTheme, setColorTheme,
+      sessions, recordSession, blockUserByEmail, unblockUserByEmail, blockedEmails,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
       logChore, updateLog, deleteLog, createTask, updateTask, deleteTask,

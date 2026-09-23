@@ -251,23 +251,23 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Material 3 Expressive Bottom Navigation Bar for Mobile - Fixed always at bottom */}
       <nav 
         aria-label="Mobile Navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-[var(--m3-surface-container)]/95 backdrop-blur-xl border-t border-[var(--m3-outline-variant)] shadow-[0_-4px_24px_rgba(0,0,0,0.15)] pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] transition-colors"
+        className="md:hidden fixed bottom-6 inset-x-4 z-50 bg-[var(--m3-surface-container)]/80 backdrop-blur-2xl border border-[var(--m3-outline-variant)]/60 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.2)] pt-2 pb-2 transition-colors"
       >
-        <div className="max-w-md mx-auto px-2 flex items-center justify-around relative">
+        <div className="max-w-md mx-auto px-1 flex items-center justify-around relative">
           {/* Dashboard Tab */}
           <button
             type="button"
             onClick={() => onSelectTab('dashboard')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-colors"
+            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
           >
             <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
               currentTab === 'dashboard' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-xs' 
+                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
                 : 'text-[var(--m3-on-surface-variant)]'
             }`}>
-              <LayoutDashboard className="w-5 h-5" />
+              <LayoutDashboard className={`transition-transform ${currentTab === 'dashboard' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
             </div>
-            <span className={`text-[10px] font-bold ${
+            <span className={`text-[10px] font-black tracking-tight ${
               currentTab === 'dashboard' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
             }`}>
               Übersicht
@@ -278,16 +278,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectTab('tasks')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-colors"
+            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
           >
             <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
               currentTab === 'tasks' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-xs' 
+                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
                 : 'text-[var(--m3-on-surface-variant)]'
             }`}>
-              <CheckSquare className="w-5 h-5" />
+              <CheckSquare className={`transition-transform ${currentTab === 'tasks' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
             </div>
-            <span className={`text-[10px] font-bold ${
+            <span className={`text-[10px] font-black tracking-tight ${
               currentTab === 'tasks' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
             }`}>
               Aufgaben
@@ -295,18 +295,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Center Expressive Floating Action Button (M3 FAB) */}
-          <div className="px-2 -mt-6 relative z-20">
+          <div className="px-2 -mt-10 relative z-20">
             <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 22 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
               type="button"
               onClick={onOpenLogModal}
-              className="w-13 h-13 rounded-2xl bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-lg shadow-indigo-600/30 flex items-center justify-center border-3 border-[var(--m3-surface-container)]"
+              className="w-16 h-16 rounded-[22px] bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-[0_8px_24px_rgba(79,70,229,0.4)] flex items-center justify-center border-4 border-[var(--m3-surface-container)] ring-4 ring-black/5"
               aria-label="Arbeit erfassen"
               title="Arbeit erfassen"
             >
-              <Plus className="w-6 h-6 stroke-[3]" />
+              <Plus className="w-8 h-8 stroke-[4]" />
+              <div className="absolute inset-0 rounded-[18px] bg-white/10 opacity-0 active:opacity-100 transition-opacity" />
             </motion.button>
           </div>
 
@@ -314,16 +315,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectTab('settings')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-colors"
+            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
           >
             <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
               currentTab === 'settings' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-xs' 
+                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
                 : 'text-[var(--m3-on-surface-variant)]'
             }`}>
-              {isAdmin ? <ShieldCheck className="w-5 h-5" /> : <User className="w-5 h-5" />}
+              {isAdmin ? (
+                <ShieldCheck className={`transition-transform ${currentTab === 'settings' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
+              ) : (
+                <User className={`transition-transform ${currentTab === 'settings' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
+              )}
             </div>
-            <span className={`text-[10px] font-bold ${
+            <span className={`text-[10px] font-black tracking-tight ${
               currentTab === 'settings' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
             }`}>
               {isAdmin ? 'Admin' : 'Profil'}
