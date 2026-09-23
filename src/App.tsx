@@ -11,6 +11,7 @@ import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TutorialModal } from './components/TutorialModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
@@ -95,6 +96,9 @@ const MainContent: React.FC = () => {
 
       {/* PWA Install Notification Prompt */}
       <PWAInstallBanner />
+
+      {/* Real-time Cloud Upload & Saved Banner */}
+      <SyncFeedbackBanner />
 
       {/* Main App Navigation Bar */}
       <Navbar

@@ -32,6 +32,7 @@ export const SyncSettingsTab: React.FC = () => {
     loginWithGoogle, 
     logoutFirebase, 
     uploadAllToCloud,
+    resetFirebaseCompletely,
     exportDataJSON,
     importDataJSON,
     data,
@@ -41,15 +42,32 @@ export const SyncSettingsTab: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  const handleResetFirebaseCompletely = async () => {
+    setIsResetting(true);
+    setShowResetConfirm(false);
+    try {
+      await resetFirebaseCompletely();
+      setUploadSuccess('Cloud & Haushalt erfolgreich komplett geleert!');
+      setTimeout(() => setUploadSuccess(null), 5000);
+    } catch (err: any) {
+      console.error(err);
+      setUploadSuccess('Fehler beim Zurücksetzen: ' + (err.message || String(err)));
+      setTimeout(() => setUploadSuccess(null), 5000);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleForceResync = async () => {
-    if (!window.confirm('Möchtest du den lokalen Cache leeren und alle Daten neu aus der Cloud laden? Deine lokalen (unsynchronisierten) Änderungen könnten verloren gehen.')) return;
-    
     setIsResetting(true);
     try {
+      localStorage.removeItem('household_chore_tracker_data_v5');
       localStorage.removeItem('household_chore_tracker_data_v3');
+      localStorage.removeItem('household_chore_active_user_id');
       window.location.reload();
     } catch (e) {
       console.error(e);
@@ -188,17 +206,46 @@ export const SyncSettingsTab: React.FC = () => {
           </div>
 
           {firebaseUser && (
-            <div className="mt-4 pt-4 border-t border-[var(--m3-outline-variant)]">
+            <div className="mt-4 pt-4 border-t border-[var(--m3-outline-variant)] flex flex-wrap items-center gap-4">
+              {!showResetConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={isResetting}
+                  className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black transition flex items-center gap-1.5 border border-rose-500/30 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Cloud komplett leeren</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30">
+                  <span className="text-[11px] font-black text-rose-600 dark:text-rose-400">
+                    Wirklich alle Daten in Firebase löschen?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetFirebaseCompletely}
+                    disabled={isResetting}
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-[11px] hover:bg-rose-700 transition"
+                  >
+                    {isResetting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ja, leeren'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetConfirm(false)}
+                    className="px-2 py-1 rounded-lg bg-[var(--m3-surface)] text-[var(--m3-on-surface)] font-bold text-[11px]"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              )}
+
               <button
+                type="button"
                 onClick={handleForceResync}
                 disabled={isResetting}
-                className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition flex items-center gap-2"
+                className="text-[10px] font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] hover:text-rose-500 transition flex items-center gap-1.5 cursor-pointer"
               >
-                {isResetting ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3 h-3" />
-                )}
                 Lokalen Cache leeren & neu laden
               </button>
             </div>
@@ -311,7 +358,7 @@ export const SyncSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* CLOUD WHITELIST: FREIGABEN FÜR ANDERE GOOGLE-KONTEN */}
+      {/* GEMEINSAMER HAUSHALT: JEDER GOOGLE ACCOUNT IST IM GLEICHEN HAUSHALT */}
       {firebaseUser && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -319,66 +366,73 @@ export const SyncSettingsTab: React.FC = () => {
           className="p-6 rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-sm"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-2xl bg-[var(--m3-primary)] text-white shadow-sm">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="p-2.5 rounded-2xl bg-emerald-500 text-white shadow-sm">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
-                Familien-Zugriff (Whitelist)
+                Gemeinsamer Haushalt (Alle Google-Konten)
               </h2>
               <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
-                Wer darf diesen Haushalt mit seinem eigenen Google-Konto sehen?
+                Egal mit welchem Google-Account man sich anmeldet: Immer im selben Haushalt.
               </p>
             </div>
           </div>
 
-          <div className="space-y-6">
-            {/* Add Email Form */}
-            <form onSubmit={handleAddEmail} className="flex gap-2">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--m3-outline)]" />
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="E-Mail des Familienmitglieds..."
-                  className="w-full pl-10 pr-4 py-2.5 text-sm font-bold rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)] placeholder-[var(--m3-outline)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)] shadow-xs transition-all"
-                />
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+              <Cloud className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-800 dark:text-emerald-200 leading-relaxed font-medium">
+                <strong>Automatischer Haushalts-Verbund:</strong> Alle Familienmitglieder, die sich mit ihrem Google-Konto anmelden, sind sofort und ohne manuelle Einladungscodes im selben gemeinsamen Haushalt (<code>main_household</code>) verbunden.
               </div>
-              <button
-                type="submit"
-                disabled={!newEmail.trim() || !newEmail.includes('@')}
-                className="m3-btn-filled px-5 py-2.5 text-xs font-black disabled:opacity-40 disabled:grayscale whitespace-nowrap"
-              >
-                <UserPlus2 className="w-4 h-4 mr-2" />
-                Hinzufügen
-              </button>
-            </form>
+            </div>
 
-            {/* Email List */}
-            <div className="space-y-2">
+            {/* Add Email Form for reference */}
+            <div className="space-y-3 pt-2">
               <h3 className="text-[10px] uppercase font-black text-[var(--m3-on-surface-variant)] tracking-wider px-1">
-                Berechtigte Google-Konten
+                Familien-Kontakte / Notizbuch (Optional)
               </h3>
+              <form onSubmit={handleAddEmail} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--m3-outline)]" />
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="E-Mail eines Familienmitglieds..."
+                    className="w-full pl-10 pr-4 py-2.5 text-sm font-bold rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)] placeholder-[var(--m3-outline)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)] shadow-xs transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newEmail.trim() || !newEmail.includes('@')}
+                  className="m3-btn-filled px-5 py-2.5 text-xs font-black disabled:opacity-40 disabled:grayscale whitespace-nowrap"
+                >
+                  <UserPlus2 className="w-4 h-4 mr-2" />
+                  Hinzufügen
+                </button>
+              </form>
+
+              {/* Email List */}
               <div className="space-y-2">
-                {/* Owner is always listed but cannot be removed */}
+                {/* Active user */}
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                      <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs font-black text-[var(--m3-on-surface)]">
-                        moritz.menet.bfsu@gmail.com
+                        {firebaseUser.email}
                       </span>
-                      <span className="text-[10px] font-bold text-indigo-500 uppercase">Besitzer / Admin</span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Aktuell angemeldet</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Whitelisted Emails */}
-                {data.settings.allowed_emails && data.settings.allowed_emails.length > 0 ? (
-                  data.settings.allowed_emails.map((email) => (
+                {/* Additional stored emails */}
+                {data.settings.allowed_emails && data.settings.allowed_emails.filter(e => e !== firebaseUser.email).length > 0 ? (
+                  data.settings.allowed_emails.filter(e => e !== firebaseUser.email).map((email) => (
                     <motion.div
                       layout
                       initial={{ opacity: 0, x: -10 }}
@@ -395,25 +449,14 @@ export const SyncSettingsTab: React.FC = () => {
                       <button
                         onClick={() => handleRemoveEmail(email)}
                         className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100"
-                        title="Zugriff entziehen"
+                        title="Entfernen"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </motion.div>
                   ))
-                ) : (
-                  <div className="text-center py-4 px-6 rounded-2xl border border-dashed border-[var(--m3-outline-variant)] text-[var(--m3-on-surface-variant)] text-[11px] font-medium italic">
-                    Noch keine weiteren Familienmitglieder hinzugefügt.
-                  </div>
-                )}
+                ) : null}
               </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-              <HelpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
-              <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed font-medium">
-                <strong>Hinweis:</strong> Eingetragene Personen müssen sich auf ihrem Gerät mit diesem Google-Konto anmelden, um Zugriff auf den Haushalt zu erhalten.
-              </p>
             </div>
           </div>
         </motion.div>

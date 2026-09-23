@@ -21,21 +21,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
     function isAdmin() {
-      return isVerified() && (
+      return isSignedIn() && (
         request.auth.token.email == 'moritz.menet.bfsu@gmail.com'
       );
     }
 
     // Validation for Household root document
     function isValidHousehold(data) {
-      return data.id is string && data.id.size() <= 128 &&
-        data.household_name is string && data.household_name.size() > 0 && data.household_name.size() <= 100 &&
-        data.categories is list && data.categories.size() <= 50 &&
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+        (!('household_name' in data) || (data.household_name is string && data.household_name.size() <= 100)) &&
+        (!('categories' in data) || (data.categories is list && data.categories.size() <= 50)) &&
         (!('color_theme' in data) || (data.color_theme is string && data.color_theme.size() <= 50)) &&
         (!('default_weekly_target' in data) || (data.default_weekly_target is number && data.default_weekly_target >= 0 && data.default_weekly_target <= 10000)) &&
         (!('star_multiplier_1' in data) || data.star_multiplier_1 is number) &&
@@ -55,23 +51,23 @@ service cloud.firestore {
 
     // Validation for Household Member
     function isValidMember(data) {
-      return data.id is string && data.id.size() <= 128 &&
-        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-        data.role is string && (data.role == 'admin' || data.role == 'member' || data.role == 'user') &&
-        data.avatar_color is string && data.avatar_color.size() <= 50 &&
-        data.total_points is number &&
-        data.weekly_target is number && data.weekly_target >= 0 && data.weekly_target <= 10000 &&
-        data.householdId is string && data.householdId.size() <= 128 &&
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+        (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 100)) &&
+        (!('role' in data) || (data.role is string && (data.role == 'admin' || data.role == 'member' || data.role == 'user'))) &&
+        (!('avatar_color' in data) || (data.avatar_color is string && data.avatar_color.size() <= 50)) &&
+        (!('total_points' in data) || data.total_points is number) &&
+        (!('weekly_target' in data) || (data.weekly_target is number && data.weekly_target >= 0 && data.weekly_target <= 10000)) &&
+        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128)) &&
         (!('has_seen_tutorial' in data) || data.has_seen_tutorial is bool) &&
         (!('pin_code' in data) || (data.pin_code is string && data.pin_code.size() <= 20));
     }
 
     // Validation for Chore Task
     function isValidTask(data) {
-      return data.id is string && data.id.size() <= 128 &&
-        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-        data.category is string && data.category.size() <= 100 &&
-        data.base_points is number && data.base_points >= 0 && data.base_points <= 5000 &&
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+        (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() <= 200)) &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+        (!('base_points' in data) || (data.base_points is number && data.base_points >= 0 && data.base_points <= 5000)) &&
         (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
         (!('estimated_duration' in data) || (data.estimated_duration is number && data.estimated_duration >= 0 && data.estimated_duration <= 1440)) &&
         (!('interval_days' in data) || (data.interval_days is number && data.interval_days >= 0 && data.interval_days <= 365)) &&
@@ -82,12 +78,12 @@ service cloud.firestore {
 
     // Validation for Chore Log
     function isValidLog(data) {
-      return data.log_id is string && data.log_id.size() <= 128 &&
-        data.task_id is string && data.task_id.size() <= 128 &&
-        data.user_id is string && data.user_id.size() <= 128 &&
-        data.stars is number && data.stars >= 1 && data.stars <= 3 &&
-        data.points_awarded is number && data.points_awarded >= 0 && data.points_awarded <= 10000 &&
-        data.timestamp is string && data.timestamp.size() <= 50 &&
+      return (!('log_id' in data) || (data.log_id is string && data.log_id.size() <= 128)) &&
+        (!('task_id' in data) || (data.task_id is string && data.task_id.size() <= 128)) &&
+        (!('user_id' in data) || (data.user_id is string && data.user_id.size() <= 128)) &&
+        (!('stars' in data) || (data.stars is number && data.stars >= 1 && data.stars <= 3)) &&
+        (!('points_awarded' in data) || (data.points_awarded is number && data.points_awarded >= 0 && data.points_awarded <= 10000)) &&
+        (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50)) &&
         (!('actual_duration' in data) || (data.actual_duration is number && data.actual_duration >= 0 && data.actual_duration <= 1440)) &&
         (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
         (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128));
@@ -97,18 +93,18 @@ service cloud.firestore {
       allow get: if isSignedIn() && isValidId(householdId);
       allow list: if isSignedIn();
 
-      allow create: if isVerified() && isValidId(householdId) && isValidHousehold(request.resource.data);
-      allow update: if isVerified() && isValidId(householdId) && isValidHousehold(request.resource.data);
-      allow delete: if isAdmin() && isValidId(householdId);
+      allow create: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow update: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(householdId);
 
       // Subcollection: Members
       match /members/{memberId} {
         allow get: if isSignedIn() && isValidId(householdId) && isValidId(memberId);
         allow list: if isSignedIn() && isValidId(householdId);
 
-        allow create: if isVerified() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
-        allow update: if isVerified() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
-        allow delete: if isVerified() && isValidId(householdId) && isValidId(memberId);
+        allow create: if isSignedIn() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
+        allow update: if isSignedIn() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
+        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(memberId);
       }
 
       // Subcollection: Tasks
@@ -116,9 +112,9 @@ service cloud.firestore {
         allow get: if isSignedIn() && isValidId(householdId) && isValidId(taskId);
         allow list: if isSignedIn() && isValidId(householdId);
 
-        allow create: if isVerified() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
-        allow update: if isVerified() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
-        allow delete: if isVerified() && isValidId(householdId) && isValidId(taskId);
+        allow create: if isSignedIn() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
+        allow update: if isSignedIn() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
+        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(taskId);
       }
 
       // Subcollection: Logs
@@ -126,9 +122,9 @@ service cloud.firestore {
         allow get: if isSignedIn() && isValidId(householdId) && isValidId(logId);
         allow list: if isSignedIn() && isValidId(householdId);
 
-        allow create: if isVerified() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
-        allow update: if isVerified() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
-        allow delete: if isVerified() && isValidId(householdId) && isValidId(logId);
+        allow create: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
+        allow update: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
+        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(logId);
       }
     }
   }

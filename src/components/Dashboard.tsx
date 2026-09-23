@@ -256,10 +256,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {prioritizedTasks.length === 0 ? (
-          <div className="p-8 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]">
+          <div className="p-8 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] space-y-3">
             <p className="text-xs text-[var(--m3-on-surface-variant)] font-semibold">
               Noch keine Aufgaben angelegt. Erstelle jetzt Aufgaben für deinen Haushalt!
             </p>
+            <button
+              onClick={onNavigateToTasks}
+              className="m3-btn-filled px-4 py-2 text-xs font-black inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Aufgabe erstellen</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

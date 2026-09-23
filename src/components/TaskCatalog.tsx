@@ -168,13 +168,27 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
       {/* Task Cards Grid */}
       {filteredTasks.length === 0 ? (
         <div className="p-12 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
-          <CheckSquare className="w-12 h-12 text-[var(--m3-outline)] mx-auto mb-3 opacity-50" />
+          <CheckSquare className="w-12 h-12 text-[var(--m3-primary)] mx-auto mb-3 opacity-60" />
           <h3 className="text-base font-bold text-[var(--m3-on-surface)]">
-            Keine Aufgaben gefunden
+            {tasksList.length === 0 ? 'Noch keine Aufgaben vorhanden' : 'Keine passenden Aufgaben gefunden'}
           </h3>
-          <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1">
-            Versuche einen anderen Suchbegriff oder hebe die Filter auf.
+          <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1 max-w-sm mx-auto">
+            {tasksList.length === 0
+              ? 'Dieser Haushalt ist leer und bereit für deine eigenen Aufgaben. Erstelle die erste Aufgabe für eure Familie!'
+              : 'Versuche einen anderen Suchbegriff oder hebe die Filter auf.'}
           </p>
+          {tasksList.length === 0 && (
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={onOpenCreateTaskModal}
+                className="m3-btn-filled px-5 py-2.5 text-xs font-black inline-flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Erste Aufgabe anlegen</span>
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

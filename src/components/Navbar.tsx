@@ -10,6 +10,7 @@ import {
   Plus,
   Cloud,
   Loader2,
+  CheckCircle2,
   Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -37,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     toggleTheme, 
     firebaseUser, 
     syncStatus, 
+    syncFeedback,
     loginWithGoogle
   } = useApp();
 
@@ -141,16 +143,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Cloud Sync Status / Connect */}
             {firebaseUser ? (
               <div 
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"
-                title={`Live synchronisiert über Firebase (${firebaseUser.email})`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all shadow-2xs ${
+                  syncFeedback?.status === 'uploading'
+                    ? 'bg-[var(--m3-primary)]/15 border border-[var(--m3-primary)]/40 text-[var(--m3-primary)]'
+                    : syncFeedback?.status === 'saved'
+                    ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                    : syncStatus === 'connecting'
+                    ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300'
+                    : 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400'
+                }`}
+                title={`Live synchronisiert (${firebaseUser.email})`}
               >
-                {syncStatus === 'connecting' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                {syncFeedback?.status === 'uploading' || syncStatus === 'connecting' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-current" />
+                ) : syncFeedback?.status === 'saved' ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
                 )}
-                <Cloud className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline">Cloud Sync</span>
+                <Cloud className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline font-extrabold">
+                  {syncFeedback?.status === 'uploading'
+                    ? 'Wird hochgeladen...'
+                    : syncFeedback?.status === 'saved'
+                    ? 'Gesichert ✓'
+                    : syncStatus === 'connecting'
+                    ? 'Verbinde...'
+                    : 'Cloud aktiv'}
+                </span>
               </div>
             ) : (
               <button

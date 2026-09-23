@@ -62,7 +62,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   };
 
   const handleQuickStartAdmin = () => {
-    const admin = initializeAdminProfile(suggestedAdminName, '#4F46E5', true);
+    const admin = initializeAdminProfile(suggestedAdminName, '#4F46E5', false);
     setActiveUserId(admin.id);
     if (onClose) onClose();
   };
@@ -169,7 +169,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
                 <div className="p-3.5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] text-xs font-bold text-[var(--m3-on-surface-variant)] flex items-center justify-center gap-2 shadow-2xs">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Inklusive 8 Standard-Aufgaben für Küche, Bad, Müll & Co.</span>
+                  <span>Startet mit einem sauberen, leeren Haushalt für eigene Aufgaben.</span>
                 </div>
 
                 <div className="pt-2">
