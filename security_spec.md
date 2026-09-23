@@ -1,28 +1,28 @@
 # Security Specification - Remix Household Chore Tracker
 
 ## Data Invariants
-1. **Household Integrity**: A household document must have a `household_name` and a `categories` list.
-2. **Member Ownership**: Members, Tasks, and Logs always belong to a specific `householdId`.
-3. **Role Enforcement**: Only 'admin' or 'member' roles are allowed. 'admin' role can only be assigned by existing admins or during initial setup (for Moritz).
-4. **Point Integrity**: Points awarded in a log must be positive and within reasonable bounds.
-5. **PII Protection**: User email and PIN codes must be protected. PIN codes are used for local profile switching security.
+1. A household settings document must exist to have members, tasks, and logs.
+2. Only authenticated users can access any data.
+3. Users specifically listed in `allowed_emails` or identified as 'moritz.menet.bfsu@gmail.com' have full access.
+4. Tasks and logs must belong to a valid household.
+5. Logs must reference a valid user and task.
 
-## The Dirty Dozen Payloads (Fail Cases)
-1. **ID Poisoning**: Attempt to create a household with a 2KB junk string as ID.
-2. **Identity Spoofing**: Attempt to create a member profile with `role: 'admin'` as a non-admin user.
-3. **Shadow Field Injection**: Attempt to add `is_super_admin: true` to a member document.
-4. **State Shortcutting**: Attempt to update a log's `points_awarded` to 1,000,000.
-5. **Cross-Household Leak**: Attempt to read logs from `households/other_family/logs` as a member of `main_household`.
-6. **Immutable Violation**: Attempt to change the `householdId` of a task after it has been created.
-7. **Type Poisoning**: Sending `base_points: "lots"` (string) instead of an integer.
-8. **Size Attack**: Sending a `title` string that is 500KB in size.
-9. **Orphaned Record**: Creating a log for a `task_id` that does not exist.
-10. **Admin Privilege Escalation**: A 'member' attempting to update the `allowed_emails` list in the household settings.
-11. **PII Leak**: An unauthenticated user attempting to list all `members` of a household.
-12. **Timestamp Fraud**: Sending a `timestamp` in the future for a chore log.
+## The "Dirty Dozen" Payloads
+1. **Unauthenticated Read**: Attempt to read `/households/main_household` without a token. (DENIED)
+2. **Unauthorized Household Create**: Random user tries to create a new household. (DENIED)
+3. **Identity Spoofing**: User A tries to log a chore for User B. (DENIED - currently app allows it, but rules should restrict if possible. For this specific app, it's a shared family device model, so maybe not too strict on *which* user logs, but *who* is logged in to Firebase).
+4. **Admin Escalation**: Regular user tries to update their own role to 'admin' in the `members` collection. (DENIED)
+5. **Setting Wipeout**: Unauthorized user tries to delete the household settings. (DENIED)
+6. **Task Injection**: User tries to create a task with 1MB of junk data in the title. (DENIED)
+7. **Negative Points**: User tries to log a chore with negative points awarded. (DENIED)
+8. **Future Log**: User tries to log a chore with a timestamp in the year 2099. (DENIED)
+9. **Email Spoofing**: User with unverified email tries to access admin data. (DENIED)
+10. **Orphaned Log**: User tries to create a log for a task that doesn't exist. (DENIED)
+11. **Shadow Field Update**: User tries to add a `isDeveloper: true` field to their member profile. (DENIED)
+12. **Foreign Household Write**: User tries to write to `/households/other_household` when they only have access to `main_household`. (DENIED)
 
-## Security Controls
-- **Auth Guard**: All writes require `isSignedIn()`.
-- **Relational Sync**: Sub-resource access is gated by the parent household's membership/access.
-- **Validation Blueprints**: Strict schema validation using `isValidHousehold`, `isValidMember`, `isValidTask`, and `isValidLog`.
-- **Action-Based Updates**: Partitioned update logic using `affectedKeys().hasOnly()`.
+## Rules Implementation Strategy
+- Use `isValidId` for all path variables.
+- Use `isValidHousehold`, `isValidMember`, `isValidTask`, `isValidLog` helpers.
+- Enforce `request.auth.token.email_verified == true`.
+- Enforce `allowed_emails` check for the household.

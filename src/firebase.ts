@@ -10,7 +10,8 @@ import {
 import { 
   getFirestore, 
   doc, 
-  getDocFromServer
+  getDocFromServer,
+  setDoc
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -38,13 +39,15 @@ export async function clearAllLocalPersistence(): Promise<void> {
     localStorage.clear();
     sessionStorage.clear();
     if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
-      const dbs = await window.indexedDB.databases();
-      for (const d of dbs) {
-        if (d.name) {
-          try {
+      try {
+        const dbs = await window.indexedDB.databases();
+        for (const d of dbs) {
+          if (d.name) {
             window.indexedDB.deleteDatabase(d.name);
-          } catch { /* ignore */ }
+          }
         }
+      } catch {
+        // Fallback if databases() not supported
       }
     }
   } catch (e) {
@@ -52,8 +55,8 @@ export async function clearAllLocalPersistence(): Promise<void> {
   }
 }
 
-// Standard Firestore initialization
-export const db = getFirestore(app);
+// Standard Firestore initialization - with critical Database ID support
+export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
 
 export enum OperationType {
   CREATE = 'create',
@@ -64,40 +67,48 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-  };
-}
-
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+export function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
+  const errCode = error?.code || 'unknown';
+  const errMsg = error?.message || String(error);
+  
+  const errInfo = {
+    error: errMsg,
+    code: errCode,
+    operationType,
+    path,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
-    },
-    operationType,
-    path
+    }
   };
-  console.error('Firestore Error:', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  console.error('[Firestore Critical Error]', JSON.stringify(errInfo));
+  
+  // Create a user-friendly message
+  let userMessage = 'Verbindung zum Cloud-Speicher fehlgeschlagen.';
+  if (errCode === 'permission-denied') {
+    userMessage = 'Zugriff verweigert: Du hast keine Berechtigung für diese Aktion.';
+  } else if (errCode === 'unavailable') {
+    userMessage = 'Cloud-Dienst vorübergehend nicht erreichbar. Bitte Internetverbindung prüfen.';
+  } else if (errMsg.includes('Quota exceeded')) {
+    userMessage = 'Limit erreicht: Das tägliche Cloud-Kontingent ist erschöpft.';
+  }
+  
+  throw new Error(userMessage);
 }
 
 export async function testFirestoreConnection() {
   if (!isConfigValid) return;
   try {
-    const testDoc = doc(db, 'test', 'connection');
-    await getDocFromServer(testDoc);
-    console.log('Firebase: Connection established.');
+    const testDoc = doc(db, 'test', 'last_check');
+    await setDoc(testDoc, {
+      timestamp: new Date().toISOString(),
+      user: auth.currentUser?.email || 'anonymous'
+    });
+    console.log('Firebase: Connection & Write Test established.');
   } catch (error) {
-    console.warn('Firebase: Connection notice (this is normal if doc missing):', error);
+    console.warn('Firebase: Connection write test failed (this is normal if not logged in):', error);
   }
 }
 

@@ -194,7 +194,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (cloudPromise) {
-      return cloudPromise
+      // Add a safety timeout of 15 seconds to prevent hanging the UI forever
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 15000)
+      );
+
+      return Promise.race([cloudPromise, timeoutPromise])
         .then(() => {
           // Keep the "saved" state a bit longer for visual confirmation
           setSyncFeedback({
@@ -208,15 +213,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return true;
         })
         .catch((err) => {
-          console.warn('Sync failed:', err);
+          const isTimeout = err.message === 'timeout';
+          console.warn(isTimeout ? 'Sync timed out' : 'Sync failed:', err);
+          
           setSyncFeedback({
             status: 'error',
-            text: `Cloud-Synchronisierung verzögert...`
+            text: isTimeout 
+              ? `Cloud-Verbindung langsam... (Timeout)` 
+              : `Synchronisierung fehlgeschlagen.`
           });
+          
+          // Allow the user to dismiss the error after a few seconds
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
-          }, 4000);
-          throw err;
+          }, 5000);
+          
+          if (!isTimeout) throw err;
+          return false;
         });
     }
     return Promise.resolve();
@@ -360,9 +373,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveUserIdState(currentId => {
           if (currentId && membersMap[currentId]) return currentId;
           const chosen = Object.keys(membersMap)[0] || null;
-          if (chosen) localStorage.setItem(ACTIVE_USER_KEY, chosen);
-          else localStorage.removeItem(ACTIVE_USER_KEY);
-          return chosen;
+          if (chosen) {
+            localStorage.setItem(ACTIVE_USER_KEY, chosen);
+            return chosen;
+          } else {
+            localStorage.removeItem(ACTIVE_USER_KEY);
+            return null;
+          }
         });
       } else {
         // Empty cloud members - do not inject fake members
@@ -679,10 +696,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('connecting');
       setFirebaseError(null);
       await signInWithPopup(auth, googleProvider);
+      console.log('Firebase: Login process completed.');
     } catch (err: any) {
       console.error('Login error:', err);
       setSyncStatus('error');
-      setFirebaseError(err.message || 'Login fehlgeschlagen');
+      const msg = err.code === 'auth/popup-blocked' 
+        ? 'Login-Fenster wurde blockiert. Bitte Popups erlauben.'
+        : err.message || 'Login fehlgeschlagen';
+      setFirebaseError(msg);
     }
   }, []);
 
