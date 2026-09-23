@@ -10,17 +10,13 @@ import {
 import { 
   getFirestore, 
   doc, 
-  getDoc,
+  getDocFromServer,
   enableIndexedDbPersistence 
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Safe initialization
 export const isConfigValid = !!(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId);
-
-if (!isConfigValid) {
-  console.warn('Firebase configuration is invalid or missing. Some features may not work.');
-}
 
 const app = initializeApp(isConfigValid ? firebaseConfig : {
   apiKey: "mock-key",
@@ -31,34 +27,35 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
   appId: "1:123:web:123"
 });
 
-if (import.meta.env.PROD) {
-  console.log('Firebase initialized for project:', isConfigValid ? firebaseConfig.projectId : 'MOCK');
-  if (typeof window !== 'undefined') {
-    console.log('Current Domain:', window.location.hostname);
-    if (window.location.hostname.includes('github.io')) {
-      console.info('Tip: Ensure your GitHub domain is added to "Authorized Domains" in Firebase Authentication settings.');
-    }
-  }
-}
-
-// Critical: specify databaseId as configured
-export const db = (isConfigValid && firebaseConfig.firestoreDatabaseId) 
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
-  : getFirestore(app);
-
-// Enable persistence for better reliability
-if (typeof window !== 'undefined' && isConfigValid) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence failed (multiple tabs open)');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence not supported in this browser');
-    }
-  });
-}
-
+// Primary services
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Database initialization as specified in skill guidelines
+export const db = isConfigValid ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : getFirestore(app);
+
+/**
+ * Utility to completely clear local storage and indexedDB databases (e.g. stale firestore cache)
+ */
+export async function clearAllLocalPersistence(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
+      const dbs = await window.indexedDB.databases();
+      for (const d of dbs) {
+        if (d.name) {
+          try {
+            window.indexedDB.deleteDatabase(d.name);
+          } catch { /* ignore */ }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error clearing local persistence:', e);
+  }
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -107,30 +104,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test connection on boot
+// Validation Test
 export async function testFirestoreConnection() {
-  if (!isConfigValid) {
-    console.log('Firebase: Connection test skipped (Disabled).');
-    return;
-  }
+  if (!isConfigValid) return;
   
-  // Give the network a moment to stabilize
-  setTimeout(async () => {
-    try {
-      console.log('Firebase: Testing connection...');
-      // Using a timeout for the getDoc itself to avoid long hangs
-      const testDoc = doc(db, 'test', 'connection');
-      await getDoc(testDoc);
-      console.log('Firebase: Connection test finished (Success or Cached).');
-    } catch (error: any) {
-      // Don't log "offline" as a hard error, it's expected in some environments
-      if (error.code === 'unavailable' || error.message?.includes('offline')) {
-        console.log('Firebase: Working in offline/persistence mode.');
-      } else {
-        console.warn('Firebase Connection Hint:', error.code, error.message);
-      }
-    }
-  }, 2000);
+  try {
+    const testDoc = doc(db, 'test', 'connection');
+    await getDocFromServer(testDoc);
+    console.log('Firebase: Connection validated.');
+  } catch (error) {
+    console.warn('Firebase: Connection test note:', error);
+  }
 }
 
 export { onAuthStateChanged, signInWithPopup, signOut };

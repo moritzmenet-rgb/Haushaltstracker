@@ -1,24 +1,135 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Household access: allow all signed-in users to read and write
-    match /households/{householdId} {
-      allow read, write: if request.auth != null;
-      
-      // Subcollections (members, tasks, logs, etc.)
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null;
-      }
+
+    // Default deny all unknown collections
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Allow connection test
-    match /test/connection {
-      allow read: if true;
+    // Health / connectivity check
+    match /test/{testId} {
+      allow get: if true;
     }
-    
-    // Explicitly allow seeding if document doesn't exist
-    match /{path=**} {
-      allow read, write: if request.auth != null;
+
+    // Hardened global helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'moritz.menet.bfsu@gmail.com'
+      );
+    }
+
+    // Validation for Household root document
+    function isValidHousehold(data) {
+      return data.id is string && data.id.size() <= 128 &&
+        data.household_name is string && data.household_name.size() > 0 && data.household_name.size() <= 100 &&
+        data.categories is list && data.categories.size() <= 50 &&
+        (!('color_theme' in data) || (data.color_theme is string && data.color_theme.size() <= 50)) &&
+        (!('default_weekly_target' in data) || (data.default_weekly_target is number && data.default_weekly_target >= 0 && data.default_weekly_target <= 10000)) &&
+        (!('star_multiplier_1' in data) || data.star_multiplier_1 is number) &&
+        (!('star_multiplier_2' in data) || data.star_multiplier_2 is number) &&
+        (!('star_multiplier_3' in data) || data.star_multiplier_3 is number) &&
+        (!('rollover_factor' in data) || data.rollover_factor is number) &&
+        (!('rollover_surplus_factor' in data) || data.rollover_surplus_factor is number) &&
+        (!('rollover_deficit_factor' in data) || data.rollover_deficit_factor is number) &&
+        (!('rollover_min_target' in data) || data.rollover_min_target is number) &&
+        (!('rollover_max_target' in data) || data.rollover_max_target is number) &&
+        (!('week_start_day' in data) || (data.week_start_day is string && data.week_start_day.size() <= 20)) &&
+        (!('allowed_emails' in data) || (data.allowed_emails is list && data.allowed_emails.size() <= 100)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50)) &&
+        (!('last_reset_date' in data) || (data.last_reset_date is string && data.last_reset_date.size() <= 50)) &&
+        (!('firebase_url' in data) || (data.firebase_url is string && data.firebase_url.size() <= 200));
+    }
+
+    // Validation for Household Member
+    function isValidMember(data) {
+      return data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.role is string && (data.role == 'admin' || data.role == 'member' || data.role == 'user') &&
+        data.avatar_color is string && data.avatar_color.size() <= 50 &&
+        data.total_points is number &&
+        data.weekly_target is number && data.weekly_target >= 0 && data.weekly_target <= 10000 &&
+        data.householdId is string && data.householdId.size() <= 128 &&
+        (!('has_seen_tutorial' in data) || data.has_seen_tutorial is bool) &&
+        (!('pin_code' in data) || (data.pin_code is string && data.pin_code.size() <= 20));
+    }
+
+    // Validation for Chore Task
+    function isValidTask(data) {
+      return data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.category is string && data.category.size() <= 100 &&
+        data.base_points is number && data.base_points >= 0 && data.base_points <= 5000 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+        (!('estimated_duration' in data) || (data.estimated_duration is number && data.estimated_duration >= 0 && data.estimated_duration <= 1440)) &&
+        (!('interval_days' in data) || (data.interval_days is number && data.interval_days >= 0 && data.interval_days <= 365)) &&
+        (!('created_by' in data) || (data.created_by is string && data.created_by.size() <= 100)) &&
+        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128)) &&
+        (!('last_done' in data) || data.last_done == null || (data.last_done is string && data.last_done.size() <= 50));
+    }
+
+    // Validation for Chore Log
+    function isValidLog(data) {
+      return data.log_id is string && data.log_id.size() <= 128 &&
+        data.task_id is string && data.task_id.size() <= 128 &&
+        data.user_id is string && data.user_id.size() <= 128 &&
+        data.stars is number && data.stars >= 1 && data.stars <= 3 &&
+        data.points_awarded is number && data.points_awarded >= 0 && data.points_awarded <= 10000 &&
+        data.timestamp is string && data.timestamp.size() <= 50 &&
+        (!('actual_duration' in data) || (data.actual_duration is number && data.actual_duration >= 0 && data.actual_duration <= 1440)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128));
+    }
+
+    match /households/{householdId} {
+      allow get: if isSignedIn() && isValidId(householdId);
+      allow list: if isSignedIn();
+
+      allow create: if isVerified() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow update: if isVerified() && isValidId(householdId) && isValidHousehold(request.resource.data);
+      allow delete: if isAdmin() && isValidId(householdId);
+
+      // Subcollection: Members
+      match /members/{memberId} {
+        allow get: if isSignedIn() && isValidId(householdId) && isValidId(memberId);
+        allow list: if isSignedIn() && isValidId(householdId);
+
+        allow create: if isVerified() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
+        allow update: if isVerified() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
+        allow delete: if isVerified() && isValidId(householdId) && isValidId(memberId);
+      }
+
+      // Subcollection: Tasks
+      match /tasks/{taskId} {
+        allow get: if isSignedIn() && isValidId(householdId) && isValidId(taskId);
+        allow list: if isSignedIn() && isValidId(householdId);
+
+        allow create: if isVerified() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
+        allow update: if isVerified() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
+        allow delete: if isVerified() && isValidId(householdId) && isValidId(taskId);
+      }
+
+      // Subcollection: Logs
+      match /logs/{logId} {
+        allow get: if isSignedIn() && isValidId(householdId) && isValidId(logId);
+        allow list: if isSignedIn() && isValidId(householdId);
+
+        allow create: if isVerified() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
+        allow update: if isVerified() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
+        allow delete: if isVerified() && isValidId(householdId) && isValidId(logId);
+      }
     }
   }
 }

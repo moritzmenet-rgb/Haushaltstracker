@@ -1,11 +1,9 @@
 import { 
   doc, 
   collection, 
-  onSnapshot, 
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  getDoc,
   getDocs,
   writeBatch
 } from 'firebase/firestore';
@@ -14,18 +12,11 @@ import { ChoreLog, FamilyData, FamilyMember, FamilySettings, TaskItem } from '..
 
 export const HOUSEHOLD_ID = 'main_household';
 
-export interface SyncState {
-  status: 'offline' | 'connecting' | 'synced' | 'error';
-  lastSyncedAt: Date | null;
-  errorMessage: string | null;
-}
-
 /**
  * Upload entire local family dataset to Cloud Firestore
  */
 export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
   if (!auth.currentUser) return;
-  const householdPath = `households/${HOUSEHOLD_ID}`;
 
   try {
     const batch = writeBatch(db);
@@ -34,10 +25,9 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     batch.set(householdRef, {
       id: HOUSEHOLD_ID,
-      name: data.settings.household_name || 'Unser Haushalt',
-      household_name: data.settings.household_name || 'Unser Haushalt',
+      household_name: data.settings.household_name || 'Familie Menet',
       default_weekly_target: data.settings.default_weekly_target || 50,
-      categories: data.settings.categories,
+      categories: data.settings.categories || ['Küche', 'Bad', 'Wohnbereich', 'Schlafzimmer', 'Garten', 'Allgemein'],
       last_reset_date: data.settings.last_reset_date || new Date().toISOString(),
       color_theme: data.settings.color_theme || 'indigo',
       star_multiplier_1: data.settings.star_multiplier_1 ?? 50,
@@ -49,7 +39,6 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
       rollover_max_target: data.settings.rollover_max_target ?? 200,
       week_start_day: data.settings.week_start_day || 'monday',
       allowed_emails: data.settings.allowed_emails || [],
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
 
@@ -63,6 +52,8 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
         avatar_color: member.avatar_color,
         total_points: Number(member.total_points || 0),
         weekly_target: Number(member.weekly_target || 50),
+        has_seen_tutorial: !!member.has_seen_tutorial,
+        pin_code: member.pin_code || '',
         householdId: HOUSEHOLD_ID
       });
     });
@@ -88,21 +79,14 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
     data.logs.slice(0, 100).forEach(log => {
       const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', log.log_id);
       batch.set(logRef, {
-        log_id: log.log_id,
-        task_id: log.task_id,
-        user_id: log.user_id,
-        stars: log.stars,
-        points_awarded: Number(log.points_awarded),
-        actual_duration: Number(log.actual_duration),
-        timestamp: log.timestamp,
-        notes: log.notes || '',
+        ...log,
         householdId: HOUSEHOLD_ID
       });
     });
 
     await batch.commit();
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, householdPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}`);
   }
 }
 
@@ -115,47 +99,40 @@ export async function saveChoreLogToCloud(
   updatedMember: FamilyMember
 ): Promise<void> {
   if (!auth.currentUser) return;
-  const logPath = `households/${HOUSEHOLD_ID}/logs/${newLog.log_id}`;
 
   try {
     const batch = writeBatch(db);
 
-    // Add log
     const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', newLog.log_id);
     batch.set(logRef, {
       ...newLog,
-      notes: newLog.notes || '',
       householdId: HOUSEHOLD_ID
     });
 
-    // Update task last_done
     const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', updatedTask.id);
-    batch.update(taskRef, {
-      last_done: updatedTask.last_done
-    });
+    batch.set(taskRef, {
+      ...updatedTask,
+      householdId: HOUSEHOLD_ID
+    }, { merge: true });
 
-    // Update member points
     const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', updatedMember.id);
-    batch.update(memberRef, {
-      total_points: updatedMember.total_points
-    });
+    batch.set(memberRef, {
+      ...updatedMember,
+      householdId: HOUSEHOLD_ID
+    }, { merge: true });
 
     await batch.commit();
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, logPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/logs/${newLog.log_id}`);
   }
 }
 
-/**
- * Delete a log and update task/member in Firestore
- */
 export async function deleteChoreLogFromCloud(
   logId: string, 
   updatedTask?: TaskItem, 
   updatedMember?: FamilyMember
 ): Promise<void> {
   if (!auth.currentUser) return;
-  const logPath = `households/${HOUSEHOLD_ID}/logs/${logId}`;
 
   try {
     const batch = writeBatch(db);
@@ -164,61 +141,51 @@ export async function deleteChoreLogFromCloud(
 
     if (updatedTask) {
       const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', updatedTask.id);
-      batch.update(taskRef, { last_done: updatedTask.last_done });
+      batch.set(taskRef, {
+        ...updatedTask,
+        householdId: HOUSEHOLD_ID
+      }, { merge: true });
     }
 
     if (updatedMember) {
       const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', updatedMember.id);
-      batch.update(memberRef, { total_points: updatedMember.total_points });
+      batch.set(memberRef, {
+        ...updatedMember,
+        householdId: HOUSEHOLD_ID
+      }, { merge: true });
     }
 
     await batch.commit();
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, logPath);
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/logs/${logId}`);
   }
 }
 
-/**
- * Save or update a single task item in Firestore
- */
 export async function saveTaskToCloud(task: TaskItem): Promise<void> {
   if (!auth.currentUser) return;
-  const taskPath = `households/${HOUSEHOLD_ID}/tasks/${task.id}`;
-
   try {
     const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', task.id);
     await setDoc(taskRef, {
       ...task,
-      description: task.description || '',
       householdId: HOUSEHOLD_ID
     }, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, taskPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/tasks/${task.id}`);
   }
 }
 
-/**
- * Delete a single task item from Firestore
- */
 export async function deleteTaskFromCloud(taskId: string): Promise<void> {
   if (!auth.currentUser) return;
-  const taskPath = `households/${HOUSEHOLD_ID}/tasks/${taskId}`;
-
   try {
     const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', taskId);
     await deleteDoc(taskRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, taskPath);
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/tasks/${taskId}`);
   }
 }
 
-/**
- * Save or update a family member in Firestore
- */
 export async function saveMemberToCloud(member: FamilyMember): Promise<void> {
   if (!auth.currentUser) return;
-  const memberPath = `households/${HOUSEHOLD_ID}/members/${member.id}`;
-
   try {
     const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', member.id);
     await setDoc(memberRef, {
@@ -226,65 +193,38 @@ export async function saveMemberToCloud(member: FamilyMember): Promise<void> {
       householdId: HOUSEHOLD_ID
     }, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, memberPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/members/${member.id}`);
   }
 }
 
-/**
- * Delete a member from Firestore
- */
 export async function deleteMemberFromCloud(memberId: string): Promise<void> {
   if (!auth.currentUser) return;
-  const memberPath = `households/${HOUSEHOLD_ID}/members/${memberId}`;
-
   try {
     const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', memberId);
     await deleteDoc(memberRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, memberPath);
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/members/${memberId}`);
   }
 }
 
-/**
- * Save settings and categories to Firestore
- */
 export async function saveSettingsToCloud(settings: FamilySettings): Promise<void> {
   if (!auth.currentUser) return;
-  const householdPath = `households/${HOUSEHOLD_ID}`;
-
   try {
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     await setDoc(householdRef, {
+      ...settings,
       id: HOUSEHOLD_ID,
-      name: settings.household_name || 'Unser Haushalt',
-      household_name: settings.household_name || 'Unser Haushalt',
-      default_weekly_target: settings.default_weekly_target,
-      categories: settings.categories,
-      last_reset_date: settings.last_reset_date || new Date().toISOString(),
-      color_theme: settings.color_theme || 'indigo',
-      star_multiplier_1: settings.star_multiplier_1 ?? 50,
-      star_multiplier_2: settings.star_multiplier_2 ?? 75,
-      star_multiplier_3: settings.star_multiplier_3 ?? 100,
-      rollover_surplus_factor: settings.rollover_surplus_factor ?? 100,
-      rollover_deficit_factor: settings.rollover_deficit_factor ?? 100,
-      rollover_min_target: settings.rollover_min_target ?? 10,
-      rollover_max_target: settings.rollover_max_target ?? 200,
-      week_start_day: settings.week_start_day || 'monday',
-      allowed_emails: settings.allowed_emails || [],
+      household_name: settings.household_name || 'Familie Menet',
+      categories: settings.categories || ['Küche', 'Bad', 'Wohnbereich', 'Schlafzimmer', 'Garten', 'Allgemein'],
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, householdPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}`);
   }
 }
 
-/**
- * Wipe all tasks, members, and logs in cloud database to leave an empty, ready-to-use household
- */
 export async function clearAllCloudData(): Promise<void> {
   if (!auth.currentUser) return;
-  const householdPath = `households/${HOUSEHOLD_ID}`;
-
   try {
     const batch = writeBatch(db);
 
@@ -298,18 +238,10 @@ export async function clearAllCloudData(): Promise<void> {
     logsSnap.forEach(d => batch.delete(d.ref));
 
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
-    batch.set(householdRef, {
-      id: HOUSEHOLD_ID,
-      name: 'Unser Haushalt',
-      default_weekly_target: 50,
-      categories: ['Küche', 'Bad', 'Wohnbereich', 'Schlafzimmer', 'Garten', 'Allgemein'],
-      last_reset_date: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+    batch.delete(householdRef);
 
     await batch.commit();
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, householdPath);
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}`);
   }
 }
-

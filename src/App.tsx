@@ -21,22 +21,24 @@ const MainContent: React.FC = () => {
   // Decide if we should show the cloud onboarding screen
   // (Empty local data + not logged in = likely new family member or fresh start)
   const [showCloudOnboarding, setShowCloudOnboarding] = useState(false);
+  const [dismissedOnboarding, setDismissedOnboarding] = useState(false);
 
   const isDataEmpty = Object.keys(data.members).length === 0;
 
   useEffect(() => {
     // Show onboarding if:
-    // 1. App is loaded
-    // 2. Local data is empty
-    // 3. User is NOT logged in OR sync is still connecting
-    const isConnecting = firebaseUser && (syncStatus === 'connecting' || syncStatus === 'error');
+    // 1. User has not dismissed onboarding
+    // 2. App is loaded
+    // 3. Local data is empty
+    // 4. User is NOT logged in OR sync is actively connecting
+    const isConnecting = firebaseUser && syncStatus === 'connecting';
     
-    if (isAppLoaded && isDataEmpty && (!firebaseUser || isConnecting)) {
+    if (!dismissedOnboarding && isAppLoaded && isDataEmpty && (!firebaseUser || isConnecting)) {
       setShowCloudOnboarding(true);
     } else {
       setShowCloudOnboarding(false);
     }
-  }, [isAppLoaded, isDataEmpty, firebaseUser, syncStatus]);
+  }, [isAppLoaded, isDataEmpty, firebaseUser, syncStatus, dismissedOnboarding]);
 
   // Hide the HTML loading screen when app is ready
   useEffect(() => {
@@ -148,7 +150,10 @@ const MainContent: React.FC = () => {
       {/* Screen 0: Cloud Onboarding (For fresh installs / family joins) */}
       {showCloudOnboarding && (
         <CloudOnboarding 
-          onLocalSetup={() => setShowCloudOnboarding(false)} 
+          onLocalSetup={() => {
+            setDismissedOnboarding(true);
+            setShowCloudOnboarding(false);
+          }} 
         />
       )}
 
