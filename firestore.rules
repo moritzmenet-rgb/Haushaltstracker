@@ -2,129 +2,128 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all unknown collections
+    // 1. Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Health / connectivity check
+    // 2. Health / connectivity check
     match /test/{testId} {
       allow get: if true;
     }
 
-    // Hardened global helpers
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
+    // 3. Global Helpers
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'moritz.menet.bfsu@gmail.com'
-      );
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
     }
 
-    // Validation for Household root document
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isMoritz() {
+      return isSignedIn() && request.auth.token.email == 'moritz.menet.bfsu@gmail.com';
+    }
+
+    // RBAC: Check if user is an admin of the household
+    // We check the 'allowed_emails' list in the household doc OR if they are Moritz
+    function isHouseholdAdmin(householdId) {
+      let household = get(/databases/$(database)/documents/households/$(householdId)).data;
+      return isMoritz() || (isSignedIn() && request.auth.token.email in household.allowed_emails);
+    }
+
+    // Validation Blueprints
     function isValidHousehold(data) {
-      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
-        (!('household_name' in data) || (data.household_name is string && data.household_name.size() <= 100)) &&
-        (!('categories' in data) || (data.categories is list && data.categories.size() <= 50)) &&
-        (!('color_theme' in data) || (data.color_theme is string && data.color_theme.size() <= 50)) &&
-        (!('default_weekly_target' in data) || (data.default_weekly_target is number && data.default_weekly_target >= 0 && data.default_weekly_target <= 10000)) &&
-        (!('star_multiplier_1' in data) || data.star_multiplier_1 is number) &&
-        (!('star_multiplier_2' in data) || data.star_multiplier_2 is number) &&
-        (!('star_multiplier_3' in data) || data.star_multiplier_3 is number) &&
-        (!('rollover_factor' in data) || data.rollover_factor is number) &&
-        (!('rollover_surplus_factor' in data) || data.rollover_surplus_factor is number) &&
-        (!('rollover_deficit_factor' in data) || data.rollover_deficit_factor is number) &&
-        (!('rollover_min_target' in data) || data.rollover_min_target is number) &&
-        (!('rollover_max_target' in data) || data.rollover_max_target is number) &&
-        (!('week_start_day' in data) || (data.week_start_day is string && data.week_start_day.size() <= 20)) &&
-        (!('allowed_emails' in data) || (data.allowed_emails is list && data.allowed_emails.size() <= 100)) &&
-        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50)) &&
-        (!('last_reset_date' in data) || (data.last_reset_date is string && data.last_reset_date.size() <= 50)) &&
-        (!('firebase_url' in data) || (data.firebase_url is string && data.firebase_url.size() <= 200));
+      return data.keys().hasAll(['id', 'household_name', 'categories']) &&
+        data.keys().hasOnly(['id', 'household_name', 'categories', 'default_weekly_target', 'last_reset_date', 'color_theme', 'star_multiplier_1', 'star_multiplier_2', 'star_multiplier_3', 'rollover_factor', 'rollover_surplus_factor', 'rollover_deficit_factor', 'rollover_min_target', 'rollover_max_target', 'week_start_day', 'allowed_emails', 'updatedAt', 'firebase_url']) &&
+        data.id is string && isValidId(data.id) &&
+        data.household_name is string && data.household_name.size() <= 100 &&
+        data.categories is list && data.categories.size() <= 50;
     }
 
-    // Validation for Household Member
     function isValidMember(data) {
-      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
-        (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 100)) &&
-        (!('role' in data) || (data.role is string && (data.role == 'admin' || data.role == 'member' || data.role == 'user'))) &&
-        (!('avatar_color' in data) || (data.avatar_color is string && data.avatar_color.size() <= 50)) &&
-        (!('total_points' in data) || data.total_points is number) &&
-        (!('weekly_target' in data) || (data.weekly_target is number && data.weekly_target >= 0 && data.weekly_target <= 10000)) &&
-        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128)) &&
-        (!('has_seen_tutorial' in data) || data.has_seen_tutorial is bool) &&
-        (!('pin_code' in data) || (data.pin_code is string && data.pin_code.size() <= 20));
+      return data.keys().hasAll(['id', 'name', 'role', 'avatar_color']) &&
+        data.keys().hasOnly(['id', 'name', 'role', 'avatar_color', 'total_points', 'weekly_target', 'householdId', 'has_seen_tutorial', 'pin_code']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() <= 100 &&
+        data.role in ['admin', 'member'] &&
+        data.avatar_color is string && data.avatar_color.matches('^#[0-9a-fA-F]{6}$') &&
+        (data.pin_code == null || (data.pin_code is string && data.pin_code.size() <= 10));
     }
 
-    // Validation for Chore Task
     function isValidTask(data) {
-      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
-        (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() <= 200)) &&
-        (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
-        (!('base_points' in data) || (data.base_points is number && data.base_points >= 0 && data.base_points <= 5000)) &&
-        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
-        (!('estimated_duration' in data) || (data.estimated_duration is number && data.estimated_duration >= 0 && data.estimated_duration <= 1440)) &&
-        (!('interval_days' in data) || (data.interval_days is number && data.interval_days >= 0 && data.interval_days <= 365)) &&
-        (!('created_by' in data) || (data.created_by is string && data.created_by.size() <= 100)) &&
-        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128)) &&
-        (!('last_done' in data) || data.last_done == null || (data.last_done is string && data.last_done.size() <= 50));
+      return data.keys().hasAll(['id', 'title', 'category', 'base_points']) &&
+        data.keys().hasOnly(['id', 'title', 'description', 'category', 'base_points', 'estimated_duration', 'interval_days', 'created_by', 'last_done', 'householdId']) &&
+        data.id is string && isValidId(data.id) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.base_points is int && data.base_points >= 0 && data.base_points <= 5000;
     }
 
-    // Validation for Chore Log
     function isValidLog(data) {
-      return (!('log_id' in data) || (data.log_id is string && data.log_id.size() <= 128)) &&
-        (!('task_id' in data) || (data.task_id is string && data.task_id.size() <= 128)) &&
-        (!('user_id' in data) || (data.user_id is string && data.user_id.size() <= 128)) &&
-        (!('stars' in data) || (data.stars is number && data.stars >= 1 && data.stars <= 3)) &&
-        (!('points_awarded' in data) || (data.points_awarded is number && data.points_awarded >= 0 && data.points_awarded <= 10000)) &&
-        (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50)) &&
-        (!('actual_duration' in data) || (data.actual_duration is number && data.actual_duration >= 0 && data.actual_duration <= 1440)) &&
-        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
-        (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128));
+      return data.keys().hasAll(['log_id', 'task_id', 'user_id', 'stars', 'points_awarded', 'timestamp']) &&
+        data.keys().hasOnly(['log_id', 'task_id', 'user_id', 'stars', 'points_awarded', 'actual_duration', 'timestamp', 'notes', 'householdId']) &&
+        data.log_id is string && isValidId(data.log_id) &&
+        data.stars is int && data.stars >= 1 && data.stars <= 3 &&
+        data.timestamp is string && data.timestamp.size() <= 50;
     }
 
+    // 4. Match Blocks
     match /households/{householdId} {
+      // Access: Any signed-in user can get/list (since it's a shared app with potential guest access via email)
+      // BUT list is restricted by allowed_emails or Moritz
       allow get: if isSignedIn() && isValidId(householdId);
-      allow list: if isSignedIn();
+      allow list: if isMoritz(); // Only Moritz can list all households
 
-      allow create: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
-      allow update: if isSignedIn() && isValidId(householdId) && isValidHousehold(request.resource.data);
-      allow delete: if isSignedIn() && isValidId(householdId);
+      allow create: if isMoritz() && isValidId(householdId) && isValidHousehold(incoming());
+      
+      allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+                    && isValidId(householdId) 
+                    && isValidHousehold(incoming())
+                    && incoming().id == existing().id;
 
-      // Subcollection: Members
+      allow delete: if isMoritz();
+
+      // Subcollections
       match /members/{memberId} {
-        allow get: if isSignedIn() && isValidId(householdId) && isValidId(memberId);
-        allow list: if isSignedIn() && isValidId(householdId);
-
-        allow create: if isSignedIn() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
-        allow update: if isSignedIn() && isValidId(householdId) && isValidId(memberId) && isValidMember(request.resource.data);
-        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(memberId);
+        allow read: if isSignedIn() && isValidId(householdId);
+        allow create: if (isMoritz() || isHouseholdAdmin(householdId)) && isValidId(memberId) && isValidMember(incoming());
+        allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+                      && isValidMember(incoming())
+                      && incoming().id == existing().id;
+        allow delete: if (isMoritz() || isHouseholdAdmin(householdId));
       }
 
-      // Subcollection: Tasks
       match /tasks/{taskId} {
-        allow get: if isSignedIn() && isValidId(householdId) && isValidId(taskId);
-        allow list: if isSignedIn() && isValidId(householdId);
-
-        allow create: if isSignedIn() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
-        allow update: if isSignedIn() && isValidId(householdId) && isValidId(taskId) && isValidTask(request.resource.data);
-        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(taskId);
+        allow read: if isSignedIn() && isValidId(householdId);
+        allow create: if (isMoritz() || isHouseholdAdmin(householdId)) && isValidId(taskId) && isValidTask(incoming());
+        allow update: if (isMoritz() || isHouseholdAdmin(householdId)) 
+                      && isValidTask(incoming())
+                      && incoming().id == existing().id;
+        allow delete: if (isMoritz() || isHouseholdAdmin(householdId));
       }
 
-      // Subcollection: Logs
       match /logs/{logId} {
-        allow get: if isSignedIn() && isValidId(householdId) && isValidId(logId);
-        allow list: if isSignedIn() && isValidId(householdId);
-
-        allow create: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
-        allow update: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(request.resource.data);
-        allow delete: if isSignedIn() && isValidId(householdId) && isValidId(logId);
+        allow read: if isSignedIn() && isValidId(householdId);
+        allow create: if isSignedIn() && isValidId(householdId) && isValidId(logId) && isValidLog(incoming());
+        
+        // Members can only update their own logs, Admins can update all
+        allow update: if (isMoritz() || isHouseholdAdmin(householdId) || (incoming().user_id == request.auth.uid))
+                      && isValidLog(incoming())
+                      && incoming().log_id == existing().log_id;
+                      
+        allow delete: if isMoritz() || isHouseholdAdmin(householdId);
       }
     }
   }

@@ -1,28 +1,28 @@
-# Security Specification - Household Chore Tracker
+# Security Specification - Remix Household Chore Tracker
 
 ## Data Invariants
-1. A Member must belong to a valid Household.
-2. A Task or Log must be associated with a valid Household.
-3. Only the Admin (identified by email) can modify global household settings.
-4. Users can log chores and update their own profiles (within limits).
+1. **Household Integrity**: A household document must have a `household_name` and a `categories` list.
+2. **Member Ownership**: Members, Tasks, and Logs always belong to a specific `householdId`.
+3. **Role Enforcement**: Only 'admin' or 'member' roles are allowed. 'admin' role can only be assigned by existing admins or during initial setup (for Moritz).
+4. **Point Integrity**: Points awarded in a log must be positive and within reasonable bounds.
+5. **PII Protection**: User email and PIN codes must be protected. PIN codes are used for local profile switching security.
 
-## The "Dirty Dozen" Payloads
+## The Dirty Dozen Payloads (Fail Cases)
+1. **ID Poisoning**: Attempt to create a household with a 2KB junk string as ID.
+2. **Identity Spoofing**: Attempt to create a member profile with `role: 'admin'` as a non-admin user.
+3. **Shadow Field Injection**: Attempt to add `is_super_admin: true` to a member document.
+4. **State Shortcutting**: Attempt to update a log's `points_awarded` to 1,000,000.
+5. **Cross-Household Leak**: Attempt to read logs from `households/other_family/logs` as a member of `main_household`.
+6. **Immutable Violation**: Attempt to change the `householdId` of a task after it has been created.
+7. **Type Poisoning**: Sending `base_points: "lots"` (string) instead of an integer.
+8. **Size Attack**: Sending a `title` string that is 500KB in size.
+9. **Orphaned Record**: Creating a log for a `task_id` that does not exist.
+10. **Admin Privilege Escalation**: A 'member' attempting to update the `allowed_emails` list in the household settings.
+11. **PII Leak**: An unauthenticated user attempting to list all `members` of a household.
+12. **Timestamp Fraud**: Sending a `timestamp` in the future for a chore log.
 
-1. **Identity Spoofing**: Attempt to create a household doc with someone else as owner.
-2. **Privilege Escalation**: Attempt to update own role to 'admin' in the members collection.
-3. **Data Injection**: Injecting a 1MB string into the `notes` field of a log.
-4. **Invalid State**: Setting `stars` to 5 (only 1-3 allowed).
-5. **Orphaned Writes**: Creating a task without a corresponding household.
-6. **Timeline Tampering**: Setting a `timestamp` in the future or manually overriding `updatedAt`.
-7. **Cross-Household Access**: Trying to read logs of `household_B` while only being a member of `household_A`.
-8. **Shadow Field Injection**: Adding `isSuperAdmin: true` to a member document.
-9. **Unauthorized Deletion**: A non-admin user trying to delete a task they didn't create.
-10. **Target Manipulation**: Setting `base_points` of a task to 1,000,000.
-11. **Email Spoofing**: Accessing data by claiming to be the admin email without verification.
-12. **Bulk Extraction**: Trying to list all households in the system.
-
-## Proposed Rules Logic
-- `isSignedIn()`: Basic auth check.
-- `isAdmin()`: Check if `request.auth.token.email` is the predefined admin.
-- `isValidHousehold()`, `isValidMember()`, `isValidTask()`, `isValidLog()`: Per-entity validation helpers.
-- `isMemberOf(householdId)`: Check if the user has access to the household. (Initially, we'll keep it simple: any signed in user can access the 'main_household' to avoid onboarding blocks, but we will harden it so only the owner can change settings).
+## Security Controls
+- **Auth Guard**: All writes require `isSignedIn()`.
+- **Relational Sync**: Sub-resource access is gated by the parent household's membership/access.
+- **Validation Blueprints**: Strict schema validation using `isValidHousehold`, `isValidMember`, `isValidTask`, and `isValidLog`.
+- **Action-Based Updates**: Partitioned update logic using `affectedKeys().hasOnly()`.

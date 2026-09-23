@@ -69,7 +69,7 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
     estimated_duration: Number(task.estimated_duration || 15),
     interval_days: Number(task.interval_days || 7),
     created_by: task.created_by || 'Admin',
-    last_done: task.last_done || null,
+    last_done: task.last_done ? String(task.last_done) : '',
     householdId: HOUSEHOLD_ID
   };
 }
