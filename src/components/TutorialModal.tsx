@@ -72,7 +72,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
       highlights: [
         { 
           title: 'Arbeit erfassen per Plus-Button', 
-          desc: 'Klicke einfach auf den runden Plus-Button (+) in der unteren Leiste oder auf "Erledigt" direkt im Aufgaben-Katalog.' 
+          desc: 'Klicke einfach auf den runden Plus-Button (+) in der unteren Leiste oder auf "Gönnen" direkt im Aufgaben-Katalog.' 
         },
         { 
           title: 'Stufenlose Zeit & Dauern', 

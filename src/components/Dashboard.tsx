@@ -350,15 +350,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => onOpenLogModal(task.id)}
-                    className="shrink-0 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
-                  >
-                    <span>Erledigt</span>
-                    <Check className="w-4 h-4" />
-                  </motion.button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-not-allowed opacity-70"
+                      disabled
+                      title="Noch nicht verfügbar"
+                    >
+                      <span>Fischen</span>
+                      <Award className="w-4 h-4" />
+                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.06 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => onOpenLogModal(task.id)}
+                      className="shrink-0 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
+                    >
+                      <span>Gönnen</span>
+                      <Check className="w-4 h-4" />
+                    </motion.button>
+                  </div>
                 </motion.div>
               );
             })}
