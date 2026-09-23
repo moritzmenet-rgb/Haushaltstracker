@@ -113,32 +113,35 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
   if (!auth.currentUser) return;
 
   try {
-    const batch = writeBatch(db);
-
-    // 1. Household doc
+    // 1. Household doc (set directly with merge)
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
-    batch.set(householdRef, sanitizeSettings(data.settings));
+    await setDoc(householdRef, sanitizeSettings(data.settings), { merge: true });
 
-    // 2. Members (if any exist)
-    const membersToSeed = Object.values(data.members);
-    membersToSeed.forEach(member => {
-      const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', member.id);
-      batch.set(memberRef, sanitizeMember(member));
-    });
+    // 2. Subcollections if any items exist
+    const membersToSeed = Object.values(data.members || {});
+    const tasksToSeed = Object.values(data.tasks || {});
+    const logsToSeed = (data.logs || []).slice(0, 50);
 
-    // 3. Tasks
-    Object.values(data.tasks).forEach(task => {
-      const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', task.id);
-      batch.set(taskRef, sanitizeTask(task));
-    });
+    if (membersToSeed.length > 0 || tasksToSeed.length > 0 || logsToSeed.length > 0) {
+      const batch = writeBatch(db);
 
-    // 4. Logs (recent up to 50)
-    data.logs.slice(0, 50).forEach(log => {
-      const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', log.log_id);
-      batch.set(logRef, sanitizeLog(log));
-    });
+      membersToSeed.forEach(member => {
+        const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', member.id);
+        batch.set(memberRef, sanitizeMember(member), { merge: true });
+      });
 
-    await batch.commit();
+      tasksToSeed.forEach(task => {
+        const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', task.id);
+        batch.set(taskRef, sanitizeTask(task), { merge: true });
+      });
+
+      logsToSeed.forEach(log => {
+        const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', log.log_id);
+        batch.set(logRef, sanitizeLog(log), { merge: true });
+      });
+
+      await batch.commit();
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}`);
   }
@@ -151,16 +154,19 @@ export async function resetAndRebuildCloudData(data: FamilyData): Promise<void> 
   if (!auth.currentUser) return;
 
   try {
-    // Step 1: Delete all existing subcollection docs
+    // Step 1: Delete all existing subcollection docs if any exist
     const membersSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'members'));
     const tasksSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'tasks'));
     const logsSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'logs'));
 
-    const deleteBatch = writeBatch(db);
-    membersSnap.forEach(d => deleteBatch.delete(d.ref));
-    tasksSnap.forEach(d => deleteBatch.delete(d.ref));
-    logsSnap.forEach(d => deleteBatch.delete(d.ref));
-    await deleteBatch.commit();
+    const hasDocsToDelete = (membersSnap.size > 0 || tasksSnap.size > 0 || logsSnap.size > 0);
+    if (hasDocsToDelete) {
+      const deleteBatch = writeBatch(db);
+      membersSnap.forEach(d => deleteBatch.delete(d.ref));
+      tasksSnap.forEach(d => deleteBatch.delete(d.ref));
+      logsSnap.forEach(d => deleteBatch.delete(d.ref));
+      await deleteBatch.commit();
+    }
 
     // Step 2: Seed new pristine dataset
     await seedAllDataToCloud(data);
