@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Cloud, ArrowRight, ShieldCheck, Sparkles, LogIn, HardDrive, Loader2, LogOut, RefreshCcw } from 'lucide-react';
+import { Cloud, ArrowRight, ShieldCheck, Sparkles, LogIn, HardDrive, Loader2, LogOut, RefreshCcw, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface CloudOnboardingProps {
@@ -10,11 +10,13 @@ interface CloudOnboardingProps {
 export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }) => {
   const { loginWithGoogle, logoutFirebase, firebaseError, syncStatus, firebaseUser } = useApp();
   const isConnecting = syncStatus === 'connecting';
-  const hasError = syncStatus === 'error' || firebaseError;
+  const hasError = syncStatus === 'error' || !!firebaseError;
 
   const handleReset = () => {
-    localStorage.removeItem('household_chore_tracker_data_v3');
-    window.location.reload();
+    if (window.confirm('App wirklich zurücksetzen? Lokale Daten werden gelöscht und neu aus der Cloud geladen.')) {
+      localStorage.removeItem('household_chore_tracker_data_v3');
+      window.location.reload();
+    }
   };
 
   return (
@@ -30,7 +32,11 @@ export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }
           transition={{ type: 'spring', delay: 0.2 }}
           className="w-20 h-20 bg-[var(--m3-primary)] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg relative"
         >
-          <Cloud className="w-10 h-10 text-white" />
+          {hasError ? (
+            <RefreshCcw className="w-10 h-10 text-white" />
+          ) : (
+            <Cloud className="w-10 h-10 text-white" />
+          )}
           {isConnecting && (
             <div className="absolute -inset-2">
               <div className="w-full h-full border-4 border-[var(--m3-primary)] border-t-transparent rounded-[32px] animate-spin" />
@@ -39,27 +45,42 @@ export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }
         </motion.div>
 
         <h1 className="text-3xl font-black text-[var(--m3-on-surface)] mb-4 tracking-tight">
-          {isConnecting ? 'Daten werden geladen...' : hasError ? 'Problem erkannt' : 'Willkommen zurück!'}
+          {isConnecting ? 'Daten werden geladen...' : hasError ? 'Startproblem' : 'Willkommen zurück!'}
         </h1>
         
         <p className="text-[var(--m3-on-surface-variant)] font-bold text-sm leading-relaxed mb-10 px-4">
           {isConnecting 
             ? 'Deine Familiendaten werden aus der Cloud geladen. Einen Moment bitte...'
             : hasError
-            ? 'Wir konnten deinen Haushalt nicht laden. Bist du mit dem richtigen Konto angemeldet?'
+            ? 'Wir konnten die Verbindung zur Cloud nicht stabil herstellen. Das kann an fehlenden Berechtigungen oder einer schlechten Verbindung liegen.'
             : 'Bist du bereits Teil einer Familie? Melde dich an, um eure gemeinsamen Aufgaben und Punkte zu synchronisieren.'}
         </p>
 
         <div className="space-y-4">
           {!firebaseUser ? (
-            <button
-              onClick={loginWithGoogle}
-              className="w-full flex items-center justify-center gap-3 py-4 bg-[var(--m3-primary)] text-white rounded-3xl font-black text-sm hover:opacity-90 transition-all shadow-md group"
-            >
-              <LogIn className="w-5 h-5" />
-              Mit Google anmelden
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <div className="space-y-4">
+              <button
+                onClick={loginWithGoogle}
+                className="w-full flex items-center justify-center gap-3 py-4 bg-[var(--m3-primary)] text-white rounded-3xl font-black text-sm hover:opacity-90 transition-all shadow-md group"
+              >
+                <LogIn className="w-5 h-5" />
+                Mit Google anmelden
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+              
+              <div className="pt-4 border-t border-[var(--m3-outline-variant)]">
+                <button
+                  onClick={onLocalSetup}
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)] rounded-3xl font-black text-sm border border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-high)] transition-all"
+                >
+                  <HardDrive className="w-5 h-5 opacity-60" />
+                  Ohne Login starten (Lokal)
+                </button>
+                <p className="mt-2 text-[10px] text-[var(--m3-on-surface-variant)] opacity-60 px-4">
+                  Hinweis: Ohne Google-Login werden keine Daten zwischen Geräten synchronisiert.
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {isConnecting && (
@@ -72,36 +93,28 @@ export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }
               {hasError && (
                 <>
                   <button
+                    onClick={() => window.location.reload()}
+                    className="w-full flex items-center justify-center gap-3 py-4 bg-[var(--m3-primary)] text-white rounded-3xl font-black text-sm hover:opacity-90 transition-all shadow-md"
+                  >
+                    <RefreshCcw className="w-5 h-5" />
+                    Erneut versuchen
+                  </button>
+                  <button
                     onClick={logoutFirebase}
                     className="w-full flex items-center justify-center gap-3 py-4 bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)] rounded-3xl font-black text-sm border border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-high)] transition-all"
                   >
                     <LogOut className="w-5 h-5" />
-                    Anderes Konto wählen
+                    Abmelden / Konto wechseln
                   </button>
                   <button
                     onClick={handleReset}
                     className="w-full flex items-center justify-center gap-3 py-4 bg-rose-500/10 text-rose-600 rounded-3xl font-black text-sm border border-rose-500/20 hover:bg-rose-500/20 transition-all"
                   >
                     <RefreshCcw className="w-5 h-5" />
-                    App zurücksetzen
+                    App-Cache löschen & Reset
                   </button>
                 </>
               )}
-            </div>
-          )}
-
-          {!isConnecting && !firebaseUser && (
-            <div className="pt-8 border-t border-[var(--m3-outline-variant)]">
-              <p className="text-[10px] uppercase font-black text-[var(--m3-outline)] tracking-widest mb-4">
-                Oder ganz neu starten
-              </p>
-              <button
-                onClick={onLocalSetup}
-                className="inline-flex items-center gap-2 text-xs font-black text-[var(--m3-primary)] hover:underline opacity-70 hover:opacity-100 transition-all"
-              >
-                <HardDrive className="w-3.5 h-3.5" />
-                App lokal aufsetzen
-              </button>
             </div>
           )}
         </div>
@@ -110,11 +123,24 @@ export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[11px] font-bold"
+            className="mt-8 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[11px] font-bold text-left"
           >
-            {firebaseError === 'unauthorized-domain' 
-              ? 'Domain nicht autorisiert.' 
-              : 'Zugriff verweigert. Bitte stelle sicher, dass deine E-Mail in der Familien-Liste steht.'}
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-black uppercase tracking-wider text-[9px]">System-Meldung:</p>
+                <p className="leading-tight">
+                  {firebaseError === 'unauthorized-domain' 
+                    ? 'Diese Domain ist in Firebase nicht autorisiert. Bitte den Admin kontaktieren.' 
+                    : firebaseError || 'Datenzugriff eingeschränkt. Bitte prüfe dein Konto oder versuche den Reset-Button.'}
+                </p>
+                {firebaseUser && (
+                  <p className="mt-2 pt-2 border-t border-rose-500/10 opacity-70">
+                    Eingeloggt als: {firebaseUser.email}
+                  </p>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
 
