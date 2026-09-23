@@ -72,11 +72,11 @@ export const UserManagementTab: React.FC = () => {
     setShowAddModal(true);
   };
 
-  const handleCreateMember = (e: React.FormEvent) => {
+  const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     const cleanPin = newPin.trim();
-    addMember(
+    await addMember(
       newName.trim(),
       newColor,
       newRole,
@@ -96,11 +96,11 @@ export const UserManagementTab: React.FC = () => {
     setEditPin(member.pin_code || '');
   };
 
-  const handleSaveEditMember = (e: React.FormEvent) => {
+  const handleSaveEditMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMember || !editName.trim()) return;
     const cleanPin = editPin.trim();
-    updateMember(editingMember.id, {
+    await updateMember(editingMember.id, {
       name: editName.trim(),
       avatar_color: editColor,
       role: editRole,
@@ -111,26 +111,26 @@ export const UserManagementTab: React.FC = () => {
     showToast(`Änderungen an "${editName.trim()}" gespeichert!`);
   };
 
-  const handleQuickToggleRole = (member: FamilyMember) => {
+  const handleQuickToggleRole = async (member: FamilyMember) => {
     const nextRole: UserRole = member.role === 'admin' ? 'member' : 'admin';
-    updateMember(member.id, { role: nextRole });
+    await updateMember(member.id, { role: nextRole });
     showToast(`${member.name} ist nun ${nextRole === 'admin' ? 'Administrator' : 'Mitglied'}!`);
   };
 
-  const handleApplyPointsAdjustment = (e: React.FormEvent) => {
+  const handleApplyPointsAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pointsAdjustMember || pointsDelta === 0) return;
     const currentPoints = pointsAdjustMember.total_points || 0;
     const updatedPoints = Math.max(0, currentPoints + pointsDelta);
-    updateMember(pointsAdjustMember.id, { total_points: updatedPoints });
+    await updateMember(pointsAdjustMember.id, { total_points: updatedPoints });
     setPointsAdjustMember(null);
     setPointsReason('');
     showToast(`${pointsDelta > 0 ? `+${pointsDelta}` : pointsDelta} Punkte für ${pointsAdjustMember.name} verbucht!`);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!memberToDelete) return;
-    deleteMember(memberToDelete.id);
+    await deleteMember(memberToDelete.id);
     showToast(`Mitglied "${memberToDelete.name}" wurde entfernt.`);
     setMemberToDelete(null);
   };

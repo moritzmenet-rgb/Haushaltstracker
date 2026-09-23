@@ -185,7 +185,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       syncTimeoutRef.current = setTimeout(() => {
         setSyncFeedback(prev => prev.status === 'saved' ? { status: 'idle', text: '' } : prev);
       }, 2500);
-      return;
+      return Promise.resolve();
     }
 
     setSyncFeedback({
@@ -194,7 +194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (cloudPromise) {
-      cloudPromise
+      return cloudPromise
         .then(() => {
           // Keep the "saved" state a bit longer for visual confirmation
           setSyncFeedback({
@@ -204,7 +204,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => (prev.status === 'saved' || prev.status === 'uploading') ? { status: 'idle', text: '' } : prev);
-          }, 600); // Reduced from 800ms
+          }, 600);
+          return true;
         })
         .catch((err) => {
           console.warn('Sync failed:', err);
@@ -215,8 +216,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
           }, 4000);
+          throw err;
         });
     }
+    return Promise.resolve();
   }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
@@ -254,6 +257,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setIsAuthResolving(true);
+      console.log('Firebase: Auth state changed. User:', user?.email || 'none');
+      
+      // Explicit connection test for user feedback
+      testFirestoreConnection();
+      
       if (user) {
         try {
           await user.getIdToken();
@@ -261,6 +269,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Could not refresh auth token:', e);
         }
       }
+      
       setFirebaseUser(user);
       setIsAuthResolving(false);
       
@@ -437,7 +446,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
-  const logChore = useCallback((taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string): number => {
+  const logChore = useCallback(async (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string): Promise<number> => {
     if (!activeUser) return 0;
     const task = data.tasks[taskId];
     if (!task) return 0;
@@ -458,25 +467,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedTask = { ...task, last_done: now };
     const updatedMember = { ...data.members[activeUser.id], total_points: (data.members[activeUser.id].total_points || 0) + points };
 
-    // Update local immediately for speed
-    persistLocal({
-      ...data,
-      tasks: { ...data.tasks, [taskId]: updatedTask },
-      members: { ...data.members, [activeUser.id]: updatedMember },
-      logs: [newLog, ...data.logs]
-    });
-
     if (firebaseUser) {
+      // WAIT for cloud success before returning
+      // We don't call persistLocal here because onSnapshot will handle it
       const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
-      triggerSyncFeedback('Aufgabe erledigt', p);
+      await triggerSyncFeedback('Aufgabe erledigt', p);
     } else {
+      // Offline mode: update local immediately
+      persistLocal({
+        ...data,
+        tasks: { ...data.tasks, [taskId]: updatedTask },
+        members: { ...data.members, [activeUser.id]: updatedMember },
+        logs: [newLog, ...data.logs]
+      });
       triggerSyncFeedback('Aufgabe erledigt');
     }
 
     return points;
   }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const updateLog = useCallback((
+  const updateLog = useCallback(async (
     logId: string, 
     updates: {
       task_id?: string;
@@ -486,7 +496,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes?: string;
       timestamp?: string;
     }
-  ): boolean => {
+  ): Promise<boolean> => {
     const oldLog = data.logs.find(l => l.log_id === logId);
     if (!oldLog) return false;
 
@@ -529,69 +539,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updatedLogs = data.logs.map(l => l.log_id === logId ? updatedLog : l);
 
-    persistLocal({
-      ...data,
-      members: updatedMembers,
-      logs: updatedLogs
-    });
-
     if (firebaseUser) {
       const p = saveChoreLogToCloud(updatedLog, data.tasks[targetTaskId], updatedMembers[targetUserId]);
-      triggerSyncFeedback('Eintrag aktualisiert', p);
+      await triggerSyncFeedback('Eintrag aktualisiert', p);
     } else {
+      persistLocal({
+        ...data,
+        members: updatedMembers,
+        logs: updatedLogs
+      });
       triggerSyncFeedback('Eintrag aktualisiert');
     }
 
     return true; 
   }, [isAdmin, activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const deleteLog = useCallback((logId: string) => {
+  const deleteLog = useCallback(async (logId: string) => {
     const filtered = data.logs.filter(l => l.log_id !== logId);
-    persistLocal({ ...data, logs: filtered });
     if (firebaseUser) {
       const p = deleteChoreLogFromCloud(logId);
-      triggerSyncFeedback('Eintrag gelöscht', p);
+      await triggerSyncFeedback('Eintrag gelöscht', p);
     } else {
+      persistLocal({ ...data, logs: filtered });
       triggerSyncFeedback('Eintrag gelöscht');
     }
     return true;
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const createTask = useCallback((task: any) => {
+  const createTask = useCallback(async (task: any) => {
     const id = `task_${Date.now()}`;
     const newTask = { ...task, id, created_by: activeUser?.name || 'Admin', last_done: null };
-    persistLocal({ ...data, tasks: { ...data.tasks, [id]: newTask } });
     if (firebaseUser) {
       const p = saveTaskToCloud(newTask);
-      triggerSyncFeedback('Aufgabe erstellt', p);
+      await triggerSyncFeedback('Aufgabe erstellt', p);
     } else {
+      persistLocal({ ...data, tasks: { ...data.tasks, [id]: newTask } });
       triggerSyncFeedback('Aufgabe erstellt');
     }
   }, [data, activeUser, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const updateTask = useCallback((id: string, updates: any) => {
+  const updateTask = useCallback(async (id: string, updates: any) => {
     const updated = { ...data.tasks[id], ...updates };
-    persistLocal({ ...data, tasks: { ...data.tasks, [id]: updated } });
     if (firebaseUser) {
       const p = saveTaskToCloud(updated);
-      triggerSyncFeedback('Aufgabe geändert', p);
+      await triggerSyncFeedback('Aufgabe geändert', p);
     } else {
+      persistLocal({ ...data, tasks: { ...data.tasks, [id]: updated } });
       triggerSyncFeedback('Aufgabe geändert');
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const deleteTask = useCallback((id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
     const { [id]: _, ...remaining } = data.tasks;
-    persistLocal({ ...data, tasks: remaining });
     if (firebaseUser) {
       const p = deleteTaskFromCloud(id);
-      triggerSyncFeedback('Aufgabe gelöscht', p);
+      await triggerSyncFeedback('Aufgabe gelöscht', p);
     } else {
+      persistLocal({ ...data, tasks: remaining });
       triggerSyncFeedback('Aufgabe gelöscht');
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const addMember = useCallback((name: string, avatarColor: string, role: UserRole, weeklyTarget = 50, pinCode?: string): FamilyMember => {
+  const addMember = useCallback(async (name: string, avatarColor: string, role: UserRole, weeklyTarget = 50, pinCode?: string): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
     const newMember: FamilyMember = { 
       id, 
@@ -602,17 +611,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       weekly_target: weeklyTarget,
       pin_code: pinCode
     };
-    persistLocal({ ...data, members: { ...data.members, [id]: newMember } });
     if (firebaseUser) {
       const p = saveMemberToCloud(newMember);
-      triggerSyncFeedback('Profil erstellt', p);
+      await triggerSyncFeedback('Profil erstellt', p);
     } else {
+      persistLocal({ ...data, members: { ...data.members, [id]: newMember } });
       triggerSyncFeedback('Profil erstellt');
     }
     return newMember;
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const initializeAdminProfile = useCallback((name: string, avatarColor = '#4F46E5', _withDefaultTasks = false): FamilyMember => {
+  const initializeAdminProfile = useCallback(async (name: string, avatarColor = '#4F46E5', _withDefaultTasks = false): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
     const adminMember: FamilyMember = {
       id,
@@ -628,38 +637,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       members: { ...data.members, [id]: adminMember }
     };
 
-    persistLocal(nextData);
-    setActiveUserIdState(id);
-    localStorage.setItem(ACTIVE_USER_KEY, id);
-
     if (firebaseUser) {
       const p = seedAllDataToCloud(nextData);
-      triggerSyncFeedback('Profil eingerichtet', p);
+      await triggerSyncFeedback('Profil eingerichtet', p);
     } else {
+      persistLocal(nextData);
       triggerSyncFeedback('Profil eingerichtet');
     }
+    
+    setActiveUserIdState(id);
+    localStorage.setItem(ACTIVE_USER_KEY, id);
 
     return adminMember;
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const updateMember = useCallback((id: string, updates: any) => {
+  const updateMember = useCallback(async (id: string, updates: any) => {
     const updated = { ...data.members[id], ...updates };
-    persistLocal({ ...data, members: { ...data.members, [id]: updated } });
     if (firebaseUser) {
       const p = saveMemberToCloud(updated);
-      triggerSyncFeedback('Profil aktualisiert', p);
+      await triggerSyncFeedback('Profil aktualisiert', p);
     } else {
+      persistLocal({ ...data, members: { ...data.members, [id]: updated } });
       triggerSyncFeedback('Profil aktualisiert');
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
-  const deleteMember = useCallback((id: string) => {
+  const deleteMember = useCallback(async (id: string) => {
     const { [id]: _, ...remaining } = data.members;
-    persistLocal({ ...data, members: remaining });
     if (firebaseUser) {
       const p = deleteMemberFromCloud(id);
-      triggerSyncFeedback('Profil gelöscht', p);
+      await triggerSyncFeedback('Profil gelöscht', p);
     } else {
+      persistLocal({ ...data, members: remaining });
       triggerSyncFeedback('Profil gelöscht');
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);

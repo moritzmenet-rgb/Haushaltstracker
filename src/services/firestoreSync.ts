@@ -34,7 +34,9 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
     rollover_min_target: Number(s.rollover_min_target ?? 10),
     rollover_max_target: Number(s.rollover_max_target ?? 200),
     week_start_day: s.week_start_day || 'monday',
-    allowed_emails: Array.isArray(s.allowed_emails) ? s.allowed_emails : [],
+    allowed_emails: Array.isArray(s.allowed_emails) && s.allowed_emails.length > 0 
+      ? s.allowed_emails 
+      : ['moritz.menet.bfsu@gmail.com'],
     updatedAt: new Date().toISOString()
   };
 }
@@ -69,7 +71,7 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
     estimated_duration: Number(task.estimated_duration || 15),
     interval_days: Number(task.interval_days || 7),
     created_by: task.created_by || 'Admin',
-    last_done: task.last_done ? String(task.last_done) : '',
+    last_done: task.last_done || null,
     householdId: HOUSEHOLD_ID
   };
 }

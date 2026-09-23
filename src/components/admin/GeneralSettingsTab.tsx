@@ -17,22 +17,22 @@ export const GeneralSettingsTab: React.FC = () => {
     setTimeout(() => setSavedBadge(null), 3000);
   };
 
-  const handleSaveName = (e?: React.FormEvent) => {
+  const handleSaveName = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!householdName.trim()) return;
-    updateSettings({ household_name: householdName.trim() });
+    await updateSettings({ household_name: householdName.trim() });
     showSaved('Haushaltsname gespeichert!');
   };
 
-  const handleSaveTarget = (newVal: number) => {
+  const handleSaveTarget = async (newVal: number) => {
     setWeeklyTarget(newVal);
-    updateSettings({ default_weekly_target: newVal });
+    await updateSettings({ default_weekly_target: newVal });
     showSaved('Standard-Wochenziel aktualisiert!');
   };
 
-  const handleSaveWeekStart = (day: 'monday' | 'sunday' | 'saturday') => {
+  const handleSaveWeekStart = async (day: 'monday' | 'sunday' | 'saturday') => {
     setWeekStart(day);
-    updateSettings({ week_start_day: day });
+    await updateSettings({ week_start_day: day });
     showSaved('Wochenstart-Tag gespeichert!');
   };
 
@@ -107,9 +107,9 @@ export const GeneralSettingsTab: React.FC = () => {
               <button
                 key={p}
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setHouseholdName(p);
-                  updateSettings({ household_name: p });
+                  await updateSettings({ household_name: p });
                   showSaved(`Name auf "${p}" gesetzt!`);
                 }}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition ${

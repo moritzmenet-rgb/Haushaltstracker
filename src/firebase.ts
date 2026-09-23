@@ -10,8 +10,7 @@ import {
 import { 
   getFirestore, 
   doc, 
-  getDocFromServer,
-  enableIndexedDbPersistence 
+  getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -21,20 +20,14 @@ export const isConfigValid = !!(firebaseConfig && firebaseConfig.apiKey && fireb
 const app = initializeApp(isConfigValid ? firebaseConfig : {
   apiKey: "mock-key",
   authDomain: "mock.firebaseapp.com",
-  projectId: "mock-project",
-  storageBucket: "mock.appspot.com",
-  messagingSenderId: "123",
-  appId: "1:123:web:123"
+  projectId: "mock-project"
 });
 
 // Primary services
 export const auth = getAuth(app);
-auth.useDeviceLanguage(); // Set language to device default
+auth.useDeviceLanguage();
 
 export const googleProvider = new GoogleAuthProvider();
-
-// Database initialization
-export const db = isConfigValid ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : getFirestore(app);
 
 /**
  * Utility to completely clear local storage and indexedDB databases (e.g. stale firestore cache)
@@ -59,6 +52,9 @@ export async function clearAllLocalPersistence(): Promise<void> {
   }
 }
 
+// Standard Firestore initialization
+export const db = getFirestore(app);
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -76,12 +72,6 @@ export interface FirestoreErrorInfo {
     userId?: string | null;
     email?: string | null;
     emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
   };
 }
 
@@ -92,30 +82,22 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
     },
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('Firestore Error:', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Validation Test
 export async function testFirestoreConnection() {
   if (!isConfigValid) return;
-  
   try {
     const testDoc = doc(db, 'test', 'connection');
     await getDocFromServer(testDoc);
-    console.log('Firebase: Connection validated.');
+    console.log('Firebase: Connection established.');
   } catch (error) {
-    console.warn('Firebase: Connection test note:', error);
+    console.warn('Firebase: Connection notice (this is normal if doc missing):', error);
   }
 }
 

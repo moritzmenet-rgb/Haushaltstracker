@@ -2,9 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Default deny all
-    match /{document=**} {
-      allow read, write: if false;
+    // 1. Emergency Admin Access for Moritz
+    // This ensures Moritz always has access even if household doc is missing or rules are complex.
+    match /{path=**} {
+      allow read, write: if request.auth != null && request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com';
     }
 
     // 2. Health / connectivity check
@@ -34,19 +35,22 @@ service cloud.firestore {
     }
 
     function isMoritz() {
-      return isSignedIn() && request.auth.token.email == 'moritz.menet.bfsu@gmail.com';
+      return isSignedIn() && request.auth.token.email.lower() == 'moritz.menet.bfsu@gmail.com';
     }
 
     // RBAC: Check if user is an admin of the household
     function isHouseholdAdmin(householdId) {
-      return isMoritz() || (
-        isSignedIn() && (
-          request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.get('allowed_emails', []) ||
-          // Allow all verified users to be "admins" for this specific household if it's the main one
-          // (User requested all accounts in same household)
-          (householdId == 'main_household' && isVerified())
-        )
-      );
+      if (isMoritz()) { return true; }
+      if (!isSignedIn()) { return false; }
+      
+      // Allow all verified users in main household to act as admins for household-wide data
+      // if it's the intended shared household.
+      if (householdId == 'main_household' && isVerified()) { return true; }
+      
+      // Fallback: Check explicit allowed_emails list in the household doc
+      // Note: Use exists() check to avoid errors if doc doesn't exist yet
+      let householdPath = /databases/$(database)/documents/households/$(householdId);
+      return exists(householdPath) && request.auth.token.email.lower() in get(householdPath).data.get('allowed_emails', []);
     }
 
     // Validation Blueprints

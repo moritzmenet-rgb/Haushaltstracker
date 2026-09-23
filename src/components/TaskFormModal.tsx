@@ -44,31 +44,34 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   if (!isOpen || !isAdmin) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !category) return;
 
-    if (taskToEdit) {
-      updateTask(taskToEdit.id, {
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        base_points: Number(basePoints) || 20,
-        estimated_duration: Number(estimatedDuration) || 10,
-        interval_days: Number(intervalDays) || 7
-      });
-    } else {
-      createTask({
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        base_points: Number(basePoints) || 20,
-        estimated_duration: Number(estimatedDuration) || 10,
-        interval_days: Number(intervalDays) || 7
-      });
+    try {
+      if (taskToEdit) {
+        await updateTask(taskToEdit.id, {
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          base_points: Number(basePoints) || 20,
+          estimated_duration: Number(estimatedDuration) || 10,
+          interval_days: Number(intervalDays) || 7
+        });
+      } else {
+        await createTask({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          base_points: Number(basePoints) || 20,
+          estimated_duration: Number(estimatedDuration) || 10,
+          interval_days: Number(intervalDays) || 7
+        });
+      }
+      onClose();
+    } catch (err) {
+      // Error handled by SyncOverlay/AppContext, but we prevent onClose if failed
     }
-
-    onClose();
   };
 
   return (

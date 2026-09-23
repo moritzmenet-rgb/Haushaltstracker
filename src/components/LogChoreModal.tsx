@@ -147,7 +147,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
     setActualDuration(prev => Math.max(1, Math.min(180, prev + delta)));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedTaskId) {
@@ -182,37 +182,41 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
       finalNote = finalNote ? `${finalNote} | Notiz: ${notes.trim()}` : notes.trim();
     }
 
-    if (logToEdit) {
-      // UPDATE EXISTING LOG
-      updateLog(logToEdit.log_id, {
-        task_id: selectedTaskId,
-        user_id: isAdmin && selectedUserId ? selectedUserId : logToEdit.user_id,
-        stars,
-        actual_duration: Number(actualDuration) || 10,
-        notes: finalNote || undefined
-      });
-    } else {
-      // CREATE NEW LOG
-      logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
-
-      // Celebratory confetti burst
-      try {
-        confetti({
-          particleCount: stars === 3 ? 80 : stars === 2 ? 50 : 30,
-          spread: 70,
-          origin: { y: 0.65 },
-          colors: stars === 3 
-            ? ['#4F46E5', '#10B981', '#E0E0FF'] 
-            : stars === 2 
-            ? ['#F59E0B', '#FCD34D', '#FFDDB2'] 
-            : ['#BA1A1A', '#FFDAD6', '#FFB4AB']
+    try {
+      if (logToEdit) {
+        // UPDATE EXISTING LOG
+        await updateLog(logToEdit.log_id, {
+          task_id: selectedTaskId,
+          user_id: isAdmin && selectedUserId ? selectedUserId : logToEdit.user_id,
+          stars,
+          actual_duration: Number(actualDuration) || 10,
+          notes: finalNote || undefined
         });
-      } catch {
-        // ignore
-      }
-    }
+      } else {
+        // CREATE NEW LOG
+        await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
 
-    onClose();
+        // Celebratory confetti burst
+        try {
+          confetti({
+            particleCount: stars === 3 ? 80 : stars === 2 ? 50 : 30,
+            spread: 70,
+            origin: { y: 0.65 },
+            colors: stars === 3 
+              ? ['#4F46E5', '#10B981', '#E0E0FF'] 
+              : stars === 2 
+              ? ['#F59E0B', '#FCD34D', '#FFDDB2'] 
+              : ['#BA1A1A', '#FFDAD6', '#FFB4AB']
+          });
+        } catch {
+          // ignore
+        }
+      }
+      // ONLY CLOSE AFTER SUCCESS
+      onClose();
+    } catch (err) {
+      setErrorMsg('Fehler beim Speichern. Bitte Internetverbindung prüfen.');
+    }
   };
 
   const loggedMember = data.members[selectedUserId] || activeUser;
@@ -572,8 +576,8 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        deleteLog(logToEdit.log_id);
+                      onClick={async () => {
+                        await deleteLog(logToEdit.log_id);
                         onClose();
                       }}
                       className="px-3 py-2 bg-rose-600 text-white rounded-xl text-xs font-black"
