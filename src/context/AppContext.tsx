@@ -287,7 +287,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: new Date().toISOString()
       };
 
-      const sessionRef = doc(db, 'households', HOUSEHOLD_ID, 'sessions', session.id);
+      const sessionRef = doc(db, 'sessions', session.id);
       await setDoc(sessionRef, session);
       console.log('Firebase: Session recorded successfully:', session.id);
     } catch (err) {
@@ -550,7 +550,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let unsubSessions = () => {};
     if (isAdmin) {
       console.log('Firebase: Setting up sessions listener (Admin access granted)');
-      unsubSessions = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'sessions'), (snap) => {
+      unsubSessions = onSnapshot(collection(db, 'sessions'), (snap) => {
         if (isCancelled) return;
         const sessList: SessionLog[] = [];
         snap.forEach(d => sessList.push(d.data() as SessionLog));

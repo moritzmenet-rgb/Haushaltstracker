@@ -291,23 +291,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </button>
 
-          {/* Center Expressive Floating Action Button (M3 FAB) */}
-          <div className="px-2 -mt-10 relative z-20">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-              type="button"
-              onClick={onOpenLogModal}
-              className="w-16 h-16 rounded-[22px] bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-[0_8px_24px_rgba(79,70,229,0.4)] flex items-center justify-center border-4 border-[var(--m3-surface-container)] ring-4 ring-black/5"
-              aria-label="Arbeit erfassen"
-              title="Arbeit erfassen"
-            >
-              <Plus className="w-8 h-8 stroke-[4]" />
-              <div className="absolute inset-0 rounded-[18px] bg-white/10 opacity-0 active:opacity-100 transition-opacity" />
-            </motion.button>
-          </div>
-
           {/* Settings / Profile Tab */}
           <button
             type="button"
