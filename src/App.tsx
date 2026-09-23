@@ -17,7 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
 
 const MainContent: React.FC = () => {
-  const { isAppLoaded, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
+  const { isAppLoaded, isAuthResolving, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'settings'>('dashboard');
   
   // Decide if we should show the cloud onboarding screen
@@ -32,16 +32,17 @@ const MainContent: React.FC = () => {
     // 1. User has not dismissed onboarding
     // 2. App is loaded
     // 3. Local data is empty
-    // 4. User is NOT logged in OR sync is actively connecting
+    // 4. We are NOT resolving auth (definitively logged out)
+    // 5. We are NOT connecting (definitively offline)
     const isConnecting = firebaseUser && syncStatus === 'connecting';
     
-    // Only show onboarding if app is loaded and data is definitively empty (not just connecting)
-    if (!dismissedOnboarding && isAppLoaded && isDataEmpty && !isConnecting && !firebaseUser) {
+    // Strict check: Only show if we know for sure the user is not logged in and not about to be
+    if (!dismissedOnboarding && isAppLoaded && !isAuthResolving && isDataEmpty && !isConnecting && !firebaseUser) {
       setShowCloudOnboarding(true);
     } else {
       setShowCloudOnboarding(false);
     }
-  }, [isAppLoaded, isDataEmpty, firebaseUser, syncStatus, dismissedOnboarding]);
+  }, [isAppLoaded, isAuthResolving, isDataEmpty, firebaseUser, syncStatus, dismissedOnboarding]);
 
   // Hide the HTML loading screen when app is ready
   useEffect(() => {

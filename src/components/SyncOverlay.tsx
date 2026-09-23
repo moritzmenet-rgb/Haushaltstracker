@@ -14,13 +14,15 @@ export const SyncOverlay: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px] flex items-center justify-center pointer-events-auto"
+          transition={{ duration: 0.1 }}
+          className="fixed inset-0 z-[200] bg-black/30 flex items-center justify-center pointer-events-auto"
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] rounded-[32px] p-8 shadow-2xl flex flex-col items-center gap-4 max-w-xs text-center"
+            exit={{ scale: 0.98, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] rounded-[32px] p-6 shadow-2xl flex flex-col items-center gap-4 max-w-xs text-center"
           >
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-4 border-[var(--m3-primary)]/20 rounded-full" />

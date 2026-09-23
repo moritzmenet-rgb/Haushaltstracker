@@ -120,6 +120,7 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAppLoaded, setIsAppLoaded] = useState(false);
+  const [isAuthResolving, setIsAuthResolving] = useState(true);
 
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -203,7 +204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => (prev.status === 'saved' || prev.status === 'uploading') ? { status: 'idle', text: '' } : prev);
-          }, 1500);
+          }, 600); // Reduced from 800ms
         })
         .catch((err) => {
           console.warn('Sync failed:', err);
@@ -252,6 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Firebase Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
+      setIsAuthResolving(true);
       if (user) {
         try {
           await user.getIdToken();
@@ -260,6 +262,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
       setFirebaseUser(user);
+      setIsAuthResolving(false);
+      
       if (!user) {
         setSyncStatus('offline');
         setFirebaseError(null);
@@ -419,7 +423,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsAppLoaded(true);
         setSyncStatus(prev => prev === 'connecting' ? 'synced' : prev);
       }
-    }, 2500);
+    }, 1200); // Reduced from 2500ms for faster feel
 
     return () => {
       isCancelled = true;
@@ -737,7 +741,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{
-      isAppLoaded, data, activeUser, isAdmin, theme, toggleTheme,
+      isAppLoaded, isAuthResolving, data, activeUser, isAdmin, theme, toggleTheme,
       colorTheme, effectiveTheme, setColorTheme: setColorThemeState,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
