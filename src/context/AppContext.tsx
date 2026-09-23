@@ -253,11 +253,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const activeUser = useMemo(() => activeUserId ? data.members[activeUserId] || null : null, [activeUserId, data.members]);
 
-  const effectiveTheme = useMemo(() => data.settings.color_theme || colorTheme, [data.settings.color_theme, colorTheme]);
+  const effectiveTheme = useMemo(() => {
+    // 1. Prioritize active user's individual preference
+    if (activeUser?.preferred_theme) return activeUser.preferred_theme;
+    // 2. Fallback to household-level global setting
+    if (data.settings.color_theme) return data.settings.color_theme;
+    // 3. Fallback to local device state
+    return colorTheme;
+  }, [activeUser?.preferred_theme, data.settings.color_theme, colorTheme]);
 
   const recordSession = useCallback(async (user: User) => {
     try {
-      console.log('Firebase: Attempting to record session for', user.email);
+      // Small delay to ensure auth token is propagated to Firestore
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('Firebase: Attempting to record session for', user.email, 'UID:', user.uid);
       // Get IP via public API
       const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
       const ipData = ipRes ? await ipRes.json() : { ip: 'unknown' };
@@ -303,14 +313,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setColorThemeState(theme);
     localStorage.setItem(COLOR_THEME_KEY, theme);
     
-    // Also persist to settings so it's synced and effective
-    const nextSettings = { ...data.settings, color_theme: theme };
-    setData(prev => ({ ...prev, settings: nextSettings }));
-    
-    if (firebaseUser) {
-      saveSettingsToCloud(nextSettings).catch(console.error);
+    if (activeUser) {
+      // Individual theme: update the active user's preference
+      const updatedMember = { ...activeUser, preferred_theme: theme };
+      setData(prev => ({
+        ...prev,
+        members: { ...prev.members, [activeUser.id]: updatedMember }
+      }));
+      
+      if (firebaseUser) {
+        const cloudPromise = saveMemberToCloud(updatedMember);
+        triggerSyncFeedback('Farb-Design geändert', cloudPromise);
+      }
+    } else {
+      // If no user is active (e.g. initial setup), update global settings as a fallback
+      const nextSettings = { ...data.settings, color_theme: theme };
+      setData(prev => ({ ...prev, settings: nextSettings }));
+      
+      if (firebaseUser) {
+        const cloudPromise = saveSettingsToCloud(nextSettings);
+        triggerSyncFeedback('Farb-Design geändert', cloudPromise);
+      }
     }
-  }, [data.settings, firebaseUser]);
+  }, [data.settings, firebaseUser, activeUser, triggerSyncFeedback]);
 
   useEffect(() => {
     applyColorTheme(effectiveTheme);

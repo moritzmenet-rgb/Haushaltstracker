@@ -93,9 +93,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {householdTitle}
                   </span>
                 </div>
-                <span className="text-[11px] text-[var(--m3-on-surface-variant)] font-semibold hidden sm:inline-block leading-tight">
-                  Material 3 Expressive
-                </span>
               </div>
             </div>
 

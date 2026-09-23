@@ -11,6 +11,8 @@ export interface FamilyMember {
   weekly_target: number;
   pin_code?: string;
   has_seen_tutorial?: boolean;
+  preferred_theme?: ColorTheme;
+  preferred_mode?: 'light' | 'dark';
 }
 
 export interface TaskItem {

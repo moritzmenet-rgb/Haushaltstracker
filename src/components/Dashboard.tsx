@@ -132,6 +132,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setDeleteConfirmId(null);
   };
 
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    const name = activeUser?.name || 'Familie';
+    if (hour >= 5 && hour < 12) return `Guten Morgen, ${name}`;
+    if (hour >= 12 && hour < 18) return `Guten Tag, ${name}`;
+    if (hour >= 18 && hour < 22) return `Guten Abend, ${name}`;
+    return `Gute Nacht, ${name}`;
+  }, [activeUser]);
+
   return (
     <div className="space-y-7 pb-12">
       {/* 1. Header & Material 3 Extended FAB */}
@@ -139,7 +148,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div>
           <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--m3-on-surface)] flex items-center gap-2.5">
-              <span>Hallo {activeUser?.name || 'Familie'}</span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--m3-primary)] to-[var(--m3-primary)]/70">
+                {greeting}
+              </span>
               <motion.span 
                 animate={{ rotate: [0, 14, -14, 14, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}

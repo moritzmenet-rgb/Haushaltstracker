@@ -195,22 +195,6 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
       } else {
         // CREATE NEW LOG
         await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
-
-        // Celebratory confetti burst
-        try {
-          confetti({
-            particleCount: stars === 3 ? 80 : stars === 2 ? 50 : 30,
-            spread: 70,
-            origin: { y: 0.65 },
-            colors: stars === 3 
-              ? ['#4F46E5', '#10B981', '#E0E0FF'] 
-              : stars === 2 
-              ? ['#F59E0B', '#FCD34D', '#FFDDB2'] 
-              : ['#BA1A1A', '#FFDAD6', '#FFB4AB']
-          });
-        } catch {
-          // ignore
-        }
       }
       // ONLY CLOSE AFTER SUCCESS
       onClose();
@@ -223,13 +207,13 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-8"
+          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-12"
         >
           {/* M3 Dialog Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">

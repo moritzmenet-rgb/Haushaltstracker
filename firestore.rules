@@ -117,10 +117,11 @@ service cloud.firestore {
       }
 
       // Sessions Subcollection (Admin only read, anyone can create their own)
+      // Note: Subcollection rules in Firestore don't require read access to parent document
       match /sessions/{sessionId} {
         allow read: if isAdmin();
-        allow create: if isSignedIn();
-        allow update, delete: if isMoritz();
+        allow create, update: if isSignedIn();
+        allow delete: if isAdmin() || isMoritz();
       }
     }
 

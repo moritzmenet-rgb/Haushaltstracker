@@ -55,6 +55,8 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
     weekly_target: Number(member.weekly_target || 50),
     has_seen_tutorial: Boolean(member.has_seen_tutorial),
     pin_code: String(member.pin_code || ''),
+    preferred_theme: member.preferred_theme || null,
+    preferred_mode: member.preferred_mode || null,
     householdId: HOUSEHOLD_ID
   };
 }

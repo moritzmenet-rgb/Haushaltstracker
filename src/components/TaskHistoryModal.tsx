@@ -31,13 +31,13 @@ export const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
         <motion.div
           initial={{ scale: 0.92, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-8"
+          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-12"
         >
           {/* M3 Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">
