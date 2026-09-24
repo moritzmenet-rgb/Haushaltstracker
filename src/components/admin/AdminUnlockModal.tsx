@@ -70,7 +70,7 @@ export const AdminUnlockModal: React.FC<AdminUnlockModalProps> = ({
         initial={{ opacity: 0, scale: 0.92, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 15 }}
-        className="w-full max-w-sm rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] p-6 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-sm m3-dialog p-6 shadow-2xl relative overflow-hidden"
       >
         <button
           onClick={onCancel}

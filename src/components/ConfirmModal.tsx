@@ -60,7 +60,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           exit={{ scale: 0.92, opacity: 0, y: 15 }}
           transition={{ type: 'spring', damping: 28, stiffness: 400 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden p-6"
+          className="w-full max-w-md m3-dialog overflow-hidden p-6"
         >
           <div className="flex items-start gap-4 mb-4">
             <div className={`w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center shadow-xs ${

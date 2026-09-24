@@ -91,14 +91,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileHover={{ scale: 1.08, rotate: -3 }}
                 whileTap={{ scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="w-11 h-11 rounded-2xl bg-zinc-900 dark:bg-zinc-900 border border-white/15 flex items-center justify-center shadow-lg shadow-indigo-600/10 overflow-hidden shrink-0"
+                className="w-11 h-11 rounded-2xl bg-indigo-600 border border-white/20 flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0 relative overflow-hidden"
               >
-                <img 
-                  src="/logo.jpg" 
-                  alt="Fish & Wish Logo" 
-                  style={{ filter: 'invert(1)', mixBlendMode: 'screen' }}
-                  className="w-full h-full object-contain p-1" 
-                />
+                <span className="text-white font-black text-lg tracking-tighter relative z-10">
+                  F&W
+                </span>
               </motion.div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
@@ -259,11 +256,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* Material 3 Bottom Navigation Bar for Mobile - Milchiger Lupen-Look */}
+      {/* Liquid Glass Bottom Navigation Bar for Mobile */}
       <div className="md:hidden fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
         <nav 
           aria-label="Mobile Navigation"
-          className="pointer-events-auto lupenglas-effect px-2 py-1.5 flex items-center justify-around w-full max-w-sm transition-all"
+          className="pointer-events-auto liquid-navbar px-2 py-1.5 flex items-center justify-around w-full max-w-sm transition-all"
         >
           {/* Dashboard Tab */}
           <button
@@ -272,7 +269,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'dashboard' 
                 ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/50'
+                : 'text-[var(--m3-on-surface-variant)]/70'
             }`}
           >
             <LayoutDashboard className={`transition-transform ${currentTab === 'dashboard' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
@@ -285,7 +282,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'tasks' 
                 ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/50'
+                : 'text-[var(--m3-on-surface-variant)]/70'
             }`}
           >
             <CheckSquare className={`transition-transform ${currentTab === 'tasks' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
@@ -298,7 +295,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'pinnwand' 
                 ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/50'
+                : 'text-[var(--m3-on-surface-variant)]/70'
             }`}
           >
             <Pin className={`transition-transform ${currentTab === 'pinnwand' ? 'w-6.5 h-6.5 fill-current rotate-12' : 'w-5.5 h-5.5 rotate-12'}`} />
@@ -311,7 +308,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'settings' 
                 ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/50'
+                : 'text-[var(--m3-on-surface-variant)]/70'
             }`}
           >
             {isAdmin ? (

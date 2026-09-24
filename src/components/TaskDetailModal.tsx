@@ -50,7 +50,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="w-full max-w-2xl rounded-[32px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-8"
+          className="w-full max-w-2xl m3-dialog overflow-hidden my-8"
         >
           {/* Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between bg-[var(--m3-surface-container-highest)]/30">
@@ -71,7 +71,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     dueStatus.status === 'overdue' ? 'text-rose-500' : 
                     dueStatus.status === 'due-soon' ? 'text-amber-500' : 'text-emerald-500'
                   }`}>
-                    {dueStatus.label}
+                    {dueStatus.text}
                   </span>
                 </div>
               </div>

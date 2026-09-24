@@ -26,6 +26,7 @@ import { PinnwandPostIt } from './PinnwandPostIt';
 import { RedThreadCanvas } from './RedThreadCanvas';
 import { PinnwandNoteModal } from './PinnwandNoteModal';
 import { ConfirmModal } from '../ConfirmModal';
+import { MemberProfileModal } from '../MemberProfileModal';
 
 export const PinnwandBoard: React.FC = () => {
   const {
@@ -52,6 +53,7 @@ export const PinnwandBoard: React.FC = () => {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [replyParentNote, setReplyParentNote] = useState<PinnwandNote | null>(null);
   const [noteToEdit, setNoteToEdit] = useState<PinnwandNote | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -548,6 +550,7 @@ export const PinnwandBoard: React.FC = () => {
                   onVote={votePinnwandPoll}
                   onReact={togglePinnwandReaction}
                   onTogglePin={(id) => updatePinnwandNote(id, { isPinned: !note.isPinned })}
+                  onOpenProfile={(id) => setSelectedProfileId(id)}
                 />
               );
             })}
@@ -610,19 +613,20 @@ export const PinnwandBoard: React.FC = () => {
 
                 {/* Root Post-It Card */}
                 <div className="max-w-xl">
-                  <PinnwandPostIt
-                    note={root}
-                    activeUserId={activeUser?.id || null}
-                    activeUserName={activeUser?.name}
-                    isAdmin={isAdmin}
-                    viewMode="list"
-                    onReply={handleReplyToNote}
-                    onEdit={handleEditNote}
-                    onDelete={(id) => setDeleteConfirmId(id)}
-                    onVote={votePinnwandPoll}
-                    onReact={togglePinnwandReaction}
-                    onTogglePin={(id) => updatePinnwandNote(id, { isPinned: !root.isPinned })}
-                  />
+                    <PinnwandPostIt
+                      note={root}
+                      activeUserId={activeUser?.id || null}
+                      activeUserName={activeUser?.name}
+                      isAdmin={isAdmin}
+                      viewMode="list"
+                      onReply={handleReplyToNote}
+                      onEdit={handleEditNote}
+                      onDelete={(id) => setDeleteConfirmId(id)}
+                      onVote={votePinnwandPoll}
+                      onReact={togglePinnwandReaction}
+                      onTogglePin={(id) => updatePinnwandNote(id, { isPinned: !root.isPinned })}
+                      onOpenProfile={(id) => setSelectedProfileId(id)}
+                    />
                 </div>
 
                 {/* Connected Descendants with Red Thread line */}
@@ -647,21 +651,22 @@ export const PinnwandBoard: React.FC = () => {
                           </div>
 
                           <div className="flex-1 max-w-lg">
-                            <PinnwandPostIt
-                              note={childNote}
-                              activeUserId={activeUser?.id || null}
-                              activeUserName={activeUser?.name}
-                              isAdmin={isAdmin}
-                              viewMode="list"
-                              parentNoteSnippet={parent?.content?.slice(0, 45)}
-                              parentAuthorName={parent?.authorName}
-                              onReply={handleReplyToNote}
-                              onEdit={handleEditNote}
-                              onDelete={(id) => setDeleteConfirmId(id)}
-                              onVote={votePinnwandPoll}
-                              onReact={togglePinnwandReaction}
-                              onTogglePin={(id) => updatePinnwandNote(id, { isPinned: !childNote.isPinned })}
-                            />
+                             <PinnwandPostIt
+                               note={childNote}
+                               activeUserId={activeUser?.id || null}
+                               activeUserName={activeUser?.name}
+                               isAdmin={isAdmin}
+                               viewMode="list"
+                               parentNoteSnippet={parent?.content?.slice(0, 45)}
+                               parentAuthorName={parent?.authorName}
+                               onReply={handleReplyToNote}
+                               onEdit={handleEditNote}
+                               onDelete={(id) => setDeleteConfirmId(id)}
+                               onVote={votePinnwandPoll}
+                               onReact={togglePinnwandReaction}
+                               onTogglePin={(id) => updatePinnwandNote(id, { isPinned: !childNote.isPinned })}
+                               onOpenProfile={(id) => setSelectedProfileId(id)}
+                             />
                           </div>
                         </div>
                       );
@@ -714,6 +719,12 @@ export const PinnwandBoard: React.FC = () => {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirmId(null)}
       />
+      {selectedProfileId && (
+        <MemberProfileModal
+          memberId={selectedProfileId}
+          onClose={() => setSelectedProfileId(null)}
+        />
+      )}
     </div>
   );
 };

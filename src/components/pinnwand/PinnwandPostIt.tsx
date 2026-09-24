@@ -33,6 +33,7 @@ interface PinnwandPostItProps {
   parentNoteSnippet?: string;
   parentAuthorName?: string;
   viewMode?: 'canvas' | 'list';
+  onOpenProfile?: (memberId: string) => void;
 }
 
 const COMMON_REACTIONS = ['👍', '❤️', '💡', '😂', '🎯', '🔥', '🍕', '👏'];
@@ -48,6 +49,7 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
   onReact,
   onTogglePin,
   onStartDrag,
+  onOpenProfile,
   isDragging = false,
   parentNoteSnippet,
   parentAuthorName,
@@ -228,16 +230,19 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
       {/* Top Header Bar inside Post-It */}
       <div className={`${hierarchy.headerPad} flex items-start justify-between gap-2 border-b border-black/8`}>
         {/* Author details & relative date */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div 
+          className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity group/author"
+          onClick={() => onOpenProfile?.(note.authorId)}
+        >
           <div
             style={{ backgroundColor: note.authorAvatarColor || '#4F46E5' }}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0 shadow-xs"
+            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0 shadow-xs group-hover/author:scale-110 transition-transform"
           >
             {getInitials(note.authorName)}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-xs font-bold truncate text-current">
+              <span className="text-xs font-bold truncate text-current group-hover/author:underline">
                 {note.authorName}
               </span>
               {note.category && (

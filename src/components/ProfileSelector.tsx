@@ -112,7 +112,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-            className="w-full max-w-4xl text-center my-8 py-8 px-6 sm:px-10 rounded-[32px] bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] shadow-2xl relative"
+            className="w-full max-w-4xl text-center my-8 py-8 px-6 sm:px-10 m3-dialog relative"
           >
             {/* Header */}
             <div className="absolute top-6 right-6 flex gap-2">

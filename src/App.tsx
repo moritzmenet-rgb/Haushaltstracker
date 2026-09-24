@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -180,22 +181,35 @@ const MainContent: React.FC = () => {
       {/* Cloud Synchronisation Connecting Loader (Prevents race condition) */}
       {isCloudConnecting && (
         <div className="fixed inset-0 z-[95] bg-[var(--m3-surface)]/85 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] rounded-[36px] p-8 shadow-2xl flex flex-col items-center gap-5 text-center max-w-sm w-full">
-            <div className="w-16 h-16 rounded-3xl bg-[var(--m3-primary)] flex items-center justify-center text-white shadow-lg relative">
-              <Cloud className="w-8 h-8" />
-              <div className="absolute -inset-2">
-                <div className="w-full h-full border-4 border-[var(--m3-primary)] border-t-transparent rounded-[32px] animate-spin" />
-              </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] rounded-[40px] p-10 shadow-2xl flex flex-col items-center gap-8 text-center max-w-sm w-full"
+          >
+            <div className="flex gap-2">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  animate={{ 
+                    scale: [1, 1.6, 1], 
+                    opacity: [0.3, 1, 0.3],
+                    backgroundColor: i === 1 ? 'var(--m3-primary)' : 'var(--m3-primary-container)'
+                  }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+                  className="w-3 h-3 rounded-full"
+                />
+              ))}
             </div>
+
             <div>
-              <h2 className="text-xl font-black text-[var(--m3-on-surface)]">
-                Familiendaten werden geladen...
+              <h2 className="text-xl font-black text-[var(--m3-on-surface)] tracking-tight">
+                Synchronisierung...
               </h2>
-              <p className="text-xs font-bold text-[var(--m3-on-surface-variant)] mt-1.5">
-                Verbinde mit dem Haushalt in der Cloud. Einen kleinen Moment bitte.
+              <p className="text-xs font-bold text-[var(--m3-on-surface-variant)] mt-2 opacity-60 uppercase tracking-widest">
+                Daten werden geladen
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

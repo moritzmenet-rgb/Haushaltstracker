@@ -229,7 +229,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
             } 
           }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className={`w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-12 ${isSubmitting ? 'animate-playful-exit' : ''}`}
+          className={`w-full max-w-lg m3-dialog overflow-hidden my-12 ${isSubmitting ? 'animate-playful-exit' : ''}`}
         >
           {/* M3 Dialog Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">

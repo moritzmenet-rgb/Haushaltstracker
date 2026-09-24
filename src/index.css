@@ -309,16 +309,27 @@
 }
 
 .lupenglas-effect {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(12px) brightness(1.2) contrast(1.1);
-  -webkit-backdrop-filter: blur(12px) brightness(1.2) contrast(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) brightness(1.2) contrast(1.15);
+  -webkit-backdrop-filter: blur(20px) brightness(1.2) contrast(1.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
   border-radius: 32px;
   position: relative;
   overflow: hidden;
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+.liquid-navbar {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(15px) saturate(190%);
+  -webkit-backdrop-filter: blur(15px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0px rgba(255, 255, 255, 0.4);
+  border-radius: 9999px;
 }
 
 .lupenglas-effect::after {

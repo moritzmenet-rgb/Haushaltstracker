@@ -12,7 +12,8 @@ import {
   Save, 
   Eye, 
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  Fingerprint
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
@@ -27,6 +28,9 @@ export const AccountSettingsTab: React.FC = () => {
   const [showPin, setShowPin] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricCredentialId, setBiometricCredentialId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeUser) {
@@ -34,8 +38,73 @@ export const AccountSettingsTab: React.FC = () => {
       setAvatarColor(activeUser.avatar_color || '#4F46E5');
       setWeeklyTarget(activeUser.weekly_target || 50);
       setPinCode(activeUser.pin_code || '');
+      setBiometricEnabled(!!activeUser.biometric_enabled);
+      setBiometricCredentialId(activeUser.biometric_credential_id || null);
+    }
+
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(available => setBiometricSupported(available));
     }
   }, [activeUser]);
+
+  const handleToggleBiometric = async () => {
+    if (biometricEnabled) {
+      setBiometricEnabled(false);
+      return;
+    }
+
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      
+      const userID = Uint8Array.from(activeUser!.id, c => c.charCodeAt(0));
+      const hostname = window.location.hostname;
+
+      const publicKey: PublicKeyCredentialCreationOptions = {
+        challenge,
+        rp: { 
+          name: "Rat Fishing",
+          id: hostname === 'localhost' ? undefined : hostname
+        },
+        user: {
+          id: userID,
+          name: activeUser!.name,
+          displayName: activeUser!.name
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: "public-key" }, // ES256
+          { alg: -257, type: "public-key" } // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required"
+        },
+        timeout: 60000
+      };
+
+      const credential = await navigator.credentials.create({ publicKey }) as any;
+      if (credential) {
+        setBiometricCredentialId(credential.id);
+        setBiometricEnabled(true);
+      }
+    } catch (err: any) {
+      console.error('Failed to enable biometrics:', err);
+      let errorMsg = 'Biometrie konnte nicht aktiviert werden.';
+      
+      if (err.name === 'NotAllowedError') {
+        errorMsg = 'Der Vorgang wurde abgebrochen oder vom Browser blockiert. Stelle sicher, dass du den Zugriff erlaubt hast und die App nicht in einem eingeschränkten Modus (z.B. privates Fenster oder eingebetteter IFrame) läuft.';
+      } else if (err.name === 'SecurityError') {
+        errorMsg = 'Sicherheitsfehler: WebAuthn wird in diesem Kontext (evtl. Browser-Sicherheitsrichtlinie) nicht unterstützt.';
+      } else if (err.name === 'InvalidStateError') {
+        errorMsg = 'Dieses Gerät ist bereits für dein Profil registriert oder es gab ein Problem mit dem Status des Authenticators.';
+      } else if (err.name === 'NotSupportedError') {
+        errorMsg = 'Dein Browser oder Gerät unterstützt die angeforderte Verschlüsselung nicht.';
+      }
+      
+      alert(`${errorMsg}\n\n[Details für Support: ${err.name} - ${err.message || 'Keine Nachricht'}]`);
+    }
+  };
 
   if (!activeUser) {
     return (
@@ -81,7 +150,9 @@ export const AccountSettingsTab: React.FC = () => {
       name: trimmedName,
       avatar_color: avatarColor,
       weekly_target: Number(weeklyTarget) || 50,
-      pin_code: trimmedPin.length === 4 ? trimmedPin : undefined
+      pin_code: trimmedPin.length === 4 ? trimmedPin : undefined,
+      biometric_enabled: biometricEnabled,
+      biometric_credential_id: biometricCredentialId || undefined
     });
 
     setSaveSuccess('Dein Profil und deine Sicherheitseinstellungen wurden erfolgreich aktualisiert!');
@@ -298,6 +369,41 @@ export const AccountSettingsTab: React.FC = () => {
               )}
             </div>
           </div>
+          
+          {/* Biometric Login Section (only if supported) */}
+          {(biometricSupported || activeUser.biometric_enabled) && (
+            <div className="pt-6 mt-2 border-t border-[var(--m3-outline-variant)]/60">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-3">
+                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600">
+                    <Fingerprint className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--m3-on-surface)]">
+                      Biometrischer Login
+                    </h3>
+                    <p className="text-[11px] text-[var(--m3-on-surface-variant)] mt-0.5 leading-relaxed">
+                      Nutze FaceID oder Fingerabdruck zum schnellen Einloggen in dein Profil.
+                    </p>
+                  </div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleToggleBiometric}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    biometricEnabled ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-surface-container-highest)]'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      biometricEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Submit Button */}
           <div className="pt-4 flex items-center justify-end">

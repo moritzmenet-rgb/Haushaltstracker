@@ -103,7 +103,7 @@ interface AppContextType {
   addMember: (name: string, avatarColor: string, role: UserRole, weeklyTarget?: number, pinCode?: string) => Promise<FamilyMember>;
   initializeAdminProfile: (name: string, avatarColor?: string, withDefaultTasks?: boolean) => Promise<FamilyMember>;
   updateMember: (memberId: string, updates: Partial<FamilyMember>) => void;
-  updateProfile: (updates: Partial<Pick<FamilyMember, 'name' | 'avatar_color' | 'weekly_target' | 'pin_code'>>) => void;
+  updateProfile: (updates: Partial<FamilyMember>) => void;
   deleteMember: (memberId: string) => void;
 
   // Session & Security
@@ -1422,6 +1422,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
+  const executeWeeklyReset = useCallback(() => {
+    if (!isAdmin) return;
+    const baseDefault = data.settings.default_weekly_target || 50;
+    const updatedMembers = { ...data.members };
+
+    Object.values(updatedMembers).forEach(member => {
+      const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
+      const oldTarget = member.weekly_target || baseDefault;
+      const difference = oldTarget - cyclePoints;
+      const factor = difference > 0
+        ? (data.settings.rollover_deficit_factor ?? 100)
+        : (data.settings.rollover_surplus_factor ?? 100);
+      const newTarget = calculateRollOverTarget(baseDefault, oldTarget, cyclePoints, {
+        minTarget: data.settings.rollover_min_target ?? 10,
+        maxTarget: data.settings.rollover_max_target ?? 200,
+        factor
+      });
+      updatedMembers[member.id] = { ...member, weekly_target: newTarget };
+    });
+
+    const nextSettings: FamilySettings = {
+      ...data.settings,
+      last_reset_date: new Date().toISOString()
+    };
+
+    persistLocal({
+      ...data,
+      settings: nextSettings,
+      members: updatedMembers
+    });
+
+    if (firebaseUser) {
+      const p = Promise.all([
+        saveSettingsToCloud(nextSettings),
+        ...Object.values(updatedMembers).map(m => saveMemberToCloud(m))
+      ]);
+      triggerSyncFeedback('Wochen-Reset', p);
+    } else {
+      triggerSyncFeedback('Wochen-Reset');
+    }
+  }, [isAdmin, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  // Automated Reset Check
+  useEffect(() => {
+    if (!isAppLoaded || !isAdmin || !data.settings.auto_reset_enabled) return;
+    
+    const checkReset = () => {
+      const { scheduled_reset_day, scheduled_reset_hour, scheduled_reset_minute, last_reset_date } = data.settings;
+      if (scheduled_reset_day === undefined || scheduled_reset_hour === undefined || scheduled_reset_minute === undefined) return;
+      
+      const now = new Date();
+      const lastReset = last_reset_date ? new Date(last_reset_date) : new Date(0);
+      
+      // Calculate when the next reset should happen based on the settings
+      // We want to see if "now" is past the scheduled time in the current week, 
+      // AND if the last reset was before that scheduled time.
+      
+      const targetTimeThisWeek = new Date(now);
+      const dayDiff = scheduled_reset_day - now.getDay();
+      targetTimeThisWeek.setDate(now.getDate() + dayDiff);
+      targetTimeThisWeek.setHours(scheduled_reset_hour, scheduled_reset_minute, 0, 0);
+      
+      // If targetTime was already in the past this week (e.g. it's Sunday and scheduled for Saturday)
+      // we check if now > targetTime.
+      // If lastReset is BEFORE targetTime and now is AFTER targetTime, we reset.
+      
+      if (now.getTime() >= targetTimeThisWeek.getTime() && lastReset.getTime() < targetTimeThisWeek.getTime()) {
+        console.log('AppContext: Triggering automated weekly reset...');
+        executeWeeklyReset();
+      }
+    };
+    
+    // Check on load and then every 5 minutes
+    checkReset();
+    const interval = setInterval(checkReset, 1000 * 60 * 5);
+    return () => clearInterval(interval);
+  }, [isAppLoaded, isAdmin, data.settings, executeWeeklyReset]);
+
   return (
     <AppContext.Provider value={{
       isAppLoaded, isAuthResolving, data, activeUser, isAdmin, theme, toggleTheme,
@@ -1475,19 +1553,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (activeUserId) updateMember(activeUserId, { has_seen_tutorial: true });
       },
       updateSettings: (u) => {
-        const next = { ...data.settings, ...u };
-        persistLocal({ ...data, settings: next });
+        const nextSettings = { ...data.settings, ...u };
+        let nextMembers = { ...data.members };
+
+        // If default weekly target is updated, sync all members' individual targets
+        if (u.default_weekly_target !== undefined) {
+          Object.keys(nextMembers).forEach(id => {
+            nextMembers[id] = { ...nextMembers[id], weekly_target: u.default_weekly_target };
+          });
+        }
+
+        persistLocal({ ...data, settings: nextSettings, members: nextMembers });
+
         if (firebaseUser) {
-          triggerSyncFeedback('Einstellungen', saveSettingsToCloud(next));
+          const promises = [saveSettingsToCloud(nextSettings)];
+          if (u.default_weekly_target !== undefined) {
+            Object.values(nextMembers).forEach(m => promises.push(saveMemberToCloud(m)));
+          }
+          triggerSyncFeedback('Einstellungen', Promise.all(promises));
         } else {
           triggerSyncFeedback('Einstellungen');
         }
       },
       updateDefaultWeeklyTarget: (t) => {
-        const next = { ...data.settings, default_weekly_target: t };
-        persistLocal({ ...data, settings: next });
+        const nextSettings = { ...data.settings, default_weekly_target: t };
+        const nextMembers = { ...data.members };
+        
+        Object.keys(nextMembers).forEach(id => {
+          nextMembers[id] = { ...nextMembers[id], weekly_target: t };
+        });
+
+        persistLocal({ ...data, settings: nextSettings, members: nextMembers });
+        
         if (firebaseUser) {
-          triggerSyncFeedback('Wochenziel', saveSettingsToCloud(next));
+          const promises = [
+            saveSettingsToCloud(nextSettings),
+            ...Object.values(nextMembers).map(m => saveMemberToCloud(m))
+          ];
+          triggerSyncFeedback('Wochenziel', Promise.all(promises));
         } else {
           triggerSyncFeedback('Wochenziel');
         }
@@ -1516,47 +1619,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           };
         });
       },
-      executeWeeklyReset: () => {
-        if (!isAdmin) return;
-        const baseDefault = data.settings.default_weekly_target || 50;
-        const updatedMembers = { ...data.members };
-
-        Object.values(updatedMembers).forEach(member => {
-          const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
-          const oldTarget = member.weekly_target || baseDefault;
-          const difference = oldTarget - cyclePoints;
-          const factor = difference > 0
-            ? (data.settings.rollover_deficit_factor ?? 100)
-            : (data.settings.rollover_surplus_factor ?? 100);
-          const newTarget = calculateRollOverTarget(baseDefault, oldTarget, cyclePoints, {
-            minTarget: data.settings.rollover_min_target ?? 10,
-            maxTarget: data.settings.rollover_max_target ?? 200,
-            factor
-          });
-          updatedMembers[member.id] = { ...member, weekly_target: newTarget };
-        });
-
-        const nextSettings: FamilySettings = {
-          ...data.settings,
-          last_reset_date: new Date().toISOString()
-        };
-
-        persistLocal({
-          ...data,
-          settings: nextSettings,
-          members: updatedMembers
-        });
-
-        if (firebaseUser) {
-          const p = Promise.all([
-            saveSettingsToCloud(nextSettings),
-            ...Object.values(updatedMembers).map(m => saveMemberToCloud(m))
-          ]);
-          triggerSyncFeedback('Wochen-Reset', p);
-        } else {
-          triggerSyncFeedback('Wochen-Reset');
-        }
-      },
+      executeWeeklyReset,
       clearAllData: async () => {
         persistLocal(INITIAL_FAMILY_DATA);
         setActiveUserIdState(null);

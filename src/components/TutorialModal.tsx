@@ -172,7 +172,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ duration: 0.25 }}
-          className="w-full max-w-lg rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl overflow-hidden my-auto relative flex flex-col"
+          className="w-full max-w-lg m3-dialog overflow-hidden my-auto relative flex flex-col"
         >
           {/* Top Bar with Indicators & Skip Button */}
           <div className="flex items-center justify-between px-6 pt-5 pb-2">

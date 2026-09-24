@@ -48,23 +48,18 @@ export const CloudOnboarding: React.FC<CloudOnboardingProps> = ({ onLocalSetup }
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', delay: 0.2 }}
-          className="w-20 h-20 rounded-3xl bg-zinc-900 dark:bg-zinc-900 border border-white/15 flex items-center justify-center mx-auto mb-6 shadow-2xl overflow-hidden relative"
+          className="w-20 h-20 rounded-[28px] bg-indigo-600 border border-white/20 flex items-center justify-center mx-auto mb-6 shadow-2xl relative overflow-hidden shrink-0"
         >
-          <img 
-            src="/logo.jpg" 
-            alt="Fish & Wish" 
-            style={{ filter: 'invert(1)', mixBlendMode: 'screen' }}
-            className="w-full h-full object-contain p-2" 
-          />
+          <span className="text-white font-black text-2xl tracking-tighter relative z-10">
+            F&W
+          </span>
           {hasError && (
-            <div className="absolute inset-0 bg-rose-500/20 backdrop-blur-[2px] flex items-center justify-center">
-              <RefreshCcw className="w-8 h-8 text-rose-400" />
+            <div className="absolute inset-0 bg-rose-500/40 backdrop-blur-[2px] flex items-center justify-center z-20">
+              <RefreshCcw className="w-8 h-8 text-white" />
             </div>
           )}
           {isConnecting && (
-            <div className="absolute -inset-2">
-              <div className="w-full h-full border-4 border-indigo-500 border-t-transparent rounded-[32px] animate-spin" />
-            </div>
+            <div className="absolute inset-0 border-4 border-white/30 border-t-white rounded-[28px] animate-spin z-20" />
           )}
         </motion.div>
 

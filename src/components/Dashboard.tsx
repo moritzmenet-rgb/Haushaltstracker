@@ -28,6 +28,7 @@ import { formatRelativeDate, getCategoryStyle, getInitials, getMemberCyclePoints
 import { ChoreLog, TaskItem } from '../types';
 import { FishingModal } from './FishingModal';
 import { TaskDetailModal } from './TaskDetailModal';
+import { MemberProfileModal } from './MemberProfileModal';
 
 interface DashboardProps {
   onOpenLogModal: (preselectedTaskId?: string) => void;
@@ -47,8 +48,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Filters for the Verlauf
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
   const [starFilter, setStarFilter] = useState<number>(0); // 0 = all
+  const [cycleFilter, setCycleFilter] = useState<'current' | 'all'>('current');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Profile modal state
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   // Fishing state
   const [fishingTask, setFishingTask] = useState<TaskItem | null>(null);
@@ -106,6 +111,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return [...data.logs]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .filter(log => {
+        // Cycle filter (Current Week vs All Time)
+        if (cycleFilter === 'current' && data.settings.last_reset_date) {
+          const resetTime = new Date(data.settings.last_reset_date).getTime();
+          if (new Date(log.timestamp).getTime() < resetTime) return false;
+        }
         // User filter
         if (selectedUserFilter !== 'all' && log.user_id !== selectedUserFilter) {
           return false;
@@ -209,7 +219,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           whileHover={{ scale: 1.01 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm relative overflow-hidden"
+          className="p-6 rounded-[28px] m3-glass-surface border border-white/5 relative overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs sm:text-sm mb-3.5">
             <span className="font-black text-[var(--m3-on-surface)] flex items-center gap-2">
@@ -323,7 +333,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   onClick={() => setDetailTaskId(task.id)}
-                  className={`p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
+                  className={`p-5 rounded-[24px] m3-glass-container border border-white/5 hover:border-[var(--m3-primary)] transition-all duration-200 flex items-center justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
                 >
                   {isFished && (
                     <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />
@@ -436,6 +446,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </section>
 
+      {selectedProfileId && (
+        <MemberProfileModal
+          memberId={selectedProfileId}
+          onClose={() => setSelectedProfileId(null)}
+        />
+      )}
+
       {fishingTask && (
         <FishingModal
           isOpen={!!fishingTask}
@@ -498,7 +515,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 return (
                   <div
                     key={member.id}
-                    className={`p-4 flex items-center justify-between gap-3 transition-colors ${
+                    onClick={() => setSelectedProfileId(member.id)}
+                    className={`p-4 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
                       isSelf ? 'bg-[var(--m3-secondary-container)]/35' : 'hover:bg-[var(--m3-surface-container-high)]/50'
                     }`}
                   >
@@ -624,8 +642,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2 text-xs font-bold text-[var(--m3-on-surface-variant)]">
+            <div className="p-1 rounded-xl bg-[var(--m3-surface-container-high)] flex items-center gap-1 mr-2">
+              <button
+                onClick={() => setCycleFilter('current')}
+                className={`px-3 py-1.5 rounded-lg transition ${cycleFilter === 'current' ? 'bg-[var(--m3-primary)] text-white shadow-xs' : 'hover:bg-[var(--m3-surface-container-highest)]'}`}
+              >
+                Aktuelle Woche
+              </button>
+              <button
+                onClick={() => setCycleFilter('all')}
+                className={`px-3 py-1.5 rounded-lg transition ${cycleFilter === 'all' ? 'bg-[var(--m3-primary)] text-white shadow-xs' : 'hover:bg-[var(--m3-surface-container-highest)]'}`}
+              >
+                Gesamter Verlauf
+              </button>
+            </div>
             <span className="px-3 py-1 rounded-full bg-[var(--m3-surface-container-high)]">
-              {filteredLogs.length} Einträge gefunden
+              {filteredLogs.length} Einträge
             </span>
           </div>
         </div>
@@ -635,7 +667,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4"
+          className="p-5 rounded-[28px] m3-glass-surface border border-white/5 space-y-4"
         >
           {/* Person Filter Chips */}
           <div>
@@ -770,7 +802,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* List of Filtered Logs in Material 3 Elevated Cards */}
         {filteredLogs.length === 0 ? (
-          <div className="p-10 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
+          <div className="p-10 text-center rounded-[28px] m3-glass-surface border border-white/5">
             <History className="w-10 h-10 text-[var(--m3-outline)] mx-auto mb-2.5 opacity-50" />
             <p className="text-sm font-bold text-[var(--m3-on-surface)]">
               Keine Einträge für diese Filterkriterien gefunden.
@@ -798,7 +830,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03, duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-                  className="p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 space-y-3.5"
+                  className="p-5 rounded-[24px] m3-glass-container border border-white/5 hover:border-[var(--m3-primary)] transition-all duration-200 space-y-3.5"
                 >
                   {/* Top Bar: Task Name, Category & Points */}
                   <div className="flex items-start justify-between gap-3">
@@ -842,23 +874,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   {/* Middle Bar: Person, Duration & Transparent Point Derivation */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {/* User and Duration */}
-                    <div className="flex items-center gap-3">
                       <div
-                        style={{ backgroundColor: user.avatar_color }}
-                        className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-xs"
+                        onClick={() => setSelectedProfileId(user.id)}
+                        className="flex items-center gap-3 cursor-pointer group"
                       >
-                        {getInitials(user.name)}
+                        <div
+                          style={{ backgroundColor: user.avatar_color }}
+                          className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:scale-110 transition-transform"
+                        >
+                          {getInitials(user.name)}
+                        </div>
+                        <div className="text-xs">
+                          <span className="font-bold text-[var(--m3-on-surface)] mr-2 group-hover:text-[var(--m3-primary)] transition-colors">
+                            {user.name}
+                          </span>
+                          <span className="text-[var(--m3-on-surface-variant)] font-medium inline-flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
+                            {log.actual_duration || 15} Min. ausgeführt
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs">
-                        <span className="font-bold text-[var(--m3-on-surface)] mr-2">
-                          {user.name}
-                        </span>
-                        <span className="text-[var(--m3-on-surface-variant)] font-medium inline-flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
-                          {log.actual_duration || 15} Min. ausgeführt
-                        </span>
-                      </div>
-                    </div>
 
                     {/* Transparent Math Breakdown Formula */}
                     <div className="p-2.5 rounded-xl bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] text-xs flex items-center justify-between sm:justify-end gap-2 shadow-xs">

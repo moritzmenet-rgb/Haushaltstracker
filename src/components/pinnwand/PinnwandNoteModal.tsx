@@ -191,7 +191,7 @@ export const PinnwandNoteModal: React.FC<PinnwandNoteModalProps> = ({
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div 
-        className="w-full max-w-lg bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] rounded-[32px] shadow-2xl overflow-hidden my-6 transition-all"
+        className="w-full max-w-lg m3-dialog overflow-hidden my-6 transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

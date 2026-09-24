@@ -50,7 +50,7 @@ export const PinnwandToolbar: React.FC<PinnwandToolbarProps> = ({
 
   return (
     <header className="fixed top-4 inset-x-4 max-w-6xl mx-auto z-40 select-none">
-      <div className="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md rounded-2xl shadow-xl border border-black/10 dark:border-white/10 px-4 py-2.5 flex items-center justify-between gap-3">
+      <div className="m3-glass-surface rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3 border border-white/5">
         {/* Brand & Stats */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">

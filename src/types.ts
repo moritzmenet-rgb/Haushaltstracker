@@ -10,6 +10,8 @@ export interface FamilyMember {
   total_points: number;
   weekly_target: number;
   pin_code?: string;
+  biometric_enabled?: boolean;
+  biometric_credential_id?: string;
   has_seen_tutorial?: boolean;
   preferred_theme?: ColorTheme;
   preferred_mode?: 'light' | 'dark';
@@ -59,6 +61,10 @@ export interface FamilySettings {
   rollover_deficit_factor?: number; // Deficit roll-over factor in % (e.g. 100%)
   week_start_day?: 'monday' | 'sunday' | 'saturday';
   allowed_emails?: string[];
+  scheduled_reset_day?: number; // 0 (Sun) to 6 (Sat)
+  scheduled_reset_hour?: number; // 0 to 23
+  scheduled_reset_minute?: number; // 0 to 59
+  auto_reset_enabled?: boolean;
 }
 
 export interface SessionLog {

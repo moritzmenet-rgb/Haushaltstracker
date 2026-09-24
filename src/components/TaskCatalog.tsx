@@ -13,7 +13,8 @@ import {
   Calendar,
   Sparkles,
   Check,
-  Filter
+  Filter,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TaskItem } from '../types';
@@ -93,7 +94,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="p-5 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm space-y-4"
+        className="p-5 rounded-[28px] m3-glass-surface border border-white/5 space-y-4"
       >
         {/* Search Input */}
         <div className="relative">
@@ -177,7 +178,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="p-12 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm"
+          className="p-12 text-center rounded-[28px] m3-glass-surface border border-white/5 shadow-sm"
         >
           <CheckSquare className="w-12 h-12 text-[var(--m3-primary)] mx-auto mb-3 opacity-60" />
           <h3 className="text-base font-bold text-[var(--m3-on-surface)]">
@@ -234,7 +235,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 whileHover={{ y: -3 }}
                 onClick={() => setDetailTaskId(task.id)}
-                className={`p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
+                className={`p-5 rounded-[24px] m3-glass-container border border-white/5 hover:border-[var(--m3-primary)] transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
               >
                 {isFished && (
                   <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />

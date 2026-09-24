@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, Delete, X, AlertCircle } from 'lucide-react';
+import { Lock, Delete, X, AlertCircle, Fingerprint } from 'lucide-react';
 import { FamilyMember } from '../types';
 import { getInitials } from '../utils';
 
@@ -20,6 +20,38 @@ export const PinModal: React.FC<PinModalProps> = ({
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  const handleBiometric = useCallback(async () => {
+    if (!member?.biometric_enabled) return;
+    
+    setBiometricLoading(true);
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      const hostname = window.location.hostname;
+
+      const publicKey: PublicKeyCredentialRequestOptions = {
+        challenge,
+        rpId: hostname === 'localhost' ? undefined : hostname,
+        userVerification: 'required',
+        timeout: 60000
+      };
+
+      const credential = await navigator.credentials.get({ publicKey });
+      if (credential) {
+        onSuccess();
+      }
+    } catch (err: any) {
+      console.warn('Biometric login skipped or failed:', err);
+      // Only alert if it's a security or configuration error, not if user just cancelled
+      if (err.name === 'SecurityError') {
+        console.error('WebAuthn Security Error:', err.message);
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  }, [member, onSuccess]);
 
   // Reset state on open/close or member change
   useEffect(() => {
@@ -27,8 +59,14 @@ export const PinModal: React.FC<PinModalProps> = ({
       setPin('');
       setError(false);
       setIsShaking(false);
+      
+      // Auto-trigger biometric if enabled
+      if (member?.biometric_enabled) {
+        const timer = setTimeout(handleBiometric, 600);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [isOpen, member]);
+  }, [isOpen, member, handleBiometric]);
 
   const verifyPin = useCallback((enteredPin: string) => {
     if (!member) return;
@@ -105,7 +143,7 @@ export const PinModal: React.FC<PinModalProps> = ({
           }}
           exit={{ opacity: 0, scale: 0.92, y: 15 }}
           transition={{ duration: 0.25 }}
-          className="w-full max-w-xs rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-2xl p-6 text-center relative"
+          className="w-full max-w-xs m3-dialog p-6 text-center relative"
         >
           {/* Close button */}
           <button
@@ -135,11 +173,13 @@ export const PinModal: React.FC<PinModalProps> = ({
             {member.name}
           </h2>
           <p className="text-xs text-[var(--m3-on-surface-variant)] mb-5 font-medium">
-            Bitte gib deinen 4-stelligen PIN-Code ein
+            {member.biometric_enabled 
+              ? 'Nutze Biometrie oder gib deinen PIN-Code ein' 
+              : 'Bitte gib deinen 4-stelligen PIN-Code ein'}
           </p>
 
           {/* PIN Dots display */}
-          <div className="flex justify-center items-center gap-3.5 mb-6">
+          <div className="flex justify-center items-center gap-3.5 mb-6 relative">
             {[0, 1, 2, 3].map((index) => {
               const isFilled = pin.length > index;
               return (
@@ -155,6 +195,25 @@ export const PinModal: React.FC<PinModalProps> = ({
                 />
               );
             })}
+            
+            {member.biometric_enabled && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleBiometric}
+                disabled={biometricLoading}
+                className={`absolute -right-10 p-2 rounded-full transition-all ${
+                  biometricLoading 
+                    ? 'bg-[var(--m3-surface-variant)] text-[var(--m3-outline)] animate-pulse' 
+                    : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] shadow-sm'
+                }`}
+                aria-label="Biometrischer Login"
+              >
+                <Fingerprint className="w-5 h-5" />
+              </motion.button>
+            )}
           </div>
 
           {/* Error Message */}
