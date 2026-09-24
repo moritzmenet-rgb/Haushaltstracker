@@ -2,9 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
+  OAuthProvider,
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
   User 
 } from 'firebase/auth';
 import { 
@@ -33,17 +38,34 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
 export const auth = getAuth(app);
 auth.useDeviceLanguage();
 
+// Ensure local persistence across redirects, mobile tabs, and reloads
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('Firebase setPersistence notice:', err);
+  });
+}
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
     console.log('Firebase: Current User UID:', user.uid);
     console.log('Firebase: Current User Email:', user.email);
+    console.log('Firebase: Provider:', user.providerData?.map(p => p.providerId).join(', ') || 'none');
     console.log('Firebase: Email Verified:', user.emailVerified);
   } else {
     console.log('Firebase: No user logged in.');
   }
 });
 
+// Google Provider configured for family friendly login
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
+// Apple Provider configured with required scopes
+export const appleProvider = new OAuthProvider('apple.com');
+appleProvider.addScope('email');
+appleProvider.addScope('name');
 
 /**
  * Utility to completely clear local storage and indexedDB databases (e.g. stale firestore cache)
@@ -132,5 +154,5 @@ export async function testFirestoreConnection() {
   }
 }
 
-export { onAuthStateChanged, signInWithPopup, signOut };
+export { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut };
 export type { User };

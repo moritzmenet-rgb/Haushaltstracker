@@ -83,14 +83,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileHover={{ scale: 1.08, rotate: -3 }}
                 whileTap={{ scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="w-10 h-10 rounded-2xl bg-[var(--m3-primary)] text-[var(--m3-on-primary)] flex items-center justify-center font-black text-base shadow-md shadow-indigo-600/20"
+                className="w-10 h-10 rounded-2xl bg-[var(--m3-primary)] flex items-center justify-center shadow-md shadow-indigo-600/20 overflow-hidden"
               >
-                {householdTitle.charAt(0).toUpperCase()}
+                <img src="/assets/images/logo_rat_fishing_simple_1790186933079.jpg" alt="Logo" className="w-full h-full object-cover" />
               </motion.div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight">
-                    {householdTitle}
+                    Fish & Wish
                   </span>
                 </div>
               </div>
@@ -171,12 +171,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <button
-                onClick={loginWithGoogle}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--m3-surface-container)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] text-[11px] font-bold border border-[var(--m3-outline-variant)] transition shadow-xs"
-                title="Google Cloud Sync aktivieren"
+                type="button"
+                onClick={() => onSelectTab('settings')}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--m3-surface-container)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] text-[11px] font-bold border border-[var(--m3-outline-variant)] transition shadow-xs cursor-pointer"
+                title="Cloud-Sync in den Einstellungen aktivieren"
               >
                 <Cloud className="w-3.5 h-3.5 text-[var(--m3-primary)]" />
-                <span>Sync</span>
+                <span>Cloud-Sync</span>
               </button>
             )}
 

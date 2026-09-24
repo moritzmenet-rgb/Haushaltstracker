@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   CheckSquare, 
   Clock, 
-  Award, 
+  Fish, 
   History, 
   Plus, 
   Edit3, 
@@ -323,7 +323,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                       title="Noch nicht verfügbar"
                     >
                       <span>Fischen</span>
-                      <Award className="w-4 h-4" />
+                      <Fish className="w-4 h-4" />
                     </button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}

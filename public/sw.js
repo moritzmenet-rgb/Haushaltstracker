@@ -1,9 +1,9 @@
-const CACHE_NAME = 'chore-tracker-v1';
+const CACHE_NAME = 'chore-tracker-v2';
 const STATIC_ASSETS = [
   './',
   'index.html',
   'manifest.json',
-  'icon.svg'
+  'logo.jpg'
 ];
 
 self.addEventListener('install', (event) => {

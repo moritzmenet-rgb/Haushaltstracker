@@ -15,6 +15,7 @@ import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
 import { SyncOverlay } from './components/SyncOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskItem, ChoreLog } from './types';
+import { Cloud } from 'lucide-react';
 
 const MainContent: React.FC = () => {
   const { isAppLoaded, isAuthResolving, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
@@ -26,6 +27,7 @@ const MainContent: React.FC = () => {
   const [dismissedOnboarding, setDismissedOnboarding] = useState(false);
 
   const isDataEmpty = Object.keys(data.members).length === 0;
+  const isCloudConnecting = Boolean(firebaseUser && syncStatus === 'connecting' && isDataEmpty);
 
   useEffect(() => {
     // Show onboarding if:
@@ -33,7 +35,7 @@ const MainContent: React.FC = () => {
     // 2. App is loaded
     // 3. Local data is empty
     // 4. We are NOT resolving auth (definitively logged out)
-    // 5. We are NOT connecting (definitively offline)
+    // 5. We are NOT connecting to cloud (definitively offline)
     const isConnecting = firebaseUser && syncStatus === 'connecting';
     
     // Strict check: Only show if we know for sure the user is not logged in and not about to be
@@ -170,9 +172,31 @@ const MainContent: React.FC = () => {
         />
       )}
 
+      {/* Cloud Synchronisation Connecting Loader (Prevents race condition) */}
+      {isCloudConnecting && (
+        <div className="fixed inset-0 z-[95] bg-[var(--m3-surface)]/85 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] rounded-[36px] p-8 shadow-2xl flex flex-col items-center gap-5 text-center max-w-sm w-full">
+            <div className="w-16 h-16 rounded-3xl bg-[var(--m3-primary)] flex items-center justify-center text-white shadow-lg relative">
+              <Cloud className="w-8 h-8" />
+              <div className="absolute -inset-2">
+                <div className="w-full h-full border-4 border-[var(--m3-primary)] border-t-transparent rounded-[32px] animate-spin" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-[var(--m3-on-surface)]">
+                Familiendaten werden geladen...
+              </h2>
+              <p className="text-xs font-bold text-[var(--m3-on-surface-variant)] mt-1.5">
+                Verbinde mit dem Haushalt in der Cloud. Einen kleinen Moment bitte.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Screen 1: Netflix-Style Profile Selector */}
       <ProfileSelector
-        isOpen={(showProfileSelector || !activeUser) && !showCloudOnboarding}
+        isOpen={(showProfileSelector || !activeUser) && !showCloudOnboarding && !isCloudConnecting}
         onClose={() => setShowProfileSelector(false)}
         onOpenSettings={() => {
           setCurrentTab('settings');

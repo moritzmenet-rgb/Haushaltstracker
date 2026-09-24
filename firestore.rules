@@ -20,10 +20,26 @@ service cloud.firestore {
         authEmail() == 'moritz.menet.bfsu@gmail.com'
       );
     }
+
+    function isGoogleUser() {
+      return isSignedIn() && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com';
+    }
+
+    function isAppleUser() {
+      return isSignedIn() && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'apple.com';
+    }
+
+    function isBlocked() {
+      return exists(/databases/$(database)/documents/households/main_household) &&
+             authEmail() != '' &&
+             authEmail() in get(/databases/$(database)/documents/households/main_household).data.get('blocked_emails', []);
+    }
     
     function isVerified() {
-      return isSignedIn() && (
+      return isSignedIn() && !isBlocked() && (
         request.auth.token.get('email_verified', false) == true || 
+        isGoogleUser() ||
+        isAppleUser() ||
         isMoritz()
       );
     }

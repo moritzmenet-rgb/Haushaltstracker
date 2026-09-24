@@ -30,6 +30,7 @@ export const SyncSettingsTab: React.FC = () => {
     firebaseUser, 
     firebaseError,
     loginWithGoogle, 
+    loginWithApple,
     logoutFirebase, 
     uploadAllToCloud,
     resetFirebaseCompletely,
@@ -38,6 +39,9 @@ export const SyncSettingsTab: React.FC = () => {
     data,
     updateSettings
   } = useApp();
+
+  const isAppleUser = firebaseUser?.providerData?.some(p => p.providerId === 'apple.com');
+  const providerName = isAppleUser ? 'Apple-ID' : 'Google-Konto';
 
   const [newEmail, setNewEmail] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -158,8 +162,8 @@ export const SyncSettingsTab: React.FC = () => {
 
               <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
                 {firebaseUser
-                  ? `Verbunden mit Google-Konto: ${firebaseUser.email}`
-                  : 'Aktuell sind deine Daten lokal im Browser gespeichert. Melde dich mit Google an für automatische Live-Synchronisation.'}
+                  ? `Verbunden mit ${providerName}: ${firebaseUser.email || (isAppleUser ? 'Apple-ID verknüpft' : firebaseUser.uid)}`
+                  : 'Aktuell sind deine Daten lokal im Browser gespeichert. Melde dich mit Google oder Apple an für automatische Live-Synchronisation.'}
               </p>
             </div>
           </div>
@@ -193,15 +197,29 @@ export const SyncSettingsTab: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={loginWithGoogle}
-                className="m3-btn-filled px-5 py-2.5 text-xs font-black inline-flex items-center gap-2"
-              >
-                <Cloud className="w-4 h-4" />
-                <span>Mit Google anmelden</span>
-              </motion.button>
+              <div className="flex flex-wrap items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={loginWithGoogle}
+                  className="m3-btn-filled px-4 py-2 text-xs font-black inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span>Mit Google</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={loginWithApple}
+                  className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-black inline-flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 170 170">
+                    <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.07-7.65-7.85-11.87-14.34-6.3-9.69-11.05-20.91-14.25-33.67-3.2-12.76-4.8-24.89-4.8-36.38 0-14.61 3.59-26.69 10.77-36.23 7.18-9.55 16.27-14.43 27.27-14.65 4.89 0 10.37 1.25 16.44 3.75 6.07 2.5 10.15 3.8 12.24 3.91 1.74-.11 6.04-1.46 12.91-4.04 6.87-2.58 12.44-3.72 16.71-3.41 12.82.88 23.01 5.92 30.58 15.13-11.09 6.74-16.53 15.98-16.32 27.72.22 9.24 3.7 17.06 10.45 23.48 6.74 6.41 14.88 10.11 24.43 11.09-2.17 6.74-4.89 13.91-8.15 21.52zM119.22 31.84c0-7.39 2.66-14.45 7.99-21.19 5.33-6.74 11.96-10.65 19.89-11.74.22 1.09.33 2.17.33 3.26 0 7.28-2.77 14.34-8.32 21.19-5.54 6.85-12.17 10.65-19.89 11.41z"/>
+                  </svg>
+                  <span>Mit Apple</span>
+                </motion.button>
+              </div>
             )}
           </div>
 

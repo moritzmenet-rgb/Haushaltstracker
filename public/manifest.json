@@ -1,8 +1,8 @@
 {
   "id": ".",
-  "name": "Household Chore Tracker",
-  "short_name": "Haushalt",
-  "description": "Gamifizierter, minimalistischer Haushalts-Manager mit Profilauswahl und Rollenkonzept.",
+  "name": "Fish & Wish",
+  "short_name": "Fish & Wish",
+  "description": "Gamifizierter, minimalistischer Haushalts-Manager Fish & Wish mit Profilauswahl und Rollenkonzept.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
@@ -11,15 +11,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "logo.jpg",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "icon.svg",
+      "src": "logo.jpg",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "type": "image/jpeg",
       "purpose": "maskable"
     }
   ]

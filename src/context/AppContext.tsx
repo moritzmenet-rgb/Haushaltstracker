@@ -7,7 +7,10 @@ import {
   db, 
   auth, 
   googleProvider, 
+  appleProvider,
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged, 
   testFirestoreConnection, 
@@ -64,6 +67,7 @@ interface AppContextType {
   firebaseError: string | null;
   isAuthResolving: boolean;
   loginWithGoogle: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
   logoutFirebase: () => Promise<void>;
   uploadAllToCloud: () => Promise<void>;
   resetFirebaseCompletely: () => Promise<void>;
@@ -360,9 +364,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Firebase Auth listener
   useEffect(() => {
+    // Process redirect sign-in results if the page was redirected (e.g., mobile or Family Link flow)
+    getRedirectResult(auth)
+      .then((res) => {
+        if (res?.user) {
+          console.log('Firebase: Successfully authenticated via redirect:', res.user.email || res.user.uid);
+        }
+      })
+      .catch((err) => {
+        if (err.code !== 'auth/credential-already-in-use') {
+          console.warn('Firebase: Redirect auth resolution note:', err);
+        }
+      });
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       setIsAuthResolving(true);
-      console.log('Firebase: Auth state changed. User:', user?.email || 'none');
+      console.log('Firebase: Auth state changed. User:', user?.email || user?.uid || 'none');
       
       // Explicit connection test for user feedback
       testFirestoreConnection();
@@ -390,7 +407,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
     return unsub;
-  }, []);
+  }, [recordSession]);
 
   // Firestore Synchronizer
   useEffect(() => {
@@ -815,16 +832,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('connecting');
       setFirebaseError(null);
       await signInWithPopup(auth, googleProvider);
-      console.log('Firebase: Login process completed.');
+      console.log('Firebase: Google login process completed.');
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Google login error:', err);
+      // In Google Family Link, when a parent confirms, the popup is often closed automatically
+      // or closed by the user right after consent. If auth resolution is in progress or about to complete,
+      // do not lock the UI in an error state!
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setTimeout(() => {
+          if (!auth.currentUser) {
+            setSyncStatus(firebaseUser ? 'synced' : 'offline');
+          }
+        }, 1200);
+        return;
+      }
+      if (err.code === 'auth/popup-blocked') {
+        try {
+          console.log('Popup blocked, falling back to signInWithRedirect...');
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirErr) {
+          console.warn('Redirect fallback error:', redirErr);
+        }
+        setSyncStatus('error');
+        setFirebaseError('Login-Fenster wurde blockiert. Bitte Popups im Browser erlauben oder Seite neu laden.');
+        return;
+      }
       setSyncStatus('error');
-      const msg = err.code === 'auth/popup-blocked' 
-        ? 'Login-Fenster wurde blockiert. Bitte Popups erlauben.'
-        : err.message || 'Login fehlgeschlagen';
-      setFirebaseError(msg);
+      setFirebaseError(err.message || 'Google-Anmeldung fehlgeschlagen.');
     }
-  }, []);
+  }, [firebaseUser]);
+
+  const loginWithApple = useCallback(async () => {
+    try {
+      setSyncStatus('connecting');
+      setFirebaseError(null);
+      await signInWithPopup(auth, appleProvider);
+      console.log('Firebase: Apple login process completed.');
+    } catch (err: any) {
+      console.error('Apple login error:', err);
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setTimeout(() => {
+          if (!auth.currentUser) {
+            setSyncStatus(firebaseUser ? 'synced' : 'offline');
+          }
+        }, 1200);
+        return;
+      }
+      if (err.code === 'auth/popup-blocked') {
+        try {
+          console.log('Popup blocked, falling back to signInWithRedirect for Apple...');
+          await signInWithRedirect(auth, appleProvider);
+          return;
+        } catch (redirErr) {
+          console.warn('Redirect fallback error for Apple:', redirErr);
+        }
+        setSyncStatus('error');
+        setFirebaseError('Login-Fenster wurde blockiert. Bitte Popups im Browser erlauben.');
+        return;
+      }
+      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/configuration-not-found') {
+        setSyncStatus('error');
+        setFirebaseError('Apple Sign-In ist in der Firebase Console noch nicht aktiv. Bitte in den Auth-Providern aktivieren.');
+        return;
+      }
+      setSyncStatus('error');
+      setFirebaseError(err.message || 'Apple-Anmeldung fehlgeschlagen.');
+    }
+  }, [firebaseUser]);
 
   const logoutFirebase = useCallback(async () => {
     // Preserve activeUserId in localStorage even on logout 
@@ -894,7 +969,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       colorTheme, effectiveTheme, setColorTheme,
       sessions, recordSession, blockUserByEmail, unblockUserByEmail, blockedEmails,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
-      loginWithGoogle, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
+      loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
       logChore, updateLog, deleteLog, createTask, updateTask, deleteTask,
       addCategory: (c) => {
         if (data.settings.categories.includes(c)) return false;

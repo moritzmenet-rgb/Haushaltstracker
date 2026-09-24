@@ -31,16 +31,23 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   const isInitialSetup = membersList.length === 0;
   const canAddMembers = isAdmin || isInitialSetup;
 
+  const isAppleUser = firebaseUser?.providerData?.some(p => p.providerId === 'apple.com');
+  const providerLabel = isAppleUser ? 'Apple-ID angemeldet' : 'Google-Konto angemeldet';
+
   const suggestedAdminName = React.useMemo(() => {
     if (firebaseUser?.displayName && firebaseUser.displayName.trim().length > 0) {
-      return firebaseUser.displayName.split(' ')[0];
+      const first = firebaseUser.displayName.split(' ')[0];
+      if (first) return first;
     }
     if (firebaseUser?.email) {
       const prefix = firebaseUser.email.split('@')[0].replace(/[._-]/g, ' ');
-      return prefix.charAt(0).toUpperCase() + prefix.slice(1).split(' ')[0];
+      const formatted = prefix.charAt(0).toUpperCase() + prefix.slice(1).split(' ')[0];
+      if (formatted) return formatted;
     }
-    return 'Moritz';
-  }, [firebaseUser]);
+    return isAppleUser ? 'Familien-Admin' : 'Moritz';
+  }, [firebaseUser, isAppleUser]);
+
+  const adminInitial = (suggestedAdminName[0] || 'A').toUpperCase();
 
   if (!isOpen) return null;
 
@@ -124,19 +131,19 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                 Familien-Haushalt
               </div>
 
-              {/* Connected Google Account Badge if initial setup */}
+              {/* Connected Account Badge if initial setup */}
               {isInitialSetup && firebaseUser && (
                 <div className="mb-6 p-3.5 sm:p-4 rounded-3xl bg-[var(--m3-primary-container)]/40 border border-[var(--m3-primary)]/25 text-[var(--m3-on-primary-container)] max-w-md mx-auto flex items-center gap-3 text-left shadow-xs">
                   <div className="w-10 h-10 rounded-2xl bg-[var(--m3-primary)] text-white font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
-                    {suggestedAdminName[0]}
+                    {adminInitial}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[var(--m3-primary)]">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      Google-Konto angemeldet
+                      {providerLabel}
                     </div>
                     <p className="text-xs sm:text-sm font-bold text-[var(--m3-on-surface)] truncate">
-                      {firebaseUser.email}
+                      {firebaseUser.email || (isAppleUser ? 'Apple-ID verknüpft' : 'Angemeldet')}
                     </p>
                   </div>
                 </div>

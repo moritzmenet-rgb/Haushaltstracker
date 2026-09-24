@@ -15,7 +15,7 @@ import {
   Filter,
   Search,
   Check,
-  Award,
+  Fish,
   Zap,
   Flame,
   Info,
@@ -358,7 +358,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       title="Noch nicht verfügbar"
                     >
                       <span>Fischen</span>
-                      <Award className="w-4 h-4" />
+                      <Fish className="w-4 h-4" />
                     </button>
                     <motion.button
                       whileHover={{ scale: 1.06 }}
