@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
-import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS } from '../data/initialData';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
+import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { applyColorTheme } from '../theme';
 import { 
@@ -30,7 +30,9 @@ import {
   saveMemberToCloud, 
   deleteMemberFromCloud, 
   saveSettingsToCloud, 
-  clearAllCloudData 
+  clearAllCloudData,
+  savePinnwandNoteToCloud,
+  deletePinnwandNoteFromCloud
 } from '../services/firestoreSync';
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
@@ -89,6 +91,8 @@ interface AppContextType {
   createTask: (task: Omit<TaskItem, 'id' | 'created_by' | 'last_done'>) => void;
   updateTask: (taskId: string, updates: Partial<TaskItem>) => void;
   deleteTask: (taskId: string) => void;
+  fishTask: (taskId: string, untilDate: string) => Promise<void>;
+  unfishTask: (taskId: string) => Promise<void>;
 
   // Category CRUD (Admin)
   addCategory: (category: string) => boolean;
@@ -126,6 +130,27 @@ interface AppContextType {
   resetToDemoData: () => Promise<void>;
   exportDataJSON: () => string;
   importDataJSON: (jsonStr: string) => boolean;
+
+  // Pinnwand (Bulletin Board with Threads, Red String, Polls, Reactions)
+  pinnwandNotes: PinnwandNote[];
+  createPinnwandNote: (note: {
+    rootId?: string;
+    parentId?: string | null;
+    depth?: number;
+    title?: string;
+    content: string;
+    color: PostItColor;
+    category?: string;
+    poll?: PinnwandPoll;
+    position?: { x: number; y: number };
+    rotation?: number;
+  }) => Promise<PinnwandNote>;
+  updatePinnwandNote: (noteId: string, updates: Partial<PinnwandNote>) => Promise<boolean>;
+  deletePinnwandNote: (noteId: string) => Promise<boolean>;
+  votePinnwandPoll: (noteId: string, optionId: string) => Promise<boolean>;
+  togglePinnwandReaction: (noteId: string, emoji: string) => Promise<boolean>;
+  updateNotePosition: (noteId: string, position: { x: number; y: number }) => void;
+  autoArrangePinnwand: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -167,7 +192,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if (parsed && parsed.members && parsed.tasks) return parsed;
+          if (parsed && parsed.members && parsed.tasks) {
+            if (!parsed.pinnwand || Object.keys(parsed.pinnwand).length === 0) {
+              parsed.pinnwand = { ...DEFAULT_PINNWAND_NOTES };
+            }
+            return parsed;
+          }
         } catch { /* ignore */ }
       }
     }
@@ -269,12 +299,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const recordSession = useCallback(async (user: User) => {
     try {
       // Small delay to ensure auth token is propagated to Firestore
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       console.log('Firebase: Attempting to record session for', user.email, 'UID:', user.uid);
-      // Get IP via public API
-      const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
-      const ipData = ipRes ? await ipRes.json() : { ip: 'unknown' };
+      // Get IP via public API with timeout fallback
+      let ip = 'unknown';
+      try {
+        const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          if (ipData && typeof ipData.ip === 'string') ip = ipData.ip;
+        }
+      } catch {
+        // IP lookup optional
+      }
       
       const userAgent = navigator.userAgent;
       let deviceType = 'Desktop';
@@ -285,7 +323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `sess_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         user_id: user.uid,
         email: user.email || 'unknown',
-        ip_address: ipData.ip,
+        ip_address: ip,
         user_agent: userAgent,
         device_type: deviceType,
         timestamp: new Date().toISOString()
@@ -295,7 +333,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(sessionRef, session);
       console.log('Firebase: Session recorded successfully:', session.id);
     } catch (err) {
-      console.error('Firebase: Session record failed:', err);
+      console.warn('Firebase: Session record notice (non-fatal):', err);
     }
   }, []);
 
@@ -563,7 +601,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkDone();
     });
 
-    // 5. Sessions (Admin only)
+    // 5. Pinnwand notes
+    const unsubPinnwand = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'pinnwand'), (snap) => {
+      if (isCancelled) return;
+      const notesMap: Record<string, PinnwandNote> = {};
+      snap.forEach(d => { 
+        const n = d.data() as PinnwandNote;
+        notesMap[n.id || d.id] = { ...n, id: n.id || d.id }; 
+      });
+
+      if (Object.keys(notesMap).length > 0) {
+        setData(prev => {
+          const next = { ...prev, pinnwand: notesMap };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
+      }
+    }, (err) => {
+      console.warn('Sync notice (Pinnwand):', err);
+    });
+
+    // 6. Sessions (Admin only)
     let unsubSessions = () => {};
     if (isAdmin) {
       console.log('Firebase: Setting up sessions listener (Admin access granted)');
@@ -593,6 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubMembers();
       unsubTasks();
       unsubLogs();
+      unsubPinnwand();
       unsubSessions();
     };
   }, [firebaseUser, syncRetryKey, isAdmin]);
@@ -721,37 +780,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createTask = useCallback(async (task: any) => {
     const id = `task_${Date.now()}`;
-    const newTask = { ...task, id, created_by: activeUser?.name || 'Admin', last_done: null };
+    const newTask = { ...task, id, created_by: activeUser?.name || 'Familie', last_done: null };
+    setData(prev => {
+      const nextTasks = { ...prev.tasks, [id]: newTask };
+      const next = { ...prev, tasks: nextTasks };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      const p = saveTaskToCloud(newTask);
-      await triggerSyncFeedback('Aufgabe erstellt', p);
+      try {
+        const p = saveTaskToCloud(newTask);
+        await triggerSyncFeedback('Aufgabe erstellt', p);
+      } catch (err) {
+        console.warn('Task create notice:', err);
+      }
     } else {
-      persistLocal({ ...data, tasks: { ...data.tasks, [id]: newTask } });
       triggerSyncFeedback('Aufgabe erstellt');
     }
-  }, [data, activeUser, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [activeUser, firebaseUser, triggerSyncFeedback]);
 
   const updateTask = useCallback(async (id: string, updates: any) => {
-    const updated = { ...data.tasks[id], ...updates };
+    const currentTask = data.tasks[id];
+    if (!currentTask) return;
+    const updated = { ...currentTask, ...updates };
+    setData(prev => {
+      const nextTasks = { ...prev.tasks, [id]: updated };
+      const next = { ...prev, tasks: nextTasks };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      const p = saveTaskToCloud(updated);
-      await triggerSyncFeedback('Aufgabe geändert', p);
+      try {
+        const p = saveTaskToCloud(updated);
+        await triggerSyncFeedback('Aufgabe geändert', p);
+      } catch (err) {
+        console.warn('Task update notice:', err);
+      }
     } else {
-      persistLocal({ ...data, tasks: { ...data.tasks, [id]: updated } });
       triggerSyncFeedback('Aufgabe geändert');
     }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [data.tasks, firebaseUser, triggerSyncFeedback]);
 
   const deleteTask = useCallback(async (id: string) => {
-    const { [id]: _, ...remaining } = data.tasks;
+    setData(prev => {
+      const { [id]: _, ...remaining } = prev.tasks;
+      const next = { ...prev, tasks: remaining };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      const p = deleteTaskFromCloud(id);
-      await triggerSyncFeedback('Aufgabe gelöscht', p);
+      try {
+        const p = deleteTaskFromCloud(id);
+        await triggerSyncFeedback('Aufgabe gelöscht', p);
+      } catch (err) {
+        console.warn('Task delete notice:', err);
+      }
     } else {
-      persistLocal({ ...data, tasks: remaining });
       triggerSyncFeedback('Aufgabe gelöscht');
     }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [firebaseUser, triggerSyncFeedback]);
+
+  const fishTask = useCallback(async (taskId: string, untilDate: string) => {
+    if (!activeUser) return;
+    const currentTask = data.tasks[taskId];
+    if (!currentTask) return;
+    
+    const updated = { 
+      ...currentTask, 
+      fished_by: activeUser.id, 
+      fished_until: untilDate 
+    };
+    
+    setData(prev => {
+      const nextTasks = { ...prev.tasks, [taskId]: updated };
+      const next = { ...prev, tasks: nextTasks };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    
+    if (firebaseUser) {
+      try {
+        const p = saveTaskToCloud(updated);
+        await triggerSyncFeedback('Aufgabe gefischt', p);
+      } catch (err) {
+        console.warn('Task fish notice:', err);
+      }
+    } else {
+      triggerSyncFeedback('Aufgabe gefischt');
+    }
+  }, [activeUser, data.tasks, firebaseUser, triggerSyncFeedback]);
+
+  const unfishTask = useCallback(async (taskId: string) => {
+    const currentTask = data.tasks[taskId];
+    if (!currentTask) return;
+    
+    const updated = { 
+      ...currentTask, 
+      fished_by: null, 
+      fished_until: null 
+    };
+    
+    setData(prev => {
+      const nextTasks = { ...prev.tasks, [taskId]: updated };
+      const next = { ...prev, tasks: nextTasks };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    
+    if (firebaseUser) {
+      try {
+        const p = saveTaskToCloud(updated);
+        await triggerSyncFeedback('Reservierung aufgehoben', p);
+      } catch (err) {
+        console.warn('Task unfish notice:', err);
+      }
+    } else {
+      triggerSyncFeedback('Reservierung aufgehoben');
+    }
+  }, [data.tasks, firebaseUser, triggerSyncFeedback]);
 
   const addMember = useCallback(async (name: string, avatarColor: string, role: UserRole, weeklyTarget = 50, pinCode?: string): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
@@ -764,15 +910,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       weekly_target: weeklyTarget,
       pin_code: pinCode
     };
+    setData(prev => {
+      const nextMembers = { ...prev.members, [id]: newMember };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      const p = saveMemberToCloud(newMember);
-      await triggerSyncFeedback('Profil erstellt', p);
+      try {
+        const p = saveMemberToCloud(newMember);
+        await triggerSyncFeedback('Profil erstellt', p);
+      } catch (err) {
+        console.warn('Add member notice:', err);
+      }
     } else {
-      persistLocal({ ...data, members: { ...data.members, [id]: newMember } });
       triggerSyncFeedback('Profil erstellt');
     }
     return newMember;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [firebaseUser, triggerSyncFeedback]);
 
   const initializeAdminProfile = useCallback(async (name: string, avatarColor = '#4F46E5', _withDefaultTasks = false): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
@@ -805,15 +960,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const updateMember = useCallback(async (id: string, updates: any) => {
-    const updated = { ...data.members[id], ...updates };
+    const currentMember = data.members[id];
+    if (!currentMember) return;
+    const updated = { ...currentMember, ...updates };
+    setData(prev => {
+      const nextMembers = { ...prev.members, [id]: updated };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      const p = saveMemberToCloud(updated);
-      await triggerSyncFeedback('Profil aktualisiert', p);
+      try {
+        const p = saveMemberToCloud(updated);
+        await triggerSyncFeedback('Profil aktualisiert', p);
+      } catch (err) {
+        console.warn('Update member notice:', err);
+      }
     } else {
-      persistLocal({ ...data, members: { ...data.members, [id]: updated } });
       triggerSyncFeedback('Profil aktualisiert');
     }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [data.members, firebaseUser, triggerSyncFeedback]);
 
   const deleteMember = useCallback(async (id: string) => {
     const { [id]: _, ...remaining } = data.members;
@@ -963,6 +1129,299 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else localStorage.removeItem(ACTIVE_USER_KEY);
   }, []);
 
+  // Pinnwand (Bulletin Board with Threads, Red String, Polls, Reactions)
+  const pinnwandNotes = useMemo(() => {
+    return Object.values(data.pinnwand || {}).sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [data.pinnwand]);
+
+  const createPinnwandNote = useCallback(async (
+    noteInput: {
+      rootId?: string;
+      parentId?: string | null;
+      depth?: number;
+      title?: string;
+      content: string;
+      color: PostItColor;
+      category?: string;
+      poll?: PinnwandPoll;
+      position?: { x: number; y: number };
+      rotation?: number;
+    }
+  ): Promise<PinnwandNote> => {
+    const currentMember = activeUser || {
+      id: 'member_initial',
+      name: 'Familienmitglied',
+      avatar_color: '#4F46E5',
+      role: 'member' as UserRole
+    };
+
+    const noteId = `note_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const rootId = noteInput.rootId || (noteInput.parentId ? (data.pinnwand?.[noteInput.parentId]?.rootId || noteInput.parentId) : noteId);
+    const parentDepth = noteInput.parentId ? (data.pinnwand?.[noteInput.parentId]?.depth ?? 0) : -1;
+    const depth = noteInput.depth ?? (parentDepth + 1);
+
+    // Calculate smart position if not given
+    let pos = noteInput.position;
+    if (!pos) {
+      if (noteInput.parentId && data.pinnwand?.[noteInput.parentId]?.position) {
+        const parentPos = data.pinnwand[noteInput.parentId].position!;
+        const existingReplies = Object.values(data.pinnwand || {}).filter(n => n.parentId === noteInput.parentId);
+        const replyIndex = existingReplies.length;
+        pos = {
+          x: parentPos.x + 300,
+          y: parentPos.y + (replyIndex * 210) + (replyIndex % 2 === 0 ? 10 : -10)
+        };
+      } else {
+        const rootNotes = Object.values(data.pinnwand || {}).filter(n => !n.parentId);
+        const rootIndex = rootNotes.length;
+        const col = rootIndex % 3;
+        const row = Math.floor(rootIndex / 3);
+        pos = {
+          x: 60 + (col * 360),
+          y: 70 + (row * 420)
+        };
+      }
+    }
+
+    const rotation = typeof noteInput.rotation === 'number' 
+      ? noteInput.rotation 
+      : (Math.random() * 3.6 - 1.8);
+
+    const newNote: PinnwandNote = {
+      id: noteId,
+      rootId,
+      parentId: noteInput.parentId || null,
+      depth,
+      title: noteInput.title?.trim() || undefined,
+      content: noteInput.content.trim(),
+      color: noteInput.color || 'yellow',
+      category: noteInput.category || 'Allgemein',
+      authorId: currentMember.id,
+      authorName: currentMember.name,
+      authorAvatarColor: currentMember.avatar_color,
+      createdAt: new Date().toISOString(),
+      reactions: {},
+      poll: noteInput.poll,
+      position: pos,
+      rotation: Number(rotation.toFixed(1))
+    };
+
+    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: newNote };
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      const p = savePinnwandNoteToCloud(newNote);
+      triggerSyncFeedback(newNote.parentId ? 'Antwort angeheftet' : 'Neues Thema angeheftet', p);
+    } else {
+      triggerSyncFeedback(newNote.parentId ? 'Antwort angeheftet' : 'Neues Thema angeheftet');
+    }
+
+    return newNote;
+  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const updatePinnwandNote = useCallback(async (noteId: string, updates: Partial<PinnwandNote>): Promise<boolean> => {
+    const existing = data.pinnwand?.[noteId];
+    if (!existing) return false;
+
+    const updatedNote: PinnwandNote = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+
+    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      const p = savePinnwandNoteToCloud(updatedNote);
+      triggerSyncFeedback('Post-it aktualisiert', p);
+    } else {
+      triggerSyncFeedback('Post-it aktualisiert');
+    }
+
+    return true;
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const deletePinnwandNote = useCallback(async (noteId: string): Promise<boolean> => {
+    if (!data.pinnwand?.[noteId]) return false;
+
+    const notesToDelete = new Set<string>([noteId]);
+    const findChildren = (pid: string) => {
+      Object.values(data.pinnwand || {}).forEach(n => {
+        if (n.parentId === pid) {
+          notesToDelete.add(n.id);
+          findChildren(n.id);
+        }
+      });
+    };
+    findChildren(noteId);
+
+    const nextPinnwand = { ...(data.pinnwand || {}) };
+    notesToDelete.forEach(id => delete nextPinnwand[id]);
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      const p = Promise.all(Array.from(notesToDelete).map(id => deletePinnwandNoteFromCloud(id)));
+      triggerSyncFeedback('Post-it entfernt', p);
+    } else {
+      triggerSyncFeedback('Post-it entfernt');
+    }
+
+    return true;
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const votePinnwandPoll = useCallback(async (noteId: string, optionId: string): Promise<boolean> => {
+    const note = data.pinnwand?.[noteId];
+    if (!note || !note.poll || note.poll.closed) return false;
+    const voterId = activeUser?.id || 'guest_voter';
+    const poll = note.poll;
+    const allowMultiple = Boolean(poll.allowMultiple);
+
+    const updatedOptions = poll.options.map(opt => {
+      const hasVoted = opt.voterIds.includes(voterId);
+      if (opt.id === optionId) {
+        return {
+          ...opt,
+          voterIds: hasVoted ? opt.voterIds.filter(id => id !== voterId) : [...opt.voterIds, voterId]
+        };
+      } else if (!allowMultiple) {
+        return {
+          ...opt,
+          voterIds: opt.voterIds.filter(id => id !== voterId)
+        };
+      }
+      return opt;
+    });
+
+    const updatedNote: PinnwandNote = {
+      ...note,
+      poll: {
+        ...poll,
+        options: updatedOptions
+      },
+      updatedAt: new Date().toISOString()
+    };
+
+    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      const p = savePinnwandNoteToCloud(updatedNote);
+      triggerSyncFeedback('Stimme gezählt', p);
+    } else {
+      triggerSyncFeedback('Stimme gezählt');
+    }
+
+    return true;
+  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const togglePinnwandReaction = useCallback(async (noteId: string, emoji: string): Promise<boolean> => {
+    const note = data.pinnwand?.[noteId];
+    if (!note) return false;
+    const userId = activeUser?.id || 'guest_voter';
+
+    const currentReactions = { ...(note.reactions || {}) };
+    const currentList = currentReactions[emoji] || [];
+    const hasReacted = currentList.includes(userId);
+
+    if (hasReacted) {
+      const filtered = currentList.filter(id => id !== userId);
+      if (filtered.length === 0) {
+        delete currentReactions[emoji];
+      } else {
+        currentReactions[emoji] = filtered;
+      }
+    } else {
+      currentReactions[emoji] = [...currentList, userId];
+    }
+
+    const updatedNote: PinnwandNote = {
+      ...note,
+      reactions: currentReactions,
+      updatedAt: new Date().toISOString()
+    };
+
+    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      const p = savePinnwandNoteToCloud(updatedNote);
+      triggerSyncFeedback('Reaktion aktualisiert', p);
+    } else {
+      triggerSyncFeedback('Reaktion aktualisiert');
+    }
+
+    return true;
+  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const updateNotePosition = useCallback((noteId: string, position: { x: number; y: number }) => {
+    const note = data.pinnwand?.[noteId];
+    if (!note) return;
+
+    const updatedNote: PinnwandNote = {
+      ...note,
+      position
+    };
+
+    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
+    persistLocal({ ...data, pinnwand: nextPinnwand });
+
+    if (firebaseUser) {
+      savePinnwandNoteToCloud(updatedNote).catch(console.warn);
+    }
+  }, [data, firebaseUser, persistLocal]);
+
+  const autoArrangePinnwand = useCallback(() => {
+    const allNotes = Object.values(data.pinnwand || {});
+    if (allNotes.length === 0) return;
+
+    const roots = allNotes.filter(n => !n.parentId);
+    const updatedNotes: Record<string, PinnwandNote> = { ...(data.pinnwand || {}) };
+
+    let currentY = 80;
+
+    roots.forEach((root) => {
+      updatedNotes[root.id] = {
+        ...updatedNotes[root.id],
+        position: { x: 80, y: currentY }
+      };
+
+      const placeChildren = (parentId: string, parentX: number, startY: number): number => {
+        const children = allNotes.filter(n => n.parentId === parentId);
+        let childY = startY;
+
+        children.forEach((child) => {
+          const nextX = parentX + 320;
+          updatedNotes[child.id] = {
+            ...updatedNotes[child.id],
+            position: { x: nextX, y: childY }
+          };
+          const nextStartY = placeChildren(child.id, nextX, childY);
+          childY = Math.max(childY + 220, nextStartY);
+        });
+
+        return childY;
+      };
+
+      const branchEndY = placeChildren(root.id, 80, currentY);
+      currentY = Math.max(currentY + 440, branchEndY + 80);
+    });
+
+    persistLocal({ ...data, pinnwand: updatedNotes });
+
+    if (firebaseUser) {
+      const promises = Object.values(updatedNotes).map(n => savePinnwandNoteToCloud(n));
+      const p = Promise.all(promises);
+      triggerSyncFeedback('Pinnwand geordnet', p);
+    } else {
+      triggerSyncFeedback('Pinnwand geordnet');
+    }
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
   return (
     <AppContext.Provider value={{
       isAppLoaded, isAuthResolving, data, activeUser, isAdmin, theme, toggleTheme,
@@ -971,6 +1430,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
       logChore, updateLog, deleteLog, createTask, updateTask, deleteTask,
+      fishTask, unfishTask,
+      pinnwandNotes, createPinnwandNote, updatePinnwandNote, deletePinnwandNote,
+      votePinnwandPoll, togglePinnwandReaction, updateNotePosition, autoArrangePinnwand,
       addCategory: (c) => {
         if (data.settings.categories.includes(c)) return false;
         const next = { ...data.settings, categories: [...data.settings.categories, c] };

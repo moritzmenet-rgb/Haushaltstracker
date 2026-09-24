@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   CORKBOARD & PINBOARD AESTHETICS (WOLLFADEN & POST-ITS)
+   ========================================================================== */
+.corkboard-canvas {
+  background-color: #ba8c59;
+  background-image: 
+    radial-gradient(#875628 10%, transparent 11%),
+    radial-gradient(#deb481 12%, transparent 13%),
+    radial-gradient(rgba(110, 68, 30, 0.45) 8%, transparent 9%),
+    radial-gradient(rgba(240, 204, 158, 0.55) 10%, transparent 11%);
+  background-size: 80px 80px, 90px 90px, 50px 50px, 70px 70px;
+  background-position: 0 0, 40px 40px, 20px 20px, 60px 10px;
+}
+
+.corkboard-dark {
+  background-color: #2b221a;
+  background-image: 
+    radial-gradient(#1a140f 10%, transparent 11%),
+    radial-gradient(#4a382a 12%, transparent 13%),
+    radial-gradient(rgba(20, 15, 11, 0.6) 8%, transparent 9%),
+    radial-gradient(rgba(84, 66, 52, 0.4) 10%, transparent 11%);
+  background-size: 80px 80px, 90px 90px, 50px 50px, 70px 70px;
+  background-position: 0 0, 40px 40px, 20px 20px, 60px 10px;
+}
+
+.postit-shadow {
+  box-shadow: 2px 8px 18px -2px rgba(0, 0, 0, 0.22), 0 4px 6px -3px rgba(0, 0, 0, 0.15);
+}
+
+.postit-shadow-drag {
+  box-shadow: 6px 22px 36px -4px rgba(0, 0, 0, 0.42), 0 8px 12px -4px rgba(0, 0, 0, 0.25);
+}
+
+.yarn-svg-filter {
+  filter: drop-shadow(1px 4px 4px rgba(0, 0, 0, 0.38));
+}
+
 @layer base {
   :root, [data-theme="indigo"] {
     --m3-primary: #4F46E5;
@@ -272,11 +309,38 @@
 }
 
 .lupenglas-effect {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 100%);
-  backdrop-filter: blur(24px) saturate(210%);
-  -webkit-backdrop-filter: blur(24px) saturate(210%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.7), 0 10px 32px 0 rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px) brightness(1.2) contrast(1.1);
+  -webkit-backdrop-filter: blur(12px) brightness(1.2) contrast(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.lupenglas-effect::after {
+  display: none;
+}
+
+.lupenglas-effect::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  transform: rotate(-15deg);
+  pointer-events: none;
 }
 
 .bg-m3-surface-low {

@@ -25,7 +25,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatRelativeDate, getCategoryStyle, getInitials, getMemberCyclePoints, getTaskDueStatus } from '../utils';
-import { ChoreLog } from '../types';
+import { ChoreLog, TaskItem } from '../types';
+import { FishingModal } from './FishingModal';
+import { TaskDetailModal } from './TaskDetailModal';
 
 interface DashboardProps {
   onOpenLogModal: (preselectedTaskId?: string) => void;
@@ -40,13 +42,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenTaskHistory,
   onNavigateToTasks
 }) => {
-  const { data, activeUser, isAdmin, deleteLog } = useApp();
+  const { data, activeUser, isAdmin, deleteLog, fishTask, unfishTask } = useApp();
 
   // Filters for the Verlauf
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
   const [starFilter, setStarFilter] = useState<number>(0); // 0 = all
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Fishing state
+  const [fishingTask, setFishingTask] = useState<TaskItem | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
   const membersList = Object.values(data.members);
   const tasksList = Object.values(data.tasks);
@@ -302,6 +308,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {prioritizedTasks.slice(0, 4).map(({ task, due }) => {
               const isOverdue = due.status === 'overdue';
               const isDueSoon = due.status === 'due-soon';
+              const fishedByMember = task.fished_by ? data.members[task.fished_by] : null;
+              const isFished = !!task.fished_until && new Date(task.fished_until) > new Date();
+              const isFishedByMe = isFished && task.fished_by === activeUser?.id;
 
               return (
                 <motion.div
@@ -313,8 +322,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   whileHover={{ y: -3, scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  className="p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between gap-4 group"
+                  onClick={() => setDetailTaskId(task.id)}
+                  className={`p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
                 >
+                  {isFished && (
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />
+                  )}
+                  
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${getCategoryStyle(task.category)}`}>
@@ -338,37 +352,82 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-[var(--m3-on-surface)] truncate">
                       {task.title}
                     </h3>
-                    <div className="flex items-center gap-2.5 text-xs text-[var(--m3-on-surface-variant)] mt-1.5">
-                      <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg">
+                    <div className="flex items-center gap-2.5 text-xs text-[var(--m3-on-surface-variant)] mt-1.5 flex-wrap">
+                      <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg whitespace-nowrap">
                         +{task.base_points} Pkt.
                       </span>
+                      {task.frequency_per_day && task.frequency_per_day > 1 && (
+                        <span className="font-black text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg whitespace-nowrap">
+                          {task.frequency_per_day}x tägl.
+                        </span>
+                      )}
+                      {task.preferred_time && (
+                        <span className="font-black text-amber-600 bg-amber-500/10 px-2.5 py-0.5 rounded-lg flex items-center gap-1 whitespace-nowrap">
+                          <Zap className="w-3 h-3" />
+                          {task.preferred_time === 'morning' ? 'Morgens' : task.preferred_time === 'noon' ? 'Mittags' : 'Abends'}
+                        </span>
+                      )}
                       <span>•</span>
                       <span className="flex items-center gap-1 font-medium">
                         <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
-                        ~{task.estimated_duration} Min.
+                        {task.estimated_duration >= 60 ? `${task.estimated_duration / 60}h` : `~${task.estimated_duration} Min.`}
                       </span>
                     </div>
+
+                    {isFished && (
+                      <div className="mt-2.5 flex items-center gap-2 text-[11px] font-bold text-[var(--m3-primary)]">
+                        <Fish className="w-3.5 h-3.5" />
+                        <span>Gefischt von {fishedByMember?.name || 'Unbekannt'} bis {new Date(task.fished_until!).toLocaleDateString('de-DE')}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-not-allowed opacity-70"
-                      disabled
-                      title="Noch nicht verfügbar"
-                    >
-                      <span>Fischen</span>
-                      <Fish className="w-4 h-4" />
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.06 }}
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => onOpenLogModal(task.id)}
-                      className="shrink-0 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
-                    >
-                      <span>Gönnen</span>
-                      <Check className="w-4 h-4" />
-                    </motion.button>
+                    {!isFished ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFishingTask(task);
+                          }}
+                          className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Fischen</span>
+                          <Fish className="w-4 h-4" />
+                        </button>
+                        <motion.button
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenLogModal(task.id);
+                          }}
+                          className="shrink-0 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
+                        >
+                          <span>Gönnen</span>
+                          <Check className="w-4 h-4" />
+                        </motion.button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {isFishedByMe && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              unfishTask(task.id);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all"
+                          >
+                            Freigeben
+                          </button>
+                        )}
+                        <span className="text-xs font-black text-[var(--m3-outline)] italic px-2">
+                          Besetzt
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -376,6 +435,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </motion.div>
         )}
       </section>
+
+      {fishingTask && (
+        <FishingModal
+          isOpen={!!fishingTask}
+          onClose={() => setFishingTask(null)}
+          task={fishingTask}
+          onFish={fishTask}
+        />
+      )}
+
+      {detailTaskId && (
+        <TaskDetailModal
+          taskId={detailTaskId}
+          onClose={() => setDetailTaskId(null)}
+          onLogThisTask={(id) => {
+            setDetailTaskId(null);
+            onOpenLogModal(id);
+          }}
+          onFishTask={(task) => {
+            setDetailTaskId(null);
+            setFishingTask(task);
+          }}
+        />
+      )}
 
       {/* 4. Two-Column Layout: Familien-Rangliste & Sterne-Regelwerk */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">

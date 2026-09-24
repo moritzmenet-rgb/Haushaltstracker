@@ -11,15 +11,16 @@ import {
   Cloud,
   Loader2,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Pin
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
 
 interface NavbarProps {
-  currentTab: 'dashboard' | 'tasks' | 'settings';
-  onSelectTab: (tab: 'dashboard' | 'tasks' | 'settings') => void;
+  currentTab: 'dashboard' | 'tasks' | 'pinnwand' | 'settings';
+  onSelectTab: (tab: 'dashboard' | 'tasks' | 'pinnwand' | 'settings') => void;
   onOpenProfileSelector: () => void;
   onOpenLogModal: () => void;
 }
@@ -39,13 +40,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     firebaseUser, 
     syncStatus, 
     syncFeedback,
-    loginWithGoogle
+    loginWithGoogle,
+    pinnwandNotes
   } = useApp();
 
   const householdTitle = data.settings?.household_name || 'Haushalt';
 
   const tabs: Array<{
-    id: 'dashboard' | 'tasks' | 'settings';
+    id: 'dashboard' | 'tasks' | 'pinnwand' | 'settings';
     label: string;
     icon: React.ReactNode;
     badge?: string;
@@ -61,6 +63,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: <CheckSquare className="w-5 h-5" />
     },
     {
+      id: 'pinnwand',
+      label: 'Pinnwand',
+      icon: <Pin className="w-5 h-5 fill-current rotate-12" />,
+      badge: (pinnwandNotes?.length || 0) > 0 ? `${pinnwandNotes.length}` : undefined
+    },
+    {
       id: 'settings',
       label: isAdmin ? 'Admin' : 'Profil',
       icon: isAdmin ? <ShieldCheck className="w-5 h-5" /> : <User className="w-5 h-5" />,
@@ -70,8 +78,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Material 3 Expressive Top App Bar */}
-      <header className="sticky top-0 z-40 m3-glass-surface border-b border-[var(--m3-outline-variant)]/40 transition-colors">
+      {/* Material 3 Expressive Top App Bar - Laptop/Desktop Solid Background */}
+      <header className="sticky top-0 z-40 bg-[var(--m3-surface)] border-b border-[var(--m3-outline-variant)]/60 transition-colors shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           {/* Brand Logo & Desktop Tabs */}
           <div className="flex items-center gap-6">
@@ -83,9 +91,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileHover={{ scale: 1.08, rotate: -3 }}
                 whileTap={{ scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="w-10 h-10 rounded-2xl bg-[var(--m3-primary)] flex items-center justify-center shadow-md shadow-indigo-600/20 overflow-hidden"
+                className="w-11 h-11 rounded-2xl bg-zinc-900 dark:bg-zinc-900 border border-white/15 flex items-center justify-center shadow-lg shadow-indigo-600/10 overflow-hidden shrink-0"
               >
-                <img src="/assets/images/logo_rat_fishing_simple_1790186933079.jpg" alt="Logo" className="w-full h-full object-cover" />
+                <img 
+                  src="/logo.jpg" 
+                  alt="Fish & Wish Logo" 
+                  style={{ filter: 'invert(1)', mixBlendMode: 'screen' }}
+                  className="w-full h-full object-contain p-1" 
+                />
               </motion.div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
@@ -246,77 +259,69 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* Material 3 Expressive Bottom Navigation Bar for Mobile - Fixed always at bottom */}
-      <nav 
-        aria-label="Mobile Navigation"
-        className="md:hidden fixed bottom-6 inset-x-4 z-50 m3-glass-container border border-[var(--m3-outline-variant)]/40 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] pt-2 pb-2 transition-colors"
-      >
-        <div className="max-w-md mx-auto px-1 flex items-center justify-around relative">
+      {/* Material 3 Bottom Navigation Bar for Mobile - Milchiger Lupen-Look */}
+      <div className="md:hidden fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
+        <nav 
+          aria-label="Mobile Navigation"
+          className="pointer-events-auto lupenglas-effect px-2 py-1.5 flex items-center justify-around w-full max-w-sm transition-all"
+        >
           {/* Dashboard Tab */}
           <button
             type="button"
             onClick={() => onSelectTab('dashboard')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
-          >
-            <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
+            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'dashboard' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
-                : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              <LayoutDashboard className={`transition-transform ${currentTab === 'dashboard' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
-            </div>
-            <span className={`text-[10px] font-black tracking-tight ${
-              currentTab === 'dashboard' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              Übersicht
-            </span>
+                ? 'text-[var(--m3-on-surface)]' 
+                : 'text-[var(--m3-on-surface-variant)]/50'
+            }`}
+          >
+            <LayoutDashboard className={`transition-transform ${currentTab === 'dashboard' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
           </button>
 
           {/* Tasks Tab */}
           <button
             type="button"
             onClick={() => onSelectTab('tasks')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
-          >
-            <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
+            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'tasks' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
-                : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              <CheckSquare className={`transition-transform ${currentTab === 'tasks' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
-            </div>
-            <span className={`text-[10px] font-black tracking-tight ${
-              currentTab === 'tasks' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              Aufgaben
-            </span>
+                ? 'text-[var(--m3-on-surface)]' 
+                : 'text-[var(--m3-on-surface-variant)]/50'
+            }`}
+          >
+            <CheckSquare className={`transition-transform ${currentTab === 'tasks' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
+          </button>
+
+          {/* Pinnwand Tab */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('pinnwand')}
+            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
+              currentTab === 'pinnwand' 
+                ? 'text-[var(--m3-on-surface)]' 
+                : 'text-[var(--m3-on-surface-variant)]/50'
+            }`}
+          >
+            <Pin className={`transition-transform ${currentTab === 'pinnwand' ? 'w-6.5 h-6.5 fill-current rotate-12' : 'w-5.5 h-5.5 rotate-12'}`} />
           </button>
 
           {/* Settings / Profile Tab */}
           <button
             type="button"
             onClick={() => onSelectTab('settings')}
-            className="flex-1 py-1 flex flex-col items-center gap-0.5 relative z-10 transition-all active:scale-95"
-          >
-            <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
+            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
               currentTab === 'settings' 
-                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] scale-105 shadow-sm' 
-                : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              {isAdmin ? (
-                <ShieldCheck className={`transition-transform ${currentTab === 'settings' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
-              ) : (
-                <User className={`transition-transform ${currentTab === 'settings' ? 'w-5.5 h-5.5' : 'w-5 h-5'}`} />
-              )}
-            </div>
-            <span className={`text-[10px] font-black tracking-tight ${
-              currentTab === 'settings' ? 'text-[var(--m3-on-surface)]' : 'text-[var(--m3-on-surface-variant)]'
-            }`}>
-              {isAdmin ? 'Admin' : 'Profil'}
-            </span>
+                ? 'text-[var(--m3-on-surface)]' 
+                : 'text-[var(--m3-on-surface-variant)]/50'
+            }`}
+          >
+            {isAdmin ? (
+              <ShieldCheck className={`transition-transform ${currentTab === 'settings' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
+            ) : (
+              <User className={`transition-transform ${currentTab === 'settings' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
+            )}
           </button>
-        </div>
-      </nav>
+        </nav>
+      </div>
     </>
   );
 };

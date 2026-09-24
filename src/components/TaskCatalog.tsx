@@ -19,6 +19,8 @@ import { useApp } from '../context/AppContext';
 import { TaskItem } from '../types';
 import { formatRelativeDate, getCategoryStyle, getTaskDueStatus } from '../utils';
 import { ConfirmModal } from './ConfirmModal';
+import { FishingModal } from './FishingModal';
+import { TaskDetailModal } from './TaskDetailModal';
 
 interface TaskCatalogProps {
   onOpenLogModal: (taskId: string) => void;
@@ -33,11 +35,13 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
   onOpenCreateTaskModal,
   onOpenEditTaskModal
 }) => {
-  const { data, isAdmin, deleteTask } = useApp();
+  const { data, activeUser, isAdmin, deleteTask, fishTask, unfishTask } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlyDue, setOnlyDue] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [fishingTask, setFishingTask] = useState<TaskItem | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
   const categories = data.settings.categories;
   const tasksList = Object.values(data.tasks);
@@ -59,7 +63,7 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header & M3 Extended FAB for Admin */}
+      {/* Header & M3 Extended FAB */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--m3-on-surface)] flex items-center gap-2.5">
@@ -71,19 +75,17 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
           </p>
         </div>
 
-        {/* Admin "+ Neue Aufgabe" button */}
-        {isAdmin && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            onClick={onOpenCreateTaskModal}
-            className="self-start sm:self-auto m3-fab px-5 py-3 flex items-center gap-2 text-xs font-black shadow-md cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Neue Aufgabe anlegen</span>
-          </motion.button>
-        )}
+        {/* "+ Neue Aufgabe" button for all users */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          onClick={onOpenCreateTaskModal}
+          className="self-start sm:self-auto m3-fab px-5 py-3 flex items-center gap-2 text-xs font-black shadow-md cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[3]" />
+          <span>Neue Aufgabe anlegen</span>
+        </motion.button>
       </div>
 
       {/* Filter & Search Bar in Material 3 Style */}
@@ -218,6 +220,9 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
             const dueStatus = getTaskDueStatus(task);
             const isOverdue = dueStatus.status === 'overdue';
             const isDueSoon = dueStatus.status === 'due-soon';
+            const fishedByMember = task.fished_by ? data.members[task.fished_by] : null;
+            const isFished = !!task.fished_until && new Date(task.fished_until) > new Date();
+            const isFishedByMe = isFished && task.fished_by === activeUser?.id;
 
             return (
               <motion.div
@@ -228,8 +233,12 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 whileHover={{ y: -3 }}
-                className="p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 group"
+                onClick={() => setDetailTaskId(task.id)}
+                className={`p-5 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
               >
+                {isFished && (
+                  <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />
+                )}
                 <div>
                   {/* Top Bar: Category & Due Badge */}
                   <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -266,18 +275,36 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                   )}
 
                   {/* Task Meta (Base Points & Duration) */}
-                  <div className="flex items-center gap-3 text-xs text-[var(--m3-on-surface-variant)] mt-3">
-                    <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg shadow-2xs">
+                  <div className="flex items-center gap-3 text-xs text-[var(--m3-on-surface-variant)] mt-3 flex-wrap">
+                    <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg shadow-2xs whitespace-nowrap">
                       +{task.base_points} Pkt.
                     </span>
-                    <span className="flex items-center gap-1 font-semibold">
+                    <span className="flex items-center gap-1 font-semibold whitespace-nowrap">
                       <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
-                      ~{task.estimated_duration} Min.
+                      {task.estimated_duration >= 60 ? `${task.estimated_duration / 60}h` : `~${task.estimated_duration} Min.`}
                     </span>
-                    <span className="text-[var(--m3-outline)]">
-                      Alle {task.interval_days} Tage
+                    <span className="text-[var(--m3-outline)] whitespace-nowrap">
+                      {task.interval_days === 1 ? 'Täglich' : task.interval_days === 7 ? 'Wöchentlich' : task.interval_days === 30 ? 'Monatlich' : task.interval_days === 365 ? 'Jährlich' : `Alle ${task.interval_days} Tage`}
                     </span>
+                    {task.frequency_per_day && task.frequency_per_day > 1 && (
+                      <span className="font-black text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg whitespace-nowrap">
+                        {task.frequency_per_day}x tägl.
+                      </span>
+                    )}
+                    {task.preferred_time && (
+                      <span className="font-black text-amber-600 bg-amber-500/10 px-2.5 py-0.5 rounded-lg flex items-center gap-1 whitespace-nowrap">
+                        <Zap className="w-3 h-3" />
+                        {task.preferred_time === 'morning' ? 'Morgens' : task.preferred_time === 'noon' ? 'Mittags' : 'Abends'}
+                      </span>
+                    )}
                   </div>
+
+                  {isFished && (
+                    <div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-[var(--m3-primary)] p-2 rounded-xl bg-[var(--m3-primary-container)]/30">
+                      <Fish className="w-3.5 h-3.5" />
+                      <span>Gefischt von {fishedByMember?.name || 'Unbekannt'} bis {new Date(task.fished_until!).toLocaleDateString('de-DE')}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Actions: History & Done Button & Admin Edit */}
@@ -285,56 +312,88 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => onOpenTaskHistory(task.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenTaskHistory(task.id);
+                      }}
                       className="p-2 rounded-xl text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)] hover:text-[var(--m3-primary)] transition"
                       title="Verlauf dieser Aufgabe ansehen"
                     >
                       <History className="w-4 h-4" />
                     </button>
 
-                    {isAdmin && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onOpenEditTaskModal(task)}
-                          className="p-2 rounded-xl text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)] hover:text-indigo-600 transition"
-                          title="Aufgabe bearbeiten"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setTaskToDelete(task)}
-                          className="p-2 rounded-xl text-[var(--m3-on-surface-variant)] hover:bg-rose-500/15 hover:text-rose-600 transition"
-                          title="Aufgabe löschen"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenEditTaskModal(task);
+                      }}
+                      className="p-2 rounded-xl text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)] hover:text-indigo-600 transition"
+                      title="Aufgabe bearbeiten"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTaskToDelete(task);
+                      }}
+                      className="p-2 rounded-xl text-[var(--m3-on-surface-variant)] hover:bg-rose-500/15 hover:text-rose-600 transition"
+                      title="Aufgabe löschen"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
 
                   {/* Primary Action Buttons */}
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-not-allowed opacity-70"
-                      disabled
-                      title="Noch nicht verfügbar"
-                    >
-                      <span>Fischen</span>
-                      <Fish className="w-4 h-4" />
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => onOpenLogModal(task.id)}
-                      className="px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
-                    >
-                      <span>Gönnen</span>
-                      <Check className="w-4 h-4 stroke-[3]" />
-                    </motion.button>
+                    {!isFished ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFishingTask(task);
+                          }}
+                          className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Fischen</span>
+                          <Fish className="w-4 h-4" />
+                        </button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenLogModal(task.id);
+                          }}
+                          className="px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
+                        >
+                          <span>Gönnen</span>
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </motion.button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {isFishedByMe && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              unfishTask(task.id);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all"
+                          >
+                            Freigeben
+                          </button>
+                        )}
+                        <span className="text-xs font-black text-[var(--m3-outline)] italic px-2">
+                          Bereits gefischt
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -356,6 +415,34 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
             setTaskToDelete(null);
           }}
           onClose={() => setTaskToDelete(null)}
+        />
+      )}
+
+      {fishingTask && (
+        <FishingModal
+          isOpen={!!fishingTask}
+          onClose={() => setFishingTask(null)}
+          task={fishingTask}
+          onFish={fishTask}
+        />
+      )}
+
+      {detailTaskId && (
+        <TaskDetailModal
+          taskId={detailTaskId}
+          onClose={() => setDetailTaskId(null)}
+          onLogThisTask={(id) => {
+            setDetailTaskId(null);
+            onOpenLogModal(id);
+          }}
+          onFishTask={(task) => {
+            setDetailTaskId(null);
+            setFishingTask(task);
+          }}
+          onEditTask={(task) => {
+            setDetailTaskId(null);
+            onOpenEditTaskModal(task);
+          }}
         />
       )}
     </div>

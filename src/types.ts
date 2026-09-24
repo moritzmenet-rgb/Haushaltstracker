@@ -23,8 +23,12 @@ export interface TaskItem {
   base_points: number;
   estimated_duration: number; // in minutes
   interval_days: number;
+  frequency_per_day?: number; // how many times per day
+  preferred_time?: 'morning' | 'noon' | 'evening' | null;
   created_by: string;
   last_done: string | null; // ISO string
+  fished_by?: string | null; // member ID
+  fished_until?: string | null; // ISO string
 }
 
 export interface ChoreLog {
@@ -68,11 +72,49 @@ export interface SessionLog {
   is_blocked?: boolean;
 }
 
+export type PostItColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange' | 'purple';
+
+export interface PollOption {
+  id: string;
+  text: string;
+  voterIds: string[]; // member IDs who voted for this option
+}
+
+export interface PinnwandPoll {
+  question: string;
+  options: PollOption[];
+  allowMultiple?: boolean;
+  closed?: boolean;
+  closedBy?: string;
+}
+
+export interface PinnwandNote {
+  id: string;
+  rootId: string; // The root topic id (equals id if it's the root post-it)
+  parentId: string | null; // null if root, or parent note id
+  depth: number; // 0 for root topic, 1 for comment, 2 for reply to comment, etc.
+  title?: string; // primarily for root postit
+  content: string;
+  color: PostItColor;
+  category?: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarColor: string;
+  createdAt: string; // ISO date string
+  updatedAt?: string;
+  isPinned?: boolean;
+  reactions?: Record<string, string[]>; // emoji -> array of memberIds
+  poll?: PinnwandPoll;
+  position?: { x: number; y: number }; // canvas position in pixels
+  rotation?: number; // subtle angle in deg (-3 to 3)
+}
+
 export interface FamilyData {
   settings: FamilySettings;
   members: Record<string, FamilyMember>;
   tasks: Record<string, TaskItem>;
   logs: ChoreLog[];
+  pinnwand?: Record<string, PinnwandNote>;
 }
 
 export interface WeeklyRollOverPreview {

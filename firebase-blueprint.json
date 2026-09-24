@@ -55,8 +55,12 @@
         "base_points": { "type": "integer", "minimum": 0, "maximum": 5000 },
         "estimated_duration": { "type": "integer", "minimum": 0, "maximum": 1440 },
         "interval_days": { "type": "integer", "minimum": 0, "maximum": 365 },
+        "frequency_per_day": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "preferred_time": { "type": "string", "enum": ["morning", "noon", "evening"] },
         "created_by": { "type": "string" },
         "last_done": { "type": "string", "format": "date-time" },
+        "fished_by": { "type": "string" },
+        "fished_until": { "type": "string", "format": "date-time" },
         "householdId": { "type": "string" }
       },
       "required": ["id", "title", "category", "base_points"]
@@ -77,6 +81,29 @@
         "householdId": { "type": "string" }
       },
       "required": ["log_id", "task_id", "user_id", "stars", "points_awarded", "timestamp"]
+    },
+    "PinnwandNote": {
+      "title": "Pinnwand Note",
+      "description": "A sticky note (post-it) on the family bulletin board with threads, polls, and reactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "rootId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "title": { "type": "string", "maxLength": 300 },
+        "content": { "type": "string", "maxLength": 5000 },
+        "color": { "type": "string", "enum": ["yellow", "pink", "blue", "green", "orange", "purple"] },
+        "category": { "type": "string", "maxLength": 100 },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "authorAvatarColor": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isPinned": { "type": "boolean" },
+        "householdId": { "type": "string" }
+      },
+      "required": ["id", "content", "color", "authorId", "authorName", "createdAt"]
     }
   },
   "firestore": {
@@ -95,6 +122,10 @@
     "/households/{householdId}/logs/{logId}": {
       "schema": "Log",
       "description": "Completed chore history"
+    },
+    "/households/{householdId}/pinnwand/{noteId}": {
+      "schema": "PinnwandNote",
+      "description": "Sticky notes, threads, and polls on the family corkboard"
     }
   }
 }

@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Fish & Wish</title>
-    <meta name="description" content="Gamifizierter, minimalistischer Haushalts-Manager Fish & Wish mit Profilauswahl, Rollenkonzept, Punkterechner und dynamischen Wochenzielen." />
-    <meta property="og:title" content="Fish & Wish" />
-    <meta property="og:description" content="Gamifizierter, minimalistischer Haushalts-Manager Fish & Wish mit Profilauswahl, Rollenkonzept, Punkterechner und dynamischen Wochenzielen." />
+    <title>Pinnwand – Mindmap & Padlet mit rotem Faden</title>
+    <meta name="description" content="Digitale interaktive Pinnwand im Padlet-Style mit Mindmap-Verschachtelung, rotem Wollfaden und Echtzeit-Synchronisation via Firebase." />
+    <meta property="og:title" content="Pinnwand – Mindmap & Padlet mit rotem Faden" />
+    <meta property="og:description" content="Digitale interaktive Pinnwand im Padlet-Style mit Mindmap-Verschachtelung, rotem Wollfaden und Echtzeit-Synchronisation via Firebase." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#b45309" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Fish & Wish" />
+    <meta name="apple-mobile-web-app-title" content="Pinnwand" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo.jpg" />
     <link rel="icon" type="image/jpeg" href="logo.jpg" />
@@ -28,18 +28,18 @@
             '<h2>App konnte nicht geladen werden</h2>' +
             '<p>' + msg + '</p>' +
             '<pre style="font-size: 12px;">' + url + ':' + lineNo + '</pre>' +
-            '<button onclick="window.location.reload()" style="padding: 8px 16px; border-radius: 8px; background: #4f46e5; color: white; border: none; cursor: pointer;">Neu laden</button>' +
+            '<button onclick="window.location.reload()" style="padding: 8px 16px; border-radius: 8px; background: #b45309; color: white; border: none; cursor: pointer;">Neu laden</button>' +
             '</div>';
         }
         return false;
       };
     </script>
   </head>
-  <body class="h-full bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-50 transition-colors duration-200">
+  <body class="h-full bg-neutral-900 text-neutral-100 antialiased transition-colors duration-200">
     <!-- Minimalist Inline Loader (OUTSIDE root to prevent React from deleting it too early) -->
-    <div id="app-loading" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: #f8fafc; flex-direction: column; gap: 16px; transition: opacity 0.5s ease-out;">
-      <div style="width: 40px; height: 40px; border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 14px;">Haushalt Tracker lädt...</p>
+    <div id="app-loading" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: #2b221a; flex-direction: column; gap: 16px; transition: opacity 0.5s ease-out;">
+      <div style="width: 40px; height: 40px; border: 4px solid #4a382a; border-top: 4px solid #ef4444; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="color: #deb481; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 14px;">Pinnwand lädt...</p>
     </div>
 
     <div id="root" class="min-h-full flex flex-col"></div>

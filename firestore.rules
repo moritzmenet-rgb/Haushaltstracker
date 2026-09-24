@@ -11,7 +11,7 @@ service cloud.firestore {
     }
     
     function authEmail() {
-      return isSignedIn() && request.auth.token.get('email', '') != '' ? request.auth.token.email.lower() : '';
+      return isSignedIn() && ('email' in request.auth.token) ? request.auth.token.email.lower() : '';
     }
     
     function isMoritz() {
@@ -22,33 +22,50 @@ service cloud.firestore {
     }
 
     function isGoogleUser() {
-      return isSignedIn() && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com';
+      return isSignedIn() && 
+             'firebase' in request.auth.token && 
+             'sign_in_provider' in request.auth.token.firebase && 
+             request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
     function isAppleUser() {
-      return isSignedIn() && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'apple.com';
+      return isSignedIn() && 
+             'firebase' in request.auth.token && 
+             'sign_in_provider' in request.auth.token.firebase && 
+             request.auth.token.firebase.sign_in_provider == 'apple.com';
     }
 
     function isBlocked() {
-      return exists(/databases/$(database)/documents/households/main_household) &&
+      return !isMoritz() &&
+             exists(/databases/$(database)/documents/households/main_household) &&
+             'blocked_emails' in get(/databases/$(database)/documents/households/main_household).data &&
              authEmail() != '' &&
-             authEmail() in get(/databases/$(database)/documents/households/main_household).data.get('blocked_emails', []);
+             authEmail() in get(/databases/$(database)/documents/households/main_household).data.blocked_emails;
     }
     
     function isVerified() {
-      return isSignedIn() && !isBlocked() && (
-        request.auth.token.get('email_verified', false) == true || 
-        isGoogleUser() ||
-        isAppleUser() ||
-        isMoritz()
+      return isSignedIn() && (
+        isMoritz() ||
+        (
+          !isBlocked() && (
+            ('email_verified' in request.auth.token && request.auth.token.email_verified == true) || 
+            isGoogleUser() ||
+            isAppleUser()
+          )
+        )
       );
     }
     
     function isAdmin() {
-      return isVerified() && (
+      return isSignedIn() && (
         isMoritz() ||
-        (exists(/databases/$(database)/documents/households/main_household) && 
-         authEmail() in get(/databases/$(database)/documents/households/main_household).data.get('allowed_emails', []))
+        (
+          isVerified() &&
+          exists(/databases/$(database)/documents/households/main_household) &&
+          'allowed_emails' in get(/databases/$(database)/documents/households/main_household).data &&
+          authEmail() != '' &&
+          authEmail() in get(/databases/$(database)/documents/households/main_household).data.allowed_emails
+        )
       );
     }
 
@@ -65,39 +82,40 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     function isValidHousehold(data) {
-      return data.get('household_name', '') is string && 
-             data.get('household_name', '').size() <= 100 &&
-             data.get('default_weekly_target', 0) is number;
+      return 'household_name' in data && data.household_name is string && data.household_name.size() <= 100;
     }
 
     function isValidMember(data) {
-      return data.get('id', '') is string && 
-             data.get('name', '') is string && 
-             data.get('role', '') in ['admin', 'member'];
+      return 'id' in data && data.id is string && 
+             'name' in data && data.name is string && 
+             'role' in data && data.role in ['admin', 'member'];
     }
 
     function isValidTask(data) {
-      return data.get('id', '') is string && 
-             data.get('title', '') is string && 
-             data.get('base_points', 0) is number;
+      return 'id' in data && data.id is string && 
+             'title' in data && data.title is string && 
+             'base_points' in data && data.base_points is number;
     }
 
     function isValidLog(data) {
-      return data.get('log_id', '') is string && 
-             data.get('task_id', '') is string && 
-             data.get('user_id', '') is string &&
-             data.get('points_awarded', 0) is number &&
-             data.get('timestamp', '') is string;
+      return 'log_id' in data && data.log_id is string && 
+             'task_id' in data && data.task_id is string && 
+             'user_id' in data && data.user_id is string &&
+             'points_awarded' in data && data.points_awarded is number &&
+             'timestamp' in data && data.timestamp is string;
+    }
+
+    function isValidPinnwandNote(data) {
+      return ('id' in data && data.id is string) &&
+             ('content' in data && data.content is string && data.content.size() <= 5000) &&
+             ('color' in data && data.color in ['yellow', 'pink', 'blue', 'green', 'orange', 'purple']) &&
+             ('authorId' in data && data.authorId is string) &&
+             ('authorName' in data && data.authorName is string);
     }
 
     // -------------------------------------------------------------------------
     // SECURITY RULES
     // -------------------------------------------------------------------------
-
-    // Global Deny
-    match /{document=**} {
-      allow read, write: if false;
-    }
 
     // Households
     match /households/{householdId} {
@@ -114,22 +132,29 @@ service cloud.firestore {
       // Members Subcollection
       match /members/{memberId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && isValidMember(incoming());
+        allow create, update: if isVerified() && (isMoritz() || isValidMember(incoming()));
         allow delete: if isAdmin();
       }
 
       // Tasks Subcollection
       match /tasks/{taskId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && isValidTask(incoming());
-        allow delete: if isAdmin();
+        allow create, update: if isVerified() && (isMoritz() || isValidTask(incoming()));
+        allow delete: if isVerified();
       }
 
       // Logs Subcollection
       match /logs/{logId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && isValidLog(incoming());
+        allow create, update: if isVerified() && (isMoritz() || isValidLog(incoming()));
         allow delete: if isAdmin();
+      }
+
+      // Pinnwand Subcollection (Notes, Threads, Polls, Reactions)
+      match /pinnwand/{noteId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified() && (isMoritz() || isValidPinnwandNote(incoming()));
+        allow delete: if isVerified();
       }
     }
 

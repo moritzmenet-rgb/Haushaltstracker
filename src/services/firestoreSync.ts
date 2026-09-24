@@ -8,9 +8,49 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { ChoreLog, FamilyData, FamilyMember, FamilySettings, TaskItem } from '../types';
+import { ChoreLog, FamilyData, FamilyMember, FamilySettings, PinnwandNote, TaskItem } from '../types';
 
 export const HOUSEHOLD_ID = 'main_household';
+
+/**
+ * Sanitize a Pinnwand sticky note for Firestore
+ */
+export function sanitizePinnwandNote(note: PinnwandNote): Record<string, any> {
+  return {
+    id: String(note.id),
+    rootId: String(note.rootId || note.id),
+    parentId: note.parentId ? String(note.parentId) : null,
+    depth: Number(note.depth || 0),
+    title: note.title ? String(note.title) : '',
+    content: String(note.content || ''),
+    color: note.color || 'yellow',
+    category: note.category ? String(note.category) : 'Allgemein',
+    authorId: String(note.authorId),
+    authorName: String(note.authorName || 'Familienmitglied'),
+    authorAvatarColor: String(note.authorAvatarColor || '#4F46E5'),
+    createdAt: String(note.createdAt || new Date().toISOString()),
+    updatedAt: note.updatedAt ? String(note.updatedAt) : new Date().toISOString(),
+    isPinned: Boolean(note.isPinned),
+    reactions: note.reactions || {},
+    poll: note.poll ? {
+      question: String(note.poll.question || ''),
+      options: Array.isArray(note.poll.options) ? note.poll.options.map(opt => ({
+        id: String(opt.id),
+        text: String(opt.text),
+        voterIds: Array.isArray(opt.voterIds) ? opt.voterIds.map(String) : []
+      })) : [],
+      allowMultiple: Boolean(note.poll.allowMultiple),
+      closed: Boolean(note.poll.closed),
+      closedBy: note.poll.closedBy ? String(note.poll.closedBy) : null
+    } : null,
+    position: note.position ? {
+      x: Number(note.position.x || 0),
+      y: Number(note.position.y || 0)
+    } : { x: 50, y: 50 },
+    rotation: typeof note.rotation === 'number' ? Number(note.rotation) : 0,
+    householdId: HOUSEHOLD_ID
+  };
+}
 
 /**
  * Sanitize household settings for Firestore
@@ -37,6 +77,9 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
     allowed_emails: Array.isArray(s.allowed_emails) 
       ? s.allowed_emails 
       : ['moritz.menet.bfsu@gmail.com'],
+    blocked_emails: Array.isArray((s as any).blocked_emails)
+      ? (s as any).blocked_emails
+      : [],
     updatedAt: new Date().toISOString()
   };
   return cleaned;
@@ -73,8 +116,12 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
     base_points: Number(task.base_points || 10),
     estimated_duration: Number(task.estimated_duration || 15),
     interval_days: Number(task.interval_days || 7),
+    frequency_per_day: task.frequency_per_day || 1,
+    preferred_time: task.preferred_time || null,
     created_by: String(task.created_by || 'Admin'),
     last_done: task.last_done || null,
+    fished_by: task.fished_by || null,
+    fished_until: task.fished_until || null,
     householdId: HOUSEHOLD_ID
   };
 }
@@ -128,8 +175,9 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
     const membersToSeed = Object.values(data.members || {});
     const tasksToSeed = Object.values(data.tasks || {});
     const logsToSeed = (data.logs || []).slice(0, 50);
+    const pinnwandToSeed = Object.values(data.pinnwand || {});
 
-    if (membersToSeed.length > 0 || tasksToSeed.length > 0 || logsToSeed.length > 0) {
+    if (membersToSeed.length > 0 || tasksToSeed.length > 0 || logsToSeed.length > 0 || pinnwandToSeed.length > 0) {
       const batch = writeBatch(db);
 
       membersToSeed.forEach(member => {
@@ -145,6 +193,11 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
       logsToSeed.forEach(log => {
         const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', log.log_id);
         batch.set(logRef, sanitizeLog(log), { merge: true });
+      });
+
+      pinnwandToSeed.forEach(note => {
+        const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', note.id);
+        batch.set(noteRef, sanitizePinnwandNote(note), { merge: true });
       });
 
       await batch.commit();
@@ -165,13 +218,15 @@ export async function resetAndRebuildCloudData(data: FamilyData): Promise<void> 
     const membersSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'members'));
     const tasksSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'tasks'));
     const logsSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'logs'));
+    const pinnwandSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'pinnwand'));
 
-    const hasDocsToDelete = (membersSnap.size > 0 || tasksSnap.size > 0 || logsSnap.size > 0);
+    const hasDocsToDelete = (membersSnap.size > 0 || tasksSnap.size > 0 || logsSnap.size > 0 || pinnwandSnap.size > 0);
     if (hasDocsToDelete) {
       const deleteBatch = writeBatch(db);
       membersSnap.forEach(d => deleteBatch.delete(d.ref));
       tasksSnap.forEach(d => deleteBatch.delete(d.ref));
       logsSnap.forEach(d => deleteBatch.delete(d.ref));
+      pinnwandSnap.forEach(d => deleteBatch.delete(d.ref));
       await deleteBatch.commit();
     }
 
@@ -288,6 +343,26 @@ export async function saveSettingsToCloud(settings: FamilySettings): Promise<voi
   }
 }
 
+export async function savePinnwandNoteToCloud(note: PinnwandNote): Promise<void> {
+  if (!auth.currentUser) return;
+  try {
+    const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', note.id);
+    await setDoc(noteRef, sanitizePinnwandNote(note), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/pinnwand/${note.id}`);
+  }
+}
+
+export async function deletePinnwandNoteFromCloud(noteId: string): Promise<void> {
+  if (!auth.currentUser) return;
+  try {
+    const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', noteId);
+    await deleteDoc(noteRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/pinnwand/${noteId}`);
+  }
+}
+
 export async function clearAllCloudData(): Promise<void> {
   if (!auth.currentUser) return;
   try {
@@ -301,6 +376,9 @@ export async function clearAllCloudData(): Promise<void> {
 
     const logsSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'logs'));
     logsSnap.forEach(d => batch.delete(d.ref));
+
+    const pinnwandSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'pinnwand'));
+    pinnwandSnap.forEach(d => batch.delete(d.ref));
 
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     batch.delete(householdRef);

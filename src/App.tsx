@@ -10,6 +10,7 @@ import { LogChoreModal } from './components/LogChoreModal';
 import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TutorialModal } from './components/TutorialModal';
+import { PinnwandBoard } from './components/pinnwand/PinnwandBoard';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
 import { SyncOverlay } from './components/SyncOverlay';
@@ -19,7 +20,7 @@ import { Cloud } from 'lucide-react';
 
 const MainContent: React.FC = () => {
   const { isAppLoaded, isAuthResolving, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'settings'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'settings'>('dashboard');
   
   // Decide if we should show the cloud onboarding screen
   // (Empty local data + not logged in = likely new family member or fresh start)
@@ -120,7 +121,9 @@ const MainContent: React.FC = () => {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 pb-28 sm:pb-20">
+      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 pt-6 pb-28 sm:pb-20 ${
+        currentTab === 'pinnwand' ? 'max-w-6xl' : 'max-w-5xl'
+      }`}>
         {currentTab === 'dashboard' && (
           <Dashboard
             onOpenLogModal={handleOpenLogModal}
@@ -138,6 +141,8 @@ const MainContent: React.FC = () => {
             onOpenEditTaskModal={(task) => setTaskFormModalState({ isOpen: true, taskToEdit: task })}
           />
         )}
+
+        {currentTab === 'pinnwand' && <PinnwandBoard />}
 
         {currentTab === 'settings' && <AdminSettings />}
       </main>
