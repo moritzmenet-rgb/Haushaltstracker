@@ -16,12 +16,33 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
 import { SyncOverlay } from './components/SyncOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ChoreCompletionCelebration } from './components/ChoreCompletionCelebration';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud } from 'lucide-react';
 
 const MainContent: React.FC = () => {
-  const { isAppLoaded, isAuthResolving, data, firebaseUser, activeUser, isTutorialOpen, closeTutorial, completeTutorial, syncStatus } = useApp();
+  const { 
+    isAppLoaded, 
+    isAuthResolving, 
+    data, 
+    firebaseUser, 
+    activeUser, 
+    isTutorialOpen, 
+    closeTutorial, 
+    completeTutorial, 
+    syncStatus,
+    rewardCelebration,
+    clearRewardCelebration
+  } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'settings'>('dashboard');
+
+  // Automatically switch to overview / dashboard when celebration triggers so user sees the progress bar
+  useEffect(() => {
+    if (rewardCelebration) {
+      setCurrentTab('dashboard');
+      setIsLogModalOpen(false);
+    }
+  }, [rewardCelebration]);
   
   // Decide if we should show the cloud onboarding screen
   // (Empty local data + not logged in = likely new family member or fresh start)
@@ -254,6 +275,12 @@ const MainContent: React.FC = () => {
         isOpen={isTutorialOpen}
         onClose={closeTutorial}
         onComplete={completeTutorial}
+      />
+
+      {/* Gamified Task Completion Celebration & Flying Coins to Progress Bar */}
+      <ChoreCompletionCelebration
+        celebration={rewardCelebration}
+        onComplete={clearRewardCelebration}
       />
     </div>
   );

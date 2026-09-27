@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { 
   Star, 
@@ -17,6 +17,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { calculatePoints } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
+import { FamilySettings } from '../../types';
 
 export const RuleSettingsTab: React.FC = () => {
   const { 
@@ -38,6 +39,46 @@ export const RuleSettingsTab: React.FC = () => {
   const [minTarget, setMinTarget] = useState<number>(settings.rollover_min_target ?? 10);
   const [maxTarget, setMaxTarget] = useState<number>(settings.rollover_max_target ?? 200);
 
+  // Sync state if settings update from Cloud
+  useEffect(() => {
+    if (typeof settings.star_multiplier_1 === 'number') setStar1(settings.star_multiplier_1);
+    if (typeof settings.star_multiplier_2 === 'number') setStar2(settings.star_multiplier_2);
+    if (typeof settings.star_multiplier_3 === 'number') setStar3(settings.star_multiplier_3);
+    if (typeof settings.rollover_surplus_factor === 'number') setSurplusFactor(settings.rollover_surplus_factor);
+    if (typeof settings.rollover_deficit_factor === 'number') setDeficitFactor(settings.rollover_deficit_factor);
+    if (typeof settings.rollover_min_target === 'number') setMinTarget(settings.rollover_min_target);
+    if (typeof settings.rollover_max_target === 'number') setMaxTarget(settings.rollover_max_target);
+  }, [
+    settings.star_multiplier_1,
+    settings.star_multiplier_2,
+    settings.star_multiplier_3,
+    settings.rollover_surplus_factor,
+    settings.rollover_deficit_factor,
+    settings.rollover_min_target,
+    settings.rollover_max_target
+  ]);
+
+  // Debounce timers to prevent Firestore write rate violations during continuous dragging
+  const debounceTimerRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+  const debounceUpdate = (key: string, updates: Partial<FamilySettings>, delay: number = 350) => {
+    if (debounceTimerRef.current[key]) {
+      clearTimeout(debounceTimerRef.current[key]);
+    }
+    debounceTimerRef.current[key] = setTimeout(() => {
+      updateSettings(updates);
+      showToast('Einstellung gesichert ✓');
+    }, delay);
+  };
+
+  const flushUpdate = (key: string, updates: Partial<FamilySettings>) => {
+    if (debounceTimerRef.current[key]) {
+      clearTimeout(debounceTimerRef.current[key]);
+    }
+    updateSettings(updates);
+    showToast('Einstellung gesichert ✓');
+  };
+
   // Live calculator test base
   const [testBasePoints, setTestBasePoints] = useState<number>(20);
 
@@ -47,22 +88,24 @@ export const RuleSettingsTab: React.FC = () => {
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
-    setTimeout(() => setSuccessToast(null), 3000);
+    setTimeout(() => setSuccessToast(null), 2500);
   };
 
-  const handleUpdateStarMultiplier = (starNumber: 1 | 2 | 3, value: number) => {
+  const handleUpdateStarMultiplier = (starNumber: 1 | 2 | 3, value: number, immediate: boolean = false) => {
     const val = Math.max(10, Math.min(250, value));
-    if (starNumber === 1) {
-      setStar1(val);
-      updateSettings({ star_multiplier_1: val });
-    } else if (starNumber === 2) {
-      setStar2(val);
-      updateSettings({ star_multiplier_2: val });
+    const key = `star_${starNumber}`;
+    const updateKey = `star_multiplier_${starNumber}` as keyof FamilySettings;
+    const updates = { [updateKey]: val };
+
+    if (starNumber === 1) setStar1(val);
+    else if (starNumber === 2) setStar2(val);
+    else setStar3(val);
+
+    if (immediate) {
+      flushUpdate(key, updates);
     } else {
-      setStar3(val);
-      updateSettings({ star_multiplier_3: val });
+      debounceUpdate(key, updates);
     }
-    showToast(`Multiplikator für ${starNumber} Stern(e) aktualisiert!`);
   };
 
   const handleUpdateRollover = (updates: {
@@ -70,26 +113,34 @@ export const RuleSettingsTab: React.FC = () => {
     deficit?: number;
     min?: number;
     max?: number;
-  }) => {
+  }, immediate: boolean = false) => {
     const newUpdates: any = {};
     if (updates.surplus !== undefined) {
-      setSurplusFactor(updates.surplus);
-      newUpdates.rollover_surplus_factor = updates.surplus;
+      const val = Math.max(0, Math.min(200, updates.surplus));
+      setSurplusFactor(val);
+      newUpdates.rollover_surplus_factor = val;
     }
     if (updates.deficit !== undefined) {
-      setDeficitFactor(updates.deficit);
-      newUpdates.rollover_deficit_factor = updates.deficit;
+      const val = Math.max(0, Math.min(200, updates.deficit));
+      setDeficitFactor(val);
+      newUpdates.rollover_deficit_factor = val;
     }
     if (updates.min !== undefined) {
-      setMinTarget(updates.min);
-      newUpdates.rollover_min_target = updates.min;
+      const val = Math.max(5, Math.min(100, updates.min));
+      setMinTarget(val);
+      newUpdates.rollover_min_target = val;
     }
     if (updates.max !== undefined) {
-      setMaxTarget(updates.max);
-      newUpdates.rollover_max_target = updates.max;
+      const val = Math.max(50, Math.min(500, updates.max));
+      setMaxTarget(val);
+      newUpdates.rollover_max_target = val;
     }
-    updateSettings(newUpdates);
-    showToast('Roll-Over Parameter gespeichert!');
+
+    if (immediate) {
+      flushUpdate('rollover', newUpdates);
+    } else {
+      debounceUpdate('rollover', newUpdates);
+    }
   };
 
   const handleExecuteConfirmedReset = () => {
@@ -123,7 +174,7 @@ export const RuleSettingsTab: React.FC = () => {
           initial={{ opacity: 0, scale: 0.9, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold text-xs shadow-lg"
+          className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold text-xs shadow-lg backdrop-blur-md"
         >
           <Check className="w-4 h-4 text-emerald-500" />
           <span>{successToast}</span>
@@ -150,14 +201,24 @@ export const RuleSettingsTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           {/* 1 Star */}
           <div className="p-5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] space-y-3.5 shadow-2xs">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <span className="text-xs font-black text-[var(--m3-on-surface)]">1 Stern</span>
               </div>
-              <span className="text-xs font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg">
-                {star1}% ({star1 / 100}x)
-              </span>
+              <div className="flex items-center gap-1.5 bg-[var(--m3-surface-container)] px-2 py-0.5 rounded-xl border border-[var(--m3-outline-variant)]">
+                <input
+                  type="number"
+                  min="10"
+                  max="250"
+                  step="5"
+                  value={star1}
+                  onChange={(e) => handleUpdateStarMultiplier(1, Number(e.target.value), false)}
+                  onBlur={() => handleUpdateStarMultiplier(1, star1, true)}
+                  className="w-10 text-center font-black text-xs text-[var(--m3-on-surface)] bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] font-bold text-[var(--m3-outline)]">% ({star1 / 100}x)</span>
+              </div>
             </div>
             
             {/* Enhanced Bonus Information */}
@@ -168,13 +229,17 @@ export const RuleSettingsTab: React.FC = () => {
               </p>
             </div>
 
+            {/* Slider */}
             <input
               type="range"
               min="10"
               max="100"
               step="5"
               value={star1}
-              onChange={(e) => handleUpdateStarMultiplier(1, Number(e.target.value))}
+              onChange={(e) => handleUpdateStarMultiplier(1, Number(e.target.value), false)}
+              onPointerUp={() => handleUpdateStarMultiplier(1, star1, true)}
+              onTouchEnd={() => handleUpdateStarMultiplier(1, star1, true)}
+              onKeyUp={() => handleUpdateStarMultiplier(1, star1, true)}
               className="w-full m3-slider cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-[var(--m3-outline)] font-bold">
@@ -182,19 +247,50 @@ export const RuleSettingsTab: React.FC = () => {
               <span>50% (Standard)</span>
               <span>100%</span>
             </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-[var(--m3-outline-variant)]/60">
+              {[25, 50, 75, 100].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => handleUpdateStarMultiplier(1, val, true)}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                    star1 === val 
+                      ? 'bg-[var(--m3-primary)] text-white' 
+                      : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)]'
+                  }`}
+                >
+                  {val}%
+                </button>
+              ))}
+              <span className="ml-auto text-[10px] text-[var(--m3-outline)] font-medium">
+                10 Pkt. = <strong className="text-[var(--m3-on-surface)]">{calculatePoints(10, 1, simSettings)} Pkt.</strong>
+              </span>
+            </div>
           </div>
 
           {/* 2 Stars */}
           <div className="p-5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] space-y-3.5 shadow-2xs">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <span className="text-xs font-black text-[var(--m3-on-surface)] ml-1">2 Sterne</span>
               </div>
-              <span className="text-xs font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg">
-                {star2}% ({star2 / 100}x)
-              </span>
+              <div className="flex items-center gap-1.5 bg-[var(--m3-surface-container)] px-2 py-0.5 rounded-xl border border-[var(--m3-outline-variant)]">
+                <input
+                  type="number"
+                  min="20"
+                  max="250"
+                  step="5"
+                  value={star2}
+                  onChange={(e) => handleUpdateStarMultiplier(2, Number(e.target.value), false)}
+                  onBlur={() => handleUpdateStarMultiplier(2, star2, true)}
+                  className="w-10 text-center font-black text-xs text-[var(--m3-on-surface)] bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] font-bold text-[var(--m3-outline)]">% ({star2 / 100}x)</span>
+              </div>
             </div>
 
             {/* Enhanced Bonus Information */}
@@ -205,13 +301,17 @@ export const RuleSettingsTab: React.FC = () => {
               </p>
             </div>
 
+            {/* Slider */}
             <input
               type="range"
               min="20"
               max="150"
               step="5"
               value={star2}
-              onChange={(e) => handleUpdateStarMultiplier(2, Number(e.target.value))}
+              onChange={(e) => handleUpdateStarMultiplier(2, Number(e.target.value), false)}
+              onPointerUp={() => handleUpdateStarMultiplier(2, star2, true)}
+              onTouchEnd={() => handleUpdateStarMultiplier(2, star2, true)}
+              onKeyUp={() => handleUpdateStarMultiplier(2, star2, true)}
               className="w-full m3-slider cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-[var(--m3-outline)] font-bold">
@@ -219,20 +319,51 @@ export const RuleSettingsTab: React.FC = () => {
               <span>75% (Standard)</span>
               <span>150%</span>
             </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-[var(--m3-outline-variant)]/60">
+              {[50, 75, 100, 125].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => handleUpdateStarMultiplier(2, val, true)}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                    star2 === val 
+                      ? 'bg-[var(--m3-primary)] text-white' 
+                      : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)]'
+                  }`}
+                >
+                  {val}%
+                </button>
+              ))}
+              <span className="ml-auto text-[10px] text-[var(--m3-outline)] font-medium">
+                10 Pkt. = <strong className="text-[var(--m3-on-surface)]">{calculatePoints(10, 2, simSettings)} Pkt.</strong>
+              </span>
+            </div>
           </div>
 
           {/* 3 Stars */}
           <div className="p-5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] space-y-3.5 shadow-2xs">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-0.5">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                 <span className="text-xs font-black text-[var(--m3-on-surface)] ml-1">3 Sterne</span>
               </div>
-              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-lg">
-                {star3}% ({star3 / 100}x)
-              </span>
+              <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-xl border border-emerald-500/20">
+                <input
+                  type="number"
+                  min="50"
+                  max="250"
+                  step="5"
+                  value={star3}
+                  onChange={(e) => handleUpdateStarMultiplier(3, Number(e.target.value), false)}
+                  onBlur={() => handleUpdateStarMultiplier(3, star3, true)}
+                  className="w-10 text-center font-black text-xs text-emerald-700 dark:text-emerald-300 bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">% ({star3 / 100}x)</span>
+              </div>
             </div>
 
             {/* Enhanced Bonus Information */}
@@ -243,19 +374,44 @@ export const RuleSettingsTab: React.FC = () => {
               </p>
             </div>
 
+            {/* Slider */}
             <input
               type="range"
               min="50"
               max="200"
               step="5"
               value={star3}
-              onChange={(e) => handleUpdateStarMultiplier(3, Number(e.target.value))}
+              onChange={(e) => handleUpdateStarMultiplier(3, Number(e.target.value), false)}
+              onPointerUp={() => handleUpdateStarMultiplier(3, star3, true)}
+              onTouchEnd={() => handleUpdateStarMultiplier(3, star3, true)}
+              onKeyUp={() => handleUpdateStarMultiplier(3, star3, true)}
               className="w-full m3-slider cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-[var(--m3-outline)] font-bold">
               <span>50%</span>
               <span>100% (Standard)</span>
               <span>200%</span>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-[var(--m3-outline-variant)]/60">
+              {[75, 100, 125, 150].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => handleUpdateStarMultiplier(3, val, true)}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                    star3 === val 
+                      ? 'bg-emerald-600 text-white' 
+                      : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)]'
+                  }`}
+                >
+                  {val}%
+                </button>
+              ))}
+              <span className="ml-auto text-[10px] text-[var(--m3-outline)] font-medium">
+                10 Pkt. = <strong className="text-[var(--m3-on-surface)]">{calculatePoints(10, 3, simSettings)} Pkt.</strong>
+              </span>
             </div>
           </div>
         </div>
@@ -288,17 +444,26 @@ export const RuleSettingsTab: React.FC = () => {
               <span className="text-base font-black text-[var(--m3-primary)]">
                 {simPoints1} Pkt.
               </span>
+              <span className="text-[10px] text-[var(--m3-outline)] font-semibold block mt-0.5">
+                ({star1}% von {testBasePoints})
+              </span>
             </div>
             <div className="p-3 rounded-xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)]/60 shadow-2xs">
               <span className="text-[11px] text-[var(--m3-on-surface-variant)] font-bold block mb-1">⭐⭐ 2 Sterne</span>
               <span className="text-base font-black text-[var(--m3-primary)]">
                 {simPoints2} Pkt.
               </span>
+              <span className="text-[10px] text-[var(--m3-outline)] font-semibold block mt-0.5">
+                ({star2}% von {testBasePoints})
+              </span>
             </div>
             <div className="p-3 rounded-xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)]/60 shadow-2xs">
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold block mb-1">⭐⭐⭐ 3 Sterne</span>
               <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
                 {simPoints3} Pkt.
+              </span>
+              <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-semibold block mt-0.5">
+                ({star3}% von {testBasePoints})
               </span>
             </div>
           </div>
@@ -341,9 +506,19 @@ export const RuleSettingsTab: React.FC = () => {
                 <TrendingDown className="w-4 h-4 text-emerald-500" />
                 Überschuss-Übertrag
               </span>
-              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-lg">
-                {surplusFactor}%
-              </span>
+              <div className="flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                <input
+                  type="number"
+                  min="0"
+                  max="200"
+                  step="5"
+                  value={surplusFactor}
+                  onChange={(e) => handleUpdateRollover({ surplus: Number(e.target.value) }, false)}
+                  onBlur={() => handleUpdateRollover({ surplus: surplusFactor }, true)}
+                  className="w-10 text-center font-black text-xs text-emerald-700 dark:text-emerald-300 bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">%</span>
+              </div>
             </div>
             <p className="text-[11px] text-[var(--m3-on-surface-variant)] leading-relaxed">
               Wieviel Prozent des Überschusses wird als Entlastung abgezogen? (100% = 1:1)
@@ -354,7 +529,9 @@ export const RuleSettingsTab: React.FC = () => {
               max="150"
               step="10"
               value={surplusFactor}
-              onChange={(e) => handleUpdateRollover({ surplus: Number(e.target.value) })}
+              onChange={(e) => handleUpdateRollover({ surplus: Number(e.target.value) }, false)}
+              onPointerUp={() => handleUpdateRollover({ surplus: surplusFactor }, true)}
+              onTouchEnd={() => handleUpdateRollover({ surplus: surplusFactor }, true)}
               className="w-full m3-slider cursor-pointer"
             />
           </div>
@@ -366,9 +543,19 @@ export const RuleSettingsTab: React.FC = () => {
                 <TrendingUp className="w-4 h-4 text-amber-500" />
                 Defizit-Übertrag
               </span>
-              <span className="text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-lg">
-                {deficitFactor}%
-              </span>
+              <div className="flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                <input
+                  type="number"
+                  min="0"
+                  max="200"
+                  step="5"
+                  value={deficitFactor}
+                  onChange={(e) => handleUpdateRollover({ deficit: Number(e.target.value) }, false)}
+                  onBlur={() => handleUpdateRollover({ deficit: deficitFactor }, true)}
+                  className="w-10 text-center font-black text-xs text-amber-700 dark:text-amber-300 bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">%</span>
+              </div>
             </div>
             <p className="text-[11px] text-[var(--m3-on-surface-variant)] leading-relaxed">
               Wieviel Prozent des Rückstands wird aufgeschlagen? (100% = 1:1)
@@ -379,7 +566,9 @@ export const RuleSettingsTab: React.FC = () => {
               max="150"
               step="10"
               value={deficitFactor}
-              onChange={(e) => handleUpdateRollover({ deficit: Number(e.target.value) })}
+              onChange={(e) => handleUpdateRollover({ deficit: Number(e.target.value) }, false)}
+              onPointerUp={() => handleUpdateRollover({ deficit: deficitFactor }, true)}
+              onTouchEnd={() => handleUpdateRollover({ deficit: deficitFactor }, true)}
               className="w-full m3-slider cursor-pointer"
             />
           </div>
@@ -399,7 +588,8 @@ export const RuleSettingsTab: React.FC = () => {
               min="5"
               max="50"
               value={minTarget}
-              onChange={(e) => handleUpdateRollover({ min: Math.max(5, Number(e.target.value)) })}
+              onChange={(e) => handleUpdateRollover({ min: Math.max(5, Number(e.target.value)) }, false)}
+              onBlur={() => handleUpdateRollover({ min: minTarget }, true)}
               className="w-20 px-2 py-1.5 text-center text-xs font-black rounded-xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)]"
             />
           </div>
@@ -419,7 +609,8 @@ export const RuleSettingsTab: React.FC = () => {
               min="50"
               max="500"
               value={maxTarget}
-              onChange={(e) => handleUpdateRollover({ max: Math.max(50, Number(e.target.value)) })}
+              onChange={(e) => handleUpdateRollover({ max: Math.max(50, Number(e.target.value)) }, false)}
+              onBlur={() => handleUpdateRollover({ max: maxTarget }, true)}
               className="w-20 px-2 py-1.5 text-center text-xs font-black rounded-xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)]"
             />
           </div>

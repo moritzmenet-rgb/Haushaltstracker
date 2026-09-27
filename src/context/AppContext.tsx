@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { applyColorTheme } from '../theme';
@@ -125,6 +125,11 @@ interface AppContextType {
   getWeeklyRollOverPreview: () => WeeklyRollOverPreview[];
   executeWeeklyReset: () => void;
 
+  // Reward Celebration & Dynamic Coin Flying Animation
+  rewardCelebration: RewardCelebration | null;
+  triggerRewardCelebration: (celebration: Omit<RewardCelebration, 'id'>) => void;
+  clearRewardCelebration: () => void;
+
   // Data helpers
   clearAllData: () => Promise<void>;
   resetToDemoData: () => Promise<void>;
@@ -216,6 +221,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [blockedEmails, setBlockedEmails] = useState<string[]>([]);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const settingsDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSettingsCloudSaveRef = useRef<{
+    settings: FamilySettings;
+    membersToSave?: FamilyMember[];
+  } | null>(null);
+
+  // Reward Celebration State
+  const [rewardCelebration, setRewardCelebration] = useState<RewardCelebration | null>(null);
+  const triggerRewardCelebration = useCallback((celebration: Omit<RewardCelebration, 'id'>) => {
+    setRewardCelebration({ ...celebration, id: `celeb_${Date.now()}` });
+  }, []);
+  const clearRewardCelebration = useCallback(() => {
+    setRewardCelebration(null);
+  }, []);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -229,7 +248,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       syncTimeoutRef.current = setTimeout(() => {
         setSyncFeedback(prev => prev.status === 'saved' ? { status: 'idle', text: '' } : prev);
       }, 2500);
-      return Promise.resolve();
+      return Promise.resolve(true);
     }
 
     setSyncFeedback({
@@ -257,8 +276,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return true;
         })
         .catch((err) => {
-          const isTimeout = err.message === 'timeout';
-          console.warn(isTimeout ? 'Sync timed out' : 'Sync failed:', err);
+          const isTimeout = err?.message === 'timeout';
+          console.warn(isTimeout ? 'Sync timed out' : 'Sync notice:', err);
           
           setSyncFeedback({
             status: 'error',
@@ -270,13 +289,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Allow the user to dismiss the error after a few seconds
           syncTimeoutRef.current = setTimeout(() => {
             setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
-          }, 5000);
+          }, 4000);
           
-          if (!isTimeout) throw err;
           return false;
         });
     }
-    return Promise.resolve();
+    return Promise.resolve(true);
   }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
@@ -610,13 +628,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notesMap[n.id || d.id] = { ...n, id: n.id || d.id }; 
       });
 
-      if (Object.keys(notesMap).length > 0) {
-        setData(prev => {
-          const next = { ...prev, pinnwand: notesMap };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
-      }
+      setData(prev => {
+        const next = { ...prev, pinnwand: notesMap };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
     }, (err) => {
       console.warn('Sync notice (Pinnwand):', err);
     });
@@ -665,6 +681,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const points = calculatePoints(task.base_points, stars, data.settings);
     const now = new Date().toISOString();
+    const prevCyclePoints = getMemberCyclePoints(activeUser.id, data.logs, data.settings.last_reset_date);
+    const targetPoints = activeUser.weekly_target || data.settings.default_weekly_target || 50;
+
     const newLog: ChoreLog = {
       log_id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       task_id: taskId,
@@ -694,6 +713,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       triggerSyncFeedback('Aufgabe erledigt');
     }
+
+    // Trigger gamified celebration & flying coins animation
+    setRewardCelebration({
+      id: `celeb_${Date.now()}`,
+      points,
+      taskTitle: task.title,
+      stars,
+      previousCyclePoints: prevCyclePoints,
+      targetPoints
+    });
 
     return points;
   }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
@@ -1210,8 +1239,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rotation: Number(rotation.toFixed(1))
     };
 
-    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: newNote };
-    persistLocal({ ...data, pinnwand: nextPinnwand });
+    setData(prev => {
+      const nextPinnwand = { ...(prev.pinnwand || {}), [noteId]: newNote };
+      const next = { ...prev, pinnwand: nextPinnwand };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
     if (firebaseUser) {
       const p = savePinnwandNoteToCloud(newNote);
@@ -1221,58 +1254,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     return newNote;
-  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [activeUser, data, firebaseUser, triggerSyncFeedback]);
 
   const updatePinnwandNote = useCallback(async (noteId: string, updates: Partial<PinnwandNote>): Promise<boolean> => {
-    const existing = data.pinnwand?.[noteId];
-    if (!existing) return false;
+    let targetNote: PinnwandNote | null = null;
+    setData(prev => {
+      const existing = prev.pinnwand?.[noteId];
+      if (!existing) return prev;
 
-    const updatedNote: PinnwandNote = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
+      const updatedNote: PinnwandNote = {
+        ...existing,
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      targetNote = updatedNote;
 
-    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
-    persistLocal({ ...data, pinnwand: nextPinnwand });
+      const nextPinnwand = { ...(prev.pinnwand || {}), [noteId]: updatedNote };
+      const next = { ...prev, pinnwand: nextPinnwand };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
-    if (firebaseUser) {
-      const p = savePinnwandNoteToCloud(updatedNote);
+    if (targetNote && firebaseUser) {
+      const p = savePinnwandNoteToCloud(targetNote);
       triggerSyncFeedback('Post-it aktualisiert', p);
     } else {
       triggerSyncFeedback('Post-it aktualisiert');
     }
 
     return true;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [firebaseUser, triggerSyncFeedback]);
 
   const deletePinnwandNote = useCallback(async (noteId: string): Promise<boolean> => {
-    if (!data.pinnwand?.[noteId]) return false;
+    let idsToDelete: string[] = [];
+    setData(prev => {
+      if (!prev.pinnwand?.[noteId]) return prev;
 
-    const notesToDelete = new Set<string>([noteId]);
-    const findChildren = (pid: string) => {
-      Object.values(data.pinnwand || {}).forEach(n => {
-        if (n.parentId === pid) {
-          notesToDelete.add(n.id);
-          findChildren(n.id);
-        }
-      });
-    };
-    findChildren(noteId);
+      const notesToDelete = new Set<string>([noteId]);
+      const findChildren = (pid: string) => {
+        Object.values(prev.pinnwand || {}).forEach(n => {
+          if (n.parentId === pid) {
+            notesToDelete.add(n.id);
+            findChildren(n.id);
+          }
+        });
+      };
+      findChildren(noteId);
+      idsToDelete = Array.from(notesToDelete);
 
-    const nextPinnwand = { ...(data.pinnwand || {}) };
-    notesToDelete.forEach(id => delete nextPinnwand[id]);
-    persistLocal({ ...data, pinnwand: nextPinnwand });
+      const nextPinnwand = { ...(prev.pinnwand || {}) };
+      idsToDelete.forEach(id => delete nextPinnwand[id]);
+      const next = { ...prev, pinnwand: nextPinnwand };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
-    if (firebaseUser) {
-      const p = Promise.all(Array.from(notesToDelete).map(id => deletePinnwandNoteFromCloud(id)));
+    if (firebaseUser && idsToDelete.length > 0) {
+      const p = Promise.all(idsToDelete.map(id => deletePinnwandNoteFromCloud(id)));
       triggerSyncFeedback('Post-it entfernt', p);
     } else {
       triggerSyncFeedback('Post-it entfernt');
     }
 
     return true;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [firebaseUser, triggerSyncFeedback]);
 
   const votePinnwandPoll = useCallback(async (noteId: string, optionId: string): Promise<boolean> => {
     const note = data.pinnwand?.[noteId];
@@ -1359,21 +1404,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const updateNotePosition = useCallback((noteId: string, position: { x: number; y: number }) => {
-    const note = data.pinnwand?.[noteId];
-    if (!note) return;
+    let targetNote: PinnwandNote | null = null;
+    setData(prev => {
+      const note = prev.pinnwand?.[noteId];
+      if (!note) return prev;
+      const updatedNote: PinnwandNote = {
+        ...note,
+        position
+      };
+      targetNote = updatedNote;
+      const nextPinnwand = { ...(prev.pinnwand || {}), [noteId]: updatedNote };
+      const next = { ...prev, pinnwand: nextPinnwand };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
-    const updatedNote: PinnwandNote = {
-      ...note,
-      position
-    };
-
-    const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
-    persistLocal({ ...data, pinnwand: nextPinnwand });
-
-    if (firebaseUser) {
-      savePinnwandNoteToCloud(updatedNote).catch(console.warn);
+    if (targetNote && firebaseUser) {
+      savePinnwandNoteToCloud(targetNote).catch(console.warn);
     }
-  }, [data, firebaseUser, persistLocal]);
+  }, [firebaseUser]);
 
   const autoArrangePinnwand = useCallback(() => {
     const allNotes = Object.values(data.pinnwand || {});
@@ -1509,6 +1558,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
       logChore, updateLog, deleteLog, createTask, updateTask, deleteTask,
       fishTask, unfishTask,
+      rewardCelebration, triggerRewardCelebration, clearRewardCelebration,
       pinnwandNotes, createPinnwandNote, updatePinnwandNote, deletePinnwandNote,
       votePinnwandPoll, togglePinnwandReaction, updateNotePosition, autoArrangePinnwand,
       addCategory: (c) => {
@@ -1553,24 +1603,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (activeUserId) updateMember(activeUserId, { has_seen_tutorial: true });
       },
       updateSettings: (u) => {
-        const nextSettings = { ...data.settings, ...u };
-        let nextMembers = { ...data.members };
+        let currentSettings: FamilySettings = data.settings;
+        let currentMembers = data.members;
 
-        // If default weekly target is updated, sync all members' individual targets
-        if (u.default_weekly_target !== undefined) {
-          Object.keys(nextMembers).forEach(id => {
-            nextMembers[id] = { ...nextMembers[id], weekly_target: u.default_weekly_target };
-          });
-        }
+        setData(prev => {
+          const nextSettings = { ...prev.settings, ...u };
+          let nextMembers = { ...prev.members };
 
-        persistLocal({ ...data, settings: nextSettings, members: nextMembers });
+          // If default weekly target is updated, sync all members' individual targets
+          if (typeof u.default_weekly_target === 'number') {
+            const newTarget = u.default_weekly_target;
+            Object.keys(nextMembers).forEach(id => {
+              nextMembers[id] = { ...nextMembers[id], weekly_target: newTarget };
+            });
+          }
+
+          const nextData = { ...prev, settings: nextSettings, members: nextMembers };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+
+          currentSettings = nextSettings;
+          currentMembers = nextMembers;
+          return nextData;
+        });
 
         if (firebaseUser) {
-          const promises = [saveSettingsToCloud(nextSettings)];
-          if (u.default_weekly_target !== undefined) {
-            Object.values(nextMembers).forEach(m => promises.push(saveMemberToCloud(m)));
+          pendingSettingsCloudSaveRef.current = {
+            settings: currentSettings,
+            membersToSave: u.default_weekly_target !== undefined ? Object.values(currentMembers) : undefined
+          };
+
+          if (settingsDebounceTimerRef.current) {
+            clearTimeout(settingsDebounceTimerRef.current);
           }
-          triggerSyncFeedback('Einstellungen', Promise.all(promises));
+
+          settingsDebounceTimerRef.current = setTimeout(async () => {
+            const pending = pendingSettingsCloudSaveRef.current;
+            if (!pending) return;
+            try {
+              const promises = [saveSettingsToCloud(pending.settings)];
+              if (pending.membersToSave) {
+                pending.membersToSave.forEach(m => promises.push(saveMemberToCloud(m)));
+              }
+              await triggerSyncFeedback('Einstellungen', Promise.all(promises));
+            } catch (err) {
+              console.warn('Settings cloud sync notice, retrying once:', err);
+              try {
+                await new Promise(r => setTimeout(r, 500));
+                await saveSettingsToCloud(pending.settings);
+              } catch (retryErr) {
+                console.warn('Settings retry notice:', retryErr);
+              }
+            }
+          }, 350);
         } else {
           triggerSyncFeedback('Einstellungen');
         }

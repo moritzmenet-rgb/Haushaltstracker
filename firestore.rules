@@ -40,7 +40,7 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/households/main_household) &&
              'blocked_emails' in get(/databases/$(database)/documents/households/main_household).data &&
              authEmail() != '' &&
-             authEmail() in get(/databases/$(database)/documents/households/main_household).data.blocked_emails;
+             get(/databases/$(database)/documents/households/main_household).data.blocked_emails.hasAny([authEmail()]);
     }
     
     function isVerified() {
@@ -64,7 +64,7 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/households/main_household) &&
           'allowed_emails' in get(/databases/$(database)/documents/households/main_household).data &&
           authEmail() != '' &&
-          authEmail() in get(/databases/$(database)/documents/households/main_household).data.allowed_emails
+          get(/databases/$(database)/documents/households/main_household).data.allowed_emails.hasAny([authEmail()])
         )
       );
     }
@@ -124,8 +124,8 @@ service cloud.firestore {
       // Allow creation if Moritz or Verified user (if bootstrap is needed)
       allow create: if isVerified() && (isMoritz() || !exists(/databases/$(database)/documents/households/main_household));
       
-      // Allow update if Admin or Moritz
-      allow update: if isVerified() && (isMoritz() || isAdmin());
+      // Allow update if Verified user and valid household data
+      allow update: if isVerified() && isValidHousehold(incoming());
       
       allow delete: if isMoritz();
 

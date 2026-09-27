@@ -17,7 +17,10 @@ export const FishModal: React.FC<FishModalProps> = ({ isOpen, onClose, task }) =
   if (!isOpen || !activeUser) return null;
 
   const handleFish = async () => {
-    await fishTask(task.id, activeUser.id, days);
+    const untilDate = new Date();
+    untilDate.setDate(untilDate.getDate() + days);
+    untilDate.setHours(23, 59, 59, 999);
+    await fishTask(task.id, untilDate.toISOString());
     onClose();
   };
 

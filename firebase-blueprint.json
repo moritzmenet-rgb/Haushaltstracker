@@ -21,6 +21,11 @@
         "rollover_max_target": { "type": "integer" },
         "week_start_day": { "type": "string", "enum": ["monday", "sunday", "saturday"] },
         "allowed_emails": { "type": "array", "maxItems": 100 },
+        "blocked_emails": { "type": "array", "maxItems": 100 },
+        "auto_reset_enabled": { "type": "boolean" },
+        "scheduled_reset_day": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "scheduled_reset_hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "scheduled_reset_minute": { "type": "integer", "minimum": 0, "maximum": 59 },
         "updatedAt": { "type": "string", "format": "date-time" },
         "firebase_url": { "type": "string", "maxLength": 255 }
       },

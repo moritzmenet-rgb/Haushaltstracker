@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -44,6 +44,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToTasks
 }) => {
   const { data, activeUser, isAdmin, deleteLog, fishTask, unfishTask } = useApp();
+
+  // Real-time dynamic coin hit & progress bar fill state
+  const [impactGlow, setImpactGlow] = useState(false);
+  const [dynamicCyclePoints, setDynamicCyclePoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    const onCoinHit = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (!d) return;
+
+      setImpactGlow(true);
+      setTimeout(() => setImpactGlow(false), 220);
+
+      const fraction = d.coinIndex / d.totalCoins;
+      const added = Math.round(d.pointsEarned * fraction);
+      setDynamicCyclePoints(d.previousCyclePoints + added);
+    };
+
+    window.addEventListener('coin-hit-progress-bar', onCoinHit);
+    return () => window.removeEventListener('coin-hit-progress-bar', onCoinHit);
+  }, []);
+
+  // Clear dynamic override once real logs update
+  useEffect(() => {
+    if (dynamicCyclePoints !== null) {
+      const timer = setTimeout(() => setDynamicCyclePoints(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [dynamicCyclePoints, data.logs]);
 
   // Filters for the Verlauf
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
@@ -213,59 +242,88 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* 2. Personal Progress Bar & Family Summary in Material 3 Expressive Card */}
-      {activeUserProgress && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          whileHover={{ scale: 1.01 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="p-6 rounded-[28px] m3-glass-surface border border-white/5 relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between text-xs sm:text-sm mb-3.5">
-            <span className="font-black text-[var(--m3-on-surface)] flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-[var(--m3-primary)] inline-block animate-pulse" />
-              <span>Dein Wochenfortschritt</span>
-            </span>
-            <div className="flex items-center gap-2.5 font-bold">
-              <span className="text-[var(--m3-on-surface)] font-black text-sm">
-                {activeUserProgress.cyclePoints} / {activeUserProgress.target} Pkt.
+      {activeUserProgress && (() => {
+        const displayCyclePoints = dynamicCyclePoints !== null ? dynamicCyclePoints : activeUserProgress.cyclePoints;
+        const displayPercent = Math.min(100, Math.round((displayCyclePoints / activeUserProgress.target) * 100));
+
+        return (
+          <motion.div 
+            id="weekly-progress-bar"
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ 
+              opacity: 1, 
+              scale: impactGlow ? 1.025 : 1, 
+              y: 0 
+            }}
+            whileHover={{ scale: 1.01 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            className={`p-6 rounded-[28px] m3-glass-surface border relative overflow-hidden transition-all duration-200 ${
+              impactGlow 
+                ? 'border-amber-400 shadow-[0_0_35px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/60' 
+                : 'border-white/5'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs sm:text-sm mb-3.5">
+              <span className="font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full inline-block transition-colors duration-200 ${
+                  impactGlow ? 'bg-amber-400 animate-ping' : 'bg-[var(--m3-primary)] animate-pulse'
+                }`} />
+                <span>Dein Wochenfortschritt</span>
+                {impactGlow && (
+                  <span className="text-[11px] font-black text-amber-500 animate-bounce">
+                    ✨ Münzen fliegen ein!
+                  </span>
+                )}
               </span>
-              <span className="text-xs px-3 py-1 rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] font-black shadow-xs">
-                {activeUserProgress.progressPercent}%
-              </span>
+              <div className="flex items-center gap-2.5 font-bold">
+                <span className="text-[var(--m3-on-surface)] font-black text-sm">
+                  {displayCyclePoints} / {activeUserProgress.target} Pkt.
+                </span>
+                <span className={`text-xs px-3 py-1 rounded-full font-black shadow-xs transition-all ${
+                  impactGlow 
+                    ? 'bg-amber-400 text-zinc-950 scale-110' 
+                    : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                }`}>
+                  {displayPercent}%
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* M3 Expressive Progress Bar Track */}
-          <div className="w-full bg-[var(--m3-surface-container-highest)] h-4 rounded-full overflow-hidden mb-4 p-0.5 border border-[var(--m3-outline-variant)]/40 shadow-inner">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${activeUserProgress.progressPercent}%` }}
-              transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-              className={`h-full rounded-full transition-all duration-500 ${
-                activeUserProgress.cyclePoints >= activeUserProgress.target 
-                  ? 'bg-emerald-500 shadow-sm' 
-                  : 'bg-[var(--m3-primary)] shadow-sm'
-              }`}
-            />
-          </div>
+            {/* M3 Expressive Progress Bar Track */}
+            <div className={`w-full bg-[var(--m3-surface-container-highest)] h-4 rounded-full overflow-hidden mb-4 p-0.5 border shadow-inner transition-colors duration-200 ${
+              impactGlow ? 'border-amber-400/80 bg-amber-950/20' : 'border-[var(--m3-outline-variant)]/40'
+            }`}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${displayPercent}%` }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className={`h-full rounded-full transition-all duration-300 ${
+                  impactGlow
+                    ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 shadow-[0_0_12px_rgba(251,191,36,0.8)]'
+                    : displayCyclePoints >= activeUserProgress.target 
+                    ? 'bg-emerald-500 shadow-sm' 
+                    : 'bg-[var(--m3-primary)] shadow-sm'
+                }`}
+              />
+            </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--m3-on-surface-variant)] pt-3 border-t border-[var(--m3-outline-variant)]/50 font-medium">
-            <span className="flex items-center gap-2">
-              <span>Haushalt Gesamt:</span>
-              <strong className="text-[var(--m3-on-surface)] font-bold">{totalPoints} / {totalTarget} Pkt.</strong>
-              <span className="text-[var(--m3-outline)]">({familyPercent}%)</span>
-            </span>
-            <button
-              onClick={onNavigateToTasks}
-              className="font-bold text-[var(--m3-primary)] hover:underline transition flex items-center gap-1.5 self-start sm:self-auto group"
-            >
-              <span>Alle Aufgaben ansehen</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        </motion.div>
-      )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--m3-on-surface-variant)] pt-3 border-t border-[var(--m3-outline-variant)]/50 font-medium">
+              <span className="flex items-center gap-2">
+                <span>Haushalt Gesamt:</span>
+                <strong className="text-[var(--m3-on-surface)] font-bold">{totalPoints} / {totalTarget} Pkt.</strong>
+                <span className="text-[var(--m3-outline)]">({familyPercent}%)</span>
+              </span>
+              <button
+                onClick={onNavigateToTasks}
+                className="font-bold text-[var(--m3-primary)] hover:underline transition flex items-center gap-1.5 self-start sm:self-auto group"
+              >
+                <span>Alle Aufgaben ansehen</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* 3. Fällige Hausarbeiten (Priority Section) */}
       <section className="space-y-4">

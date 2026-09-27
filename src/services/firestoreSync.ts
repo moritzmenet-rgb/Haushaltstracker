@@ -80,6 +80,10 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
     blocked_emails: Array.isArray((s as any).blocked_emails)
       ? (s as any).blocked_emails
       : [],
+    auto_reset_enabled: Boolean(s.auto_reset_enabled),
+    scheduled_reset_day: typeof s.scheduled_reset_day === 'number' ? s.scheduled_reset_day : 6,
+    scheduled_reset_hour: typeof s.scheduled_reset_hour === 'number' ? s.scheduled_reset_hour : 23,
+    scheduled_reset_minute: typeof s.scheduled_reset_minute === 'number' ? s.scheduled_reset_minute : 59,
     updatedAt: new Date().toISOString()
   };
   return cleaned;

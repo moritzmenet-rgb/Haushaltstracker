@@ -17,7 +17,8 @@ import {
   Sparkles,
   Layers,
   ChevronRight,
-  Info
+  Info,
+  Crosshair
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
@@ -143,12 +144,80 @@ export const PinnwandBoard: React.FC = () => {
     return { width: maxX, height: maxY };
   }, [livePositions]);
 
+  // Center camera viewport smoothly on all active pins / notes
+  const centerCameraOnPins = useCallback((targetZoom?: number) => {
+    if (!boardContainerRef.current) return;
+    const container = boardContainerRef.current;
+    const containerW = container.clientWidth || 360;
+    const containerH = container.clientHeight || 580;
+
+    const notes = pinnwandNotes;
+    if (notes.length === 0) {
+      setPan({ x: 30, y: 30 });
+      setZoom(1);
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    notes.forEach((note) => {
+      const pos = livePositions[note.id] || note.position || { x: 60, y: 60 };
+      const width = note.depth === 0 ? 320 : note.depth === 1 ? 280 : 250;
+      const height = 280;
+
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + width);
+      maxY = Math.max(maxY, pos.y + height);
+    });
+
+    const contentW = Math.max(320, maxX - minX);
+    const contentH = Math.max(260, maxY - minY);
+    const centerX = minX + contentW / 2;
+    const centerY = minY + contentH / 2;
+
+    const pad = 40;
+    const idealZoomX = (containerW - pad * 2) / contentW;
+    const idealZoomY = (containerH - pad * 2) / contentH;
+    const chosenZoom = targetZoom || Math.min(1.05, Math.max(0.45, Math.min(idealZoomX, idealZoomY)));
+
+    const targetPanX = (containerW / 2) - (centerX * chosenZoom);
+    const targetPanY = (containerH / 2) - (centerY * chosenZoom);
+
+    setZoom(chosenZoom);
+    setPan({ x: targetPanX, y: targetPanY });
+  }, [pinnwandNotes, livePositions]);
+
+  // Auto-center camera when notes are loaded or note count changes
+  const prevNotesLengthRef = useRef(pinnwandNotes.length);
+  useEffect(() => {
+    if (pinnwandNotes.length > 0 && prevNotesLengthRef.current !== pinnwandNotes.length) {
+      prevNotesLengthRef.current = pinnwandNotes.length;
+      const timer = setTimeout(() => {
+        centerCameraOnPins();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [pinnwandNotes.length, centerCameraOnPins]);
+
+  // Initial centering on mount
+  useEffect(() => {
+    if (viewMode === 'canvas') {
+      const timer = setTimeout(() => {
+        centerCameraOnPins();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, centerCameraOnPins]);
+
   // Zoom controls
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.15, 1.8));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.15, 0.45));
   const handleResetZoom = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+    centerCameraOnPins();
   };
 
   // Dragging a note handlers
@@ -260,9 +329,15 @@ export const PinnwandBoard: React.FC = () => {
         await updatePinnwandNote(noteToEdit.id, formData);
       } else {
         await createPinnwandNote(formData);
+        setTimeout(() => {
+          centerCameraOnPins();
+        }, 120);
       }
     } catch (err) {
       console.warn('Post-it save notice:', err);
+    } finally {
+      setNoteToEdit(null);
+      setReplyParentNote(null);
     }
   };
 
@@ -428,6 +503,17 @@ export const PinnwandBoard: React.FC = () => {
           {/* Canvas Tools (Zoom & Auto-Arrange) */}
           {viewMode === 'canvas' && (
             <div className="flex items-center gap-1.5 shrink-0 self-end md:self-auto">
+              {/* Center Camera on Pins */}
+              <button
+                type="button"
+                onClick={() => centerCameraOnPins()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--m3-surface)] hover:bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] text-[var(--m3-on-surface)] text-xs font-bold transition shadow-xs cursor-pointer"
+                title="Kamera auf alle Pins zentrieren"
+              >
+                <Crosshair className="w-3.5 h-3.5 text-rose-500" />
+                <span className="hidden sm:inline">Pins zentrieren</span>
+              </button>
+
               {/* Auto Arrange */}
               <button
                 type="button"
@@ -541,6 +627,7 @@ export const PinnwandBoard: React.FC = () => {
                   isAdmin={isAdmin}
                   viewMode="canvas"
                   isDragging={draggingNoteId === note.id}
+                  livePosition={livePositions[note.id]}
                   parentNoteSnippet={parentNote?.content?.slice(0, 50)}
                   parentAuthorName={parentNote?.authorName}
                   onStartDrag={handleNoteDragStart}
@@ -701,7 +788,11 @@ export const PinnwandBoard: React.FC = () => {
       {/* Note Creation / Reply / Edit Modal */}
       <PinnwandNoteModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setReplyParentNote(null);
+          setNoteToEdit(null);
+        }}
         parentNote={replyParentNote}
         noteToEdit={noteToEdit}
         categories={categories}

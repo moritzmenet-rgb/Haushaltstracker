@@ -196,15 +196,12 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
           actual_duration: Number(actualDuration) || 10,
           notes: finalNote || undefined
         });
-      } else {
-        // CREATE NEW LOG
-        await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
-      }
-      
-      // Delay slightly to show the playful disappearance animation
-      setTimeout(() => {
         onClose();
-      }, 500);
+      } else {
+        // CREATE NEW LOG & trigger celebration
+        await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
+        onClose();
+      }
     } catch (err) {
       setIsSubmitting(false);
       setErrorMsg('Fehler beim Speichern. Bitte Internetverbindung prüfen.');

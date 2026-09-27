@@ -131,3 +131,12 @@ export interface WeeklyRollOverPreview {
   difference: number; // oldTarget - achievedPoints (positive = deficit, negative = surplus)
   newTarget: number;
 }
+
+export interface RewardCelebration {
+  id: string;
+  points: number;
+  taskTitle: string;
+  stars: 1 | 2 | 3;
+  previousCyclePoints: number;
+  targetPoints: number;
+}

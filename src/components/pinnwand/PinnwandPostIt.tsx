@@ -30,6 +30,7 @@ interface PinnwandPostItProps {
   onTogglePin: (noteId: string) => void;
   onStartDrag?: (e: React.MouseEvent | React.TouchEvent, noteId: string) => void;
   isDragging?: boolean;
+  livePosition?: { x: number; y: number };
   parentNoteSnippet?: string;
   parentAuthorName?: string;
   viewMode?: 'canvas' | 'list';
@@ -51,6 +52,7 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
   onStartDrag,
   onOpenProfile,
   isDragging = false,
+  livePosition,
   parentNoteSnippet,
   parentAuthorName,
   viewMode = 'canvas'
@@ -182,6 +184,7 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
 
   // Poll calculations
   const totalPollVotes = note.poll?.options.reduce((sum, opt) => sum + opt.voterIds.length, 0) || 0;
+  const currentPos = livePosition || note.position || { x: 50, y: 50 };
 
   return (
     <div
@@ -189,8 +192,8 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
       id={`postit-${note.id}`}
       style={viewMode === 'canvas' ? {
         position: 'absolute',
-        left: `${note.position?.x ?? 50}px`,
-        top: `${note.position?.y ?? 50}px`,
+        left: `${currentPos.x}px`,
+        top: `${currentPos.y}px`,
         transform: `rotate(${note.rotation || 0}deg)`,
         zIndex: isDragging ? 50 : note.isPinned ? 30 : 10 + note.depth
       } : undefined}
