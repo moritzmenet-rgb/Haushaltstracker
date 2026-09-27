@@ -770,40 +770,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // --- ACHIEVEMENT CHECKING LOGIC ---
     const updatedMemberLogs = [newLog, ...data.logs].filter(l => l.user_id === activeUser.id);
     const totalTasks = updatedMemberLogs.length;
-    const unlocked = updatedMember.unlocked_badges || {};
+    const unlocked = { ...(updatedMember.unlocked_badges || {}) };
     
     let newBadgeId: string | null = null;
 
+    // Helper to check and set badge
+    const checkBadge = (id: string, condition: boolean) => {
+      if (condition && !unlocked[id]) {
+        // Prioritize "Secret" and "Milestones" over basic ones if multiple trigger
+        if (!newBadgeId || id.startsWith('secret_') || id.includes('goal')) {
+          newBadgeId = id;
+        }
+        unlocked[id] = now;
+      }
+    };
+
     // 1. Task count milestones
-    if (totalTasks === 1 && !unlocked['tasks_1']) newBadgeId = 'tasks_1';
-    else if (totalTasks === 25 && !unlocked['tasks_25']) newBadgeId = 'tasks_25';
-    else if (totalTasks === 66 && !unlocked['secret_devil']) newBadgeId = 'secret_devil';
-    else if (totalTasks === 100 && !unlocked['tasks_100']) newBadgeId = 'tasks_100';
-    else if (totalTasks === 250 && !unlocked['tasks_250']) newBadgeId = 'tasks_250';
-    else if (totalTasks === 500 && !unlocked['tasks_500']) newBadgeId = 'tasks_500';
+    checkBadge('tasks_1', totalTasks >= 1);
+    checkBadge('tasks_25', totalTasks >= 25);
+    checkBadge('secret_devil', totalTasks === 66);
+    checkBadge('tasks_100', totalTasks >= 100);
+    checkBadge('tasks_250', totalTasks >= 250);
+    checkBadge('tasks_500', totalTasks >= 500);
 
     // 2. Stars quality
-    if (stars === 3 && !unlocked['stars_first_3']) newBadgeId = 'stars_first_3';
-
-    // 3. Time based (Secret Night: 1-4 AM)
-    const hour = new Date(now).getHours();
-    if (hour >= 1 && hour <= 4 && !unlocked['secret_night']) newBadgeId = 'secret_night';
-
-    // 4. Points milestones (in current cycle)
-    const currentCyclePoints = prevCyclePoints + points;
-    if (currentCyclePoints >= targetPoints && !unlocked['milestone_goal_1']) {
-      newBadgeId = 'milestone_goal_1';
+    if (stars === 3) {
+      checkBadge('stars_first_3', true);
+      
+      // Perfektionist: 5x 3-Sterne in einer Woche
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const week3StarLogs = updatedMemberLogs.filter(l => l.stars === 3 && new Date(l.timestamp) >= startOfWeek);
+      checkBadge('stars_5_per_week', week3StarLogs.length >= 5);
     }
-    if (currentCyclePoints > 50 && !unlocked['over_50']) newBadgeId = 'over_50';
+
+    // 3. Category based
+    if (task.category) {
+      const catLogs = updatedMemberLogs.filter(l => {
+        const t = data.tasks[l.task_id];
+        return t && t.category === task.category;
+      });
+      const catCount = catLogs.length;
+      
+      if (task.category.toLowerCase().includes('küche')) checkBadge('cat_kitchen_20', catCount >= 20);
+      if (task.category.toLowerCase().includes('bad')) checkBadge('cat_bad_15', catCount >= 15);
+      if (task.category.toLowerCase().includes('stube')) checkBadge('cat_stube_15', catCount >= 15);
+      if (task.category.toLowerCase().includes('zimmer')) checkBadge('cat_room_15', catCount >= 15);
+      if (task.category.toLowerCase().includes('garten')) checkBadge('cat_garten_15', catCount >= 15);
+      if (task.category.toLowerCase().includes('flur') || task.category.toLowerCase().includes('gänge')) checkBadge('cat_gänge_15', catCount >= 15);
+    }
+
+    // 4. Time based
+    const hour = new Date(now).getHours();
+    checkBadge('secret_night', hour >= 1 && hour <= 4);
+    
+    // Sunday night hero
+    const day = new Date(now).getDay();
+    if (day === 0 && hour >= 22) {
+      const cyclePoints = getMemberCyclePoints(activeUser.id, updatedMemberLogs, data.settings.last_reset_date);
+      checkBadge('secret_last_minute', cyclePoints >= targetPoints);
+    }
+
+    // 5. Points milestones
+    const currentCyclePoints = prevCyclePoints + points;
+    checkBadge('milestone_goal_1', currentCyclePoints >= targetPoints);
+    checkBadge('over_50', currentCyclePoints > 50);
 
     if (newBadgeId) {
       const badgeDef = ACHIEVEMENTS_DATA.find(b => b.id === newBadgeId);
       if (badgeDef) {
         setNewlyUnlockedBadge(badgeDef);
-        // Integrate badge into updatedMember before saving
         updatedMember = {
           ...updatedMember,
-          unlocked_badges: { ...unlocked, [newBadgeId]: now }
+          unlocked_badges: unlocked
         };
       }
     }
