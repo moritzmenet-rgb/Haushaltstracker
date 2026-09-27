@@ -765,33 +765,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const updatedTask = { ...task, last_done: now };
-    const updatedMember = { ...data.members[activeUser.id], total_points: (data.members[activeUser.id].total_points || 0) + points };
-
-    if (firebaseUser) {
-      // WAIT for cloud success before returning
-      // We don't call persistLocal here because onSnapshot will handle it
-      const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
-      await triggerSyncFeedback('Aufgabe erledigt', p);
-    } else {
-      // Offline mode: update local immediately
-      persistLocal({
-        ...data,
-        tasks: { ...data.tasks, [taskId]: updatedTask },
-        members: { ...data.members, [activeUser.id]: updatedMember },
-        logs: [newLog, ...data.logs]
-      });
-      triggerSyncFeedback('Aufgabe erledigt');
-    }
-
-    // Trigger gamified celebration & flying coins animation
-    setRewardCelebration({
-      id: `celeb_${Date.now()}`,
-      points,
-      taskTitle: task.title,
-      stars,
-      previousCyclePoints: prevCyclePoints,
-      targetPoints
-    });
+    let updatedMember = { ...data.members[activeUser.id], total_points: (data.members[activeUser.id].total_points || 0) + points };
 
     // --- ACHIEVEMENT CHECKING LOGIC ---
     const updatedMemberLogs = [newLog, ...data.logs].filter(l => l.user_id === activeUser.id);
@@ -818,8 +792,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 4. Points milestones (in current cycle)
     const currentCyclePoints = prevCyclePoints + points;
     if (currentCyclePoints >= targetPoints && !unlocked['milestone_goal_1']) {
-      // This is a bit simplified, usually we'd count how many times they hit it across history
-      // but for this demo logic, let's just trigger the first one if not yet unlocked.
       newBadgeId = 'milestone_goal_1';
     }
     if (currentCyclePoints > 50 && !unlocked['over_50']) newBadgeId = 'over_50';
@@ -828,20 +800,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const badgeDef = ACHIEVEMENTS_DATA.find(b => b.id === newBadgeId);
       if (badgeDef) {
         setNewlyUnlockedBadge(badgeDef);
-        // Also update the member's unlocked badges state immediately
-        const nextMember = {
+        // Integrate badge into updatedMember before saving
+        updatedMember = {
           ...updatedMember,
           unlocked_badges: { ...unlocked, [newBadgeId]: now }
         };
-        setData(prev => ({
-          ...prev,
-          members: { ...prev.members, [activeUser.id]: nextMember }
-        }));
-        if (firebaseUser) {
-          saveMemberToCloud(nextMember);
-        }
       }
     }
+
+    if (firebaseUser) {
+      // WAIT for cloud success before returning
+      // We don't call persistLocal here because onSnapshot will handle it
+      const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
+      await triggerSyncFeedback('Aufgabe erledigt', p);
+    } else {
+      // Offline mode: update local immediately
+      persistLocal({
+        ...data,
+        tasks: { ...data.tasks, [taskId]: updatedTask },
+        members: { ...data.members, [activeUser.id]: updatedMember },
+        logs: [newLog, ...data.logs]
+      });
+      triggerSyncFeedback('Aufgabe erledigt');
+    }
+
+    // Trigger gamified celebration & flying coins animation
+    setRewardCelebration({
+      id: `celeb_${Date.now()}`,
+      points,
+      taskTitle: task.title,
+      stars,
+      previousCyclePoints: prevCyclePoints,
+      targetPoints
+    });
 
     return points;
   }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
