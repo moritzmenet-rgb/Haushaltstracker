@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
+import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { applyColorTheme } from '../theme';
 import { 
@@ -119,6 +120,13 @@ interface AppContextType {
   closeTutorial: () => void;
   completeTutorial: () => void;
 
+  // What's new
+  isWhatsNewOpen: boolean;
+  openWhatsNew: () => void;
+  closeWhatsNew: () => void;
+  markCurrentVersionAsSeen: () => void;
+  currentAppVersion: string;
+
   // App Rules & Reset (Admin)
   updateSettings: (updates: Partial<FamilySettings>) => void;
   updateDefaultWeeklyTarget: (newTarget: number) => void;
@@ -156,6 +164,13 @@ interface AppContextType {
   togglePinnwandReaction: (noteId: string, emoji: string) => Promise<boolean>;
   updateNotePosition: (noteId: string, position: { x: number; y: number }) => void;
   autoArrangePinnwand: () => void;
+
+  // Badges & Trophies
+  newlyUnlockedBadge: AchievementDef | null;
+  clearNewlyUnlockedBadge: () => void;
+  triggerTestAchievement: () => void;
+  updateMemberBadgeShowroom: (memberId: string, badgeIds: string[]) => void;
+  updateMemberActiveBadge: (memberId: string, updater: (current?: string) => string | undefined) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -190,6 +205,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [newlyUnlockedBadge, setNewlyUnlockedBadge] = useState<AchievementDef | null>(null);
+  const clearNewlyUnlockedBadge = useCallback(() => setNewlyUnlockedBadge(null), []);
+  const triggerTestAchievement = useCallback(() => {
+    const randomBadge = ACHIEVEMENTS_DATA[Math.floor(Math.random() * ACHIEVEMENTS_DATA.length)];
+    setNewlyUnlockedBadge(randomBadge);
+  }, []);
+
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
+  const openWhatsNew = useCallback(() => setIsWhatsNewOpen(true), []);
+  const closeWhatsNew = useCallback(() => setIsWhatsNewOpen(false), []);
+  const currentAppVersion = '5.0.0';
 
   const [data, setData] = useState<FamilyData>(() => {
     if (typeof window !== 'undefined') {
@@ -235,6 +261,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearRewardCelebration = useCallback(() => {
     setRewardCelebration(null);
   }, []);
+
+  const updateMemberBadgeShowroom = useCallback(async (memberId: string, badgeIds: string[]) => {
+    const member = data.members[memberId];
+    if (!member) return;
+    const updated = { ...member, showroom_badges: badgeIds };
+    setData(prev => ({
+      ...prev,
+      members: { ...prev.members, [memberId]: updated }
+    }));
+    if (firebaseUser) {
+      await saveMemberToCloud(updated);
+    }
+  }, [data.members, firebaseUser]);
+
+  const updateMemberActiveBadge = useCallback(async (memberId: string, updater: (current?: string) => string | undefined) => {
+    const member = data.members[memberId];
+    if (!member) return;
+    const nextBadgeId = updater(member.active_badge_id);
+    const updated = { 
+      ...member, 
+      active_badge_id: nextBadgeId,
+      unlocked_badges: nextBadgeId ? { ...(member.unlocked_badges || {}), [nextBadgeId]: member.unlocked_badges?.[nextBadgeId] || new Date().toISOString() } : member.unlocked_badges
+    };
+    setData(prev => ({
+      ...prev,
+      members: { ...prev.members, [memberId]: updated }
+    }));
+    if (firebaseUser) {
+      await saveMemberToCloud(updated);
+    }
+  }, [data.members, firebaseUser]);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -304,6 +361,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [firebaseUser, activeUserId, data.members]);
 
   const activeUser = useMemo(() => activeUserId ? data.members[activeUserId] || null : null, [activeUserId, data.members]);
+
+  const markCurrentVersionAsSeen = useCallback(() => {
+    if (!activeUser) return;
+    const updated = { ...activeUser, last_seen_version: currentAppVersion };
+    setData(prev => ({
+      ...prev,
+      members: { ...prev.members, [activeUser.id]: updated }
+    }));
+    if (firebaseUser) {
+      saveMemberToCloud(updated);
+    }
+  }, [activeUser, firebaseUser, currentAppVersion]);
 
   const effectiveTheme = useMemo(() => {
     // 1. Prioritize active user's individual preference
@@ -679,8 +748,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const task = data.tasks[taskId];
     if (!task) return 0;
 
-    const points = calculatePoints(task.base_points, stars, data.settings);
     const now = new Date().toISOString();
+    const points = calculatePoints(task.base_points, stars, data.settings, now);
     const prevCyclePoints = getMemberCyclePoints(activeUser.id, data.logs, data.settings.last_reset_date);
     const targetPoints = activeUser.weekly_target || data.settings.default_weekly_target || 50;
 
@@ -724,6 +793,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       targetPoints
     });
 
+    // --- ACHIEVEMENT CHECKING LOGIC ---
+    const updatedMemberLogs = [newLog, ...data.logs].filter(l => l.user_id === activeUser.id);
+    const totalTasks = updatedMemberLogs.length;
+    const unlocked = updatedMember.unlocked_badges || {};
+    
+    let newBadgeId: string | null = null;
+
+    // 1. Task count milestones
+    if (totalTasks === 1 && !unlocked['tasks_1']) newBadgeId = 'tasks_1';
+    else if (totalTasks === 25 && !unlocked['tasks_25']) newBadgeId = 'tasks_25';
+    else if (totalTasks === 66 && !unlocked['secret_devil']) newBadgeId = 'secret_devil';
+    else if (totalTasks === 100 && !unlocked['tasks_100']) newBadgeId = 'tasks_100';
+    else if (totalTasks === 250 && !unlocked['tasks_250']) newBadgeId = 'tasks_250';
+    else if (totalTasks === 500 && !unlocked['tasks_500']) newBadgeId = 'tasks_500';
+
+    // 2. Stars quality
+    if (stars === 3 && !unlocked['stars_first_3']) newBadgeId = 'stars_first_3';
+
+    // 3. Time based (Secret Night: 1-4 AM)
+    const hour = new Date(now).getHours();
+    if (hour >= 1 && hour <= 4 && !unlocked['secret_night']) newBadgeId = 'secret_night';
+
+    // 4. Points milestones (in current cycle)
+    const currentCyclePoints = prevCyclePoints + points;
+    if (currentCyclePoints >= targetPoints && !unlocked['milestone_goal_1']) {
+      // This is a bit simplified, usually we'd count how many times they hit it across history
+      // but for this demo logic, let's just trigger the first one if not yet unlocked.
+      newBadgeId = 'milestone_goal_1';
+    }
+    if (currentCyclePoints > 50 && !unlocked['over_50']) newBadgeId = 'over_50';
+
+    if (newBadgeId) {
+      const badgeDef = ACHIEVEMENTS_DATA.find(b => b.id === newBadgeId);
+      if (badgeDef) {
+        setNewlyUnlockedBadge(badgeDef);
+        // Also update the member's unlocked badges state immediately
+        const nextMember = {
+          ...updatedMember,
+          unlocked_badges: { ...unlocked, [newBadgeId]: now }
+        };
+        setData(prev => ({
+          ...prev,
+          members: { ...prev.members, [activeUser.id]: nextMember }
+        }));
+        if (firebaseUser) {
+          saveMemberToCloud(nextMember);
+        }
+      }
+    }
+
     return points;
   }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
@@ -753,7 +872,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const task = data.tasks[targetTaskId];
     const newPointsAwarded = task
-      ? calculatePoints(task.base_points, targetStars, data.settings)
+      ? calculatePoints(task.base_points, targetStars, data.settings, targetTimestamp)
       : oldLog.points_awarded;
 
     const updatedLog: ChoreLog = {
@@ -768,14 +887,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const pointDifference = newPointsAwarded - oldLog.points_awarded;
-    const currentMember = data.members[targetUserId];
-    
     const updatedMembers = { ...data.members };
-    if (currentMember) {
-      updatedMembers[targetUserId] = {
-        ...currentMember,
-        total_points: (currentMember.total_points || 0) + pointDifference
-      };
+    
+    if (targetUserId === oldLog.user_id) {
+      // Same user, just update the difference
+      const member = updatedMembers[targetUserId];
+      if (member) {
+        updatedMembers[targetUserId] = {
+          ...member,
+          total_points: Math.max(0, (member.total_points || 0) + pointDifference)
+        };
+      }
+    } else {
+      // User changed: decrement old user, increment new user
+      const oldMember = updatedMembers[oldLog.user_id];
+      if (oldMember) {
+        updatedMembers[oldLog.user_id] = {
+          ...oldMember,
+          total_points: Math.max(0, (oldMember.total_points || 0) - oldLog.points_awarded)
+        };
+      }
+      const newMember = updatedMembers[targetUserId];
+      if (newMember) {
+        updatedMembers[targetUserId] = {
+          ...newMember,
+          total_points: (newMember.total_points || 0) + newPointsAwarded
+        };
+      }
     }
 
     const updatedLogs = data.logs.map(l => l.log_id === logId ? updatedLog : l);
@@ -796,12 +934,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isAdmin, activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const deleteLog = useCallback(async (logId: string) => {
-    const filtered = data.logs.filter(l => l.log_id !== logId);
+    const log = data.logs.find(l => l.log_id === logId);
+    if (!log) return false;
+
+    const filteredLogs = data.logs.filter(l => l.log_id !== logId);
+    const member = data.members[log.user_id];
+    const task = data.tasks[log.task_id];
+
+    let updatedMember: FamilyMember | undefined;
+    if (member) {
+      updatedMember = {
+        ...member,
+        total_points: Math.max(0, (member.total_points || 0) - log.points_awarded)
+      };
+    }
+
+    // Determine if we need to update task's last_done
+    let updatedTask: TaskItem | undefined;
+    if (task && task.last_done === log.timestamp) {
+      // Find the next most recent log for this task
+      const nextRecentLog = filteredLogs.find(l => l.task_id === log.task_id);
+      updatedTask = {
+        ...task,
+        last_done: nextRecentLog ? nextRecentLog.timestamp : null
+      };
+    }
+
+    const nextData: FamilyData = {
+      ...data,
+      logs: filteredLogs,
+      members: updatedMember ? { ...data.members, [log.user_id]: updatedMember } : data.members,
+      tasks: updatedTask ? { ...data.tasks, [task.id]: updatedTask } : data.tasks
+    };
+
+    // Optimistic Update
+    persistLocal(nextData);
+
     if (firebaseUser) {
-      const p = deleteChoreLogFromCloud(logId);
+      const p = deleteChoreLogFromCloud(logId, updatedTask, updatedMember);
       await triggerSyncFeedback('Eintrag gelöscht', p);
     } else {
-      persistLocal({ ...data, logs: filtered });
       triggerSyncFeedback('Eintrag gelöscht');
     }
     return true;
@@ -851,12 +1023,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data.tasks, firebaseUser, triggerSyncFeedback]);
 
   const deleteTask = useCallback(async (id: string) => {
-    setData(prev => {
-      const { [id]: _, ...remaining } = prev.tasks;
-      const next = { ...prev, tasks: remaining };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const { [id]: _, ...remaining } = data.tasks;
+    const nextData = { ...data, tasks: remaining };
+    
+    // Optimistic Update
+    persistLocal(nextData);
+
     if (firebaseUser) {
       try {
         const p = deleteTaskFromCloud(id);
@@ -867,7 +1039,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       triggerSyncFeedback('Aufgabe gelöscht');
     }
-  }, [firebaseUser, triggerSyncFeedback]);
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const fishTask = useCallback(async (taskId: string, untilDate: string) => {
     if (!activeUser) return;
@@ -1011,12 +1183,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data.members, firebaseUser, triggerSyncFeedback]);
 
   const deleteMember = useCallback(async (id: string) => {
-    const { [id]: _, ...remaining } = data.members;
+    const { [id]: _, ...remainingMembers } = data.members;
+    const nextData = { ...data, members: remainingMembers };
+    
+    // Optimistic Update
+    persistLocal(nextData);
+
     if (firebaseUser) {
       const p = deleteMemberFromCloud(id);
       await triggerSyncFeedback('Profil gelöscht', p);
     } else {
-      persistLocal({ ...data, members: remaining });
       triggerSyncFeedback('Profil gelöscht');
     }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
@@ -1287,37 +1463,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deletePinnwandNote = useCallback(async (noteId: string): Promise<boolean> => {
     let idsToDelete: string[] = [];
-    setData(prev => {
-      if (!prev.pinnwand?.[noteId]) return prev;
+    const notesToDelete = new Set<string>([noteId]);
+    const findChildren = (pid: string) => {
+      Object.values(data.pinnwand || {}).forEach(n => {
+        if (n.parentId === pid) {
+          notesToDelete.add(n.id);
+          findChildren(n.id);
+        }
+      });
+    };
+    findChildren(noteId);
+    idsToDelete = Array.from(notesToDelete);
 
-      const notesToDelete = new Set<string>([noteId]);
-      const findChildren = (pid: string) => {
-        Object.values(prev.pinnwand || {}).forEach(n => {
-          if (n.parentId === pid) {
-            notesToDelete.add(n.id);
-            findChildren(n.id);
-          }
-        });
-      };
-      findChildren(noteId);
-      idsToDelete = Array.from(notesToDelete);
+    if (idsToDelete.length === 0) return false;
 
-      const nextPinnwand = { ...(prev.pinnwand || {}) };
-      idsToDelete.forEach(id => delete nextPinnwand[id]);
-      const next = { ...prev, pinnwand: nextPinnwand };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const nextPinnwand = { ...(data.pinnwand || {}) };
+    idsToDelete.forEach(id => delete nextPinnwand[id]);
+    const nextData = { ...data, pinnwand: nextPinnwand };
+    
+    // Optimistic Update
+    persistLocal(nextData);
 
-    if (firebaseUser && idsToDelete.length > 0) {
+    if (firebaseUser) {
       const p = Promise.all(idsToDelete.map(id => deletePinnwandNoteFromCloud(id)));
-      triggerSyncFeedback('Post-it entfernt', p);
+      await triggerSyncFeedback('Post-it entfernt', p);
     } else {
       triggerSyncFeedback('Post-it entfernt');
     }
 
     return true;
-  }, [firebaseUser, triggerSyncFeedback]);
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const votePinnwandPoll = useCallback(async (noteId: string, optionId: string): Promise<boolean> => {
     const note = data.pinnwand?.[noteId];
@@ -1477,23 +1652,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedMembers = { ...data.members };
 
     Object.values(updatedMembers).forEach(member => {
-      const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
+      // Add the base target for the new week to the existing cumulative target
       const oldTarget = member.weekly_target || baseDefault;
-      const difference = oldTarget - cyclePoints;
-      const factor = difference > 0
-        ? (data.settings.rollover_deficit_factor ?? 100)
-        : (data.settings.rollover_surplus_factor ?? 100);
-      const newTarget = calculateRollOverTarget(baseDefault, oldTarget, cyclePoints, {
-        minTarget: data.settings.rollover_min_target ?? 10,
-        maxTarget: data.settings.rollover_max_target ?? 200,
-        factor
-      });
-      updatedMembers[member.id] = { ...member, weekly_target: newTarget };
+      const newTarget = oldTarget + baseDefault;
+      
+      // We still clamp it to a maximum to avoid infinite growth, but use a higher default
+      const max = data.settings.rollover_max_target ?? 5000;
+      
+      updatedMembers[member.id] = { 
+        ...member, 
+        weekly_target: Math.min(max, newTarget) 
+      };
     });
 
     const nextSettings: FamilySettings = {
       ...data.settings,
-      last_reset_date: new Date().toISOString()
+      // We do NOT update last_reset_date here, because we want points to keep accumulating.
+      // We update last_scheduled_run to mark that this cycle has been processed.
+      last_scheduled_run: new Date().toISOString()
     };
 
     persistLocal({
@@ -1507,9 +1683,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveSettingsToCloud(nextSettings),
         ...Object.values(updatedMembers).map(m => saveMemberToCloud(m))
       ]);
-      triggerSyncFeedback('Wochen-Reset', p);
+      triggerSyncFeedback('Wochenziel erhöht', p);
     } else {
-      triggerSyncFeedback('Wochen-Reset');
+      triggerSyncFeedback('Wochenziel erhöht');
     }
   }, [isAdmin, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
@@ -1518,27 +1694,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isAppLoaded || !isAdmin || !data.settings.auto_reset_enabled) return;
     
     const checkReset = () => {
-      const { scheduled_reset_day, scheduled_reset_hour, scheduled_reset_minute, last_reset_date } = data.settings;
+      const { scheduled_reset_day, scheduled_reset_hour, scheduled_reset_minute, last_reset_date, last_scheduled_run } = data.settings;
       if (scheduled_reset_day === undefined || scheduled_reset_hour === undefined || scheduled_reset_minute === undefined) return;
       
       const now = new Date();
-      const lastReset = last_reset_date ? new Date(last_reset_date) : new Date(0);
-      
-      // Calculate when the next reset should happen based on the settings
-      // We want to see if "now" is past the scheduled time in the current week, 
-      // AND if the last reset was before that scheduled time.
+      // Use last_scheduled_run to determine if we already ran for the latest scheduled slot
+      const lastCheck = last_scheduled_run ? new Date(last_scheduled_run) : (last_reset_date ? new Date(last_reset_date) : new Date(0));
       
       const targetTimeThisWeek = new Date(now);
       const dayDiff = scheduled_reset_day - now.getDay();
       targetTimeThisWeek.setDate(now.getDate() + dayDiff);
       targetTimeThisWeek.setHours(scheduled_reset_hour, scheduled_reset_minute, 0, 0);
       
-      // If targetTime was already in the past this week (e.g. it's Sunday and scheduled for Saturday)
-      // we check if now > targetTime.
-      // If lastReset is BEFORE targetTime and now is AFTER targetTime, we reset.
-      
-      if (now.getTime() >= targetTimeThisWeek.getTime() && lastReset.getTime() < targetTimeThisWeek.getTime()) {
-        console.log('AppContext: Triggering automated weekly reset...');
+      if (now.getTime() >= targetTimeThisWeek.getTime() && lastCheck.getTime() < targetTimeThisWeek.getTime()) {
+        console.log('AppContext: Triggering automated weekly goal increase...');
         executeWeeklyReset();
       }
     };
@@ -1682,24 +1851,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       getWeeklyRollOverPreview: () => {
         const baseDefault = data.settings.default_weekly_target || 50;
         return Object.values(data.members).map(member => {
-          const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
           const oldTarget = member.weekly_target || baseDefault;
+          const newTarget = oldTarget + baseDefault;
+          const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
           const difference = oldTarget - cyclePoints;
-          const factor = difference > 0
-            ? (data.settings.rollover_deficit_factor ?? 100)
-            : (data.settings.rollover_surplus_factor ?? 100);
-          const newTarget = calculateRollOverTarget(baseDefault, oldTarget, cyclePoints, {
-            minTarget: data.settings.rollover_min_target ?? 10,
-            maxTarget: data.settings.rollover_max_target ?? 200,
-            factor
-          });
+          
           return {
             memberId: member.id,
             memberName: member.name,
             oldTarget,
             achievedPoints: cyclePoints,
             difference,
-            newTarget
+            newTarget: Math.min(data.settings.rollover_max_target ?? 5000, newTarget)
           };
         });
       },
@@ -1735,7 +1898,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (p.members) { persistLocal(p); return true; }
         } catch { /* */ }
         return false;
-      }
+      },
+      newlyUnlockedBadge,
+      clearNewlyUnlockedBadge,
+      triggerTestAchievement,
+      updateMemberBadgeShowroom,
+      updateMemberActiveBadge,
+      isWhatsNewOpen,
+      openWhatsNew,
+      closeWhatsNew,
+      markCurrentVersionAsSeen,
+      currentAppVersion
     }}>
       {children}
     </AppContext.Provider>

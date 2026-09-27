@@ -6,7 +6,8 @@ import {
   Trash2, 
   AlertTriangle, 
   Check, 
-  RotateCcw
+  RotateCcw,
+  Trophy
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ConfirmModal } from '../ConfirmModal';
@@ -16,7 +17,8 @@ export const DataManagementTab: React.FC = () => {
     exportDataJSON, 
     importDataJSON, 
     clearAllData, 
-    resetToDemoData 
+    resetToDemoData,
+    triggerTestAchievement
   } = useApp();
 
   const [showClearModal, setShowClearModal] = useState(false);
@@ -215,6 +217,44 @@ export const DataManagementTab: React.FC = () => {
             >
               <Trash2 className="w-4 h-4" />
               <span>Alle Daten unwiderruflich löschen</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Demo Data & Danger Zone */}
+      <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
+        <div className="flex items-center gap-3.5 mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/30 shadow-xs">
+            <Trophy className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
+              Test & Debugging
+            </h2>
+            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
+              Funktionen zum Testen der Benutzeroberfläche und Animationen.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+          <div className="p-5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] flex flex-col justify-between shadow-2xs">
+            <div>
+              <span className="font-black text-xs text-[var(--m3-on-surface)] block mb-1">
+                Achievement-Animation testen
+              </span>
+              <p className="text-[11px] text-[var(--m3-on-surface-variant)] mb-4">
+                Zeigt ein zufälliges Abzeichen mit dem neuen "Clay-Style" Floating-Effekt und Konfetti.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={triggerTestAchievement}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/80 text-[var(--m3-on-primary-container)] text-xs font-black transition border border-[var(--m3-outline-variant)] cursor-pointer"
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Test-Animation abfeuern</span>
             </button>
           </div>
         </div>

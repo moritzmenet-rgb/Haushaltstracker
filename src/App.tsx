@@ -12,13 +12,16 @@ import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TutorialModal } from './components/TutorialModal';
 import { PinnwandBoard } from './components/pinnwand/PinnwandBoard';
+import { BadgesMuseum } from './components/BadgesMuseum';
+import { AchievementRevealModal } from './components/AchievementRevealModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { SyncFeedbackBanner } from './components/SyncFeedbackBanner';
 import { SyncOverlay } from './components/SyncOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ChoreCompletionCelebration } from './components/ChoreCompletionCelebration';
+import { WhatsNewModal } from './components/WhatsNewModal';
 import { TaskItem, ChoreLog } from './types';
-import { Cloud } from 'lucide-react';
+import { Cloud, Sparkles } from 'lucide-react';
 
 const MainContent: React.FC = () => {
   const { 
@@ -32,9 +35,17 @@ const MainContent: React.FC = () => {
     completeTutorial, 
     syncStatus,
     rewardCelebration,
-    clearRewardCelebration
+    clearRewardCelebration,
+    isWhatsNewOpen,
+    openWhatsNew,
+    closeWhatsNew,
+    markCurrentVersionAsSeen,
+    currentAppVersion,
+    newlyUnlockedBadge,
+    clearNewlyUnlockedBadge,
+    updateMemberActiveBadge
   } = useApp();
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'settings'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings'>('dashboard');
 
   // Automatically switch to overview / dashboard when celebration triggers so user sees the progress bar
   useEffect(() => {
@@ -91,6 +102,22 @@ const MainContent: React.FC = () => {
     isOpen: boolean;
     taskToEdit?: TaskItem | null;
   }>({ isOpen: false, taskToEdit: null });
+
+  // --- Achievement Sequencing Logic ---
+  // We want to show the achievement ONLY after the coin celebration is finished.
+  const [delayedBadge, setDelayedBadge] = useState<any>(null);
+
+  useEffect(() => {
+    if (newlyUnlockedBadge && !rewardCelebration) {
+      // Small additional safety delay to ensure celebration transition is fully gone
+      const timer = setTimeout(() => {
+        setDelayedBadge(newlyUnlockedBadge);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (!newlyUnlockedBadge) {
+      setDelayedBadge(null);
+    }
+  }, [newlyUnlockedBadge, rewardCelebration]);
 
   // Open profile selector automatically if no user is active
   useEffect(() => {
@@ -166,24 +193,47 @@ const MainContent: React.FC = () => {
 
         {currentTab === 'pinnwand' && <PinnwandBoard />}
 
+        {currentTab === 'abzeichen' && <BadgesMuseum />}
+
         {currentTab === 'settings' && <AdminSettings />}
       </main>
 
-      {/* Footer (Desktop only so mobile bar has clean full-height canvas) */}
-      <footer className="hidden sm:block py-6 border-t border-[var(--m3-outline-variant)] text-center text-xs text-[var(--m3-on-surface-variant)]">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Haushalt PWA • Gamifiziertes Familien-Haushaltsmanagement</span>
+      {/* Footer (Visible on desktop and mobile with safe padding) */}
+      <footer className="py-6 pb-28 sm:pb-6 border-t border-[var(--m3-outline-variant)]/60 text-center text-xs text-[var(--m3-on-surface-variant)] transition-colors">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-start">
+            <span className="font-semibold text-[var(--m3-on-surface)]">
+              {data.settings.household_name || 'Fish & Wish'}
+            </span>
+            <span>•</span>
+            {/* Clickable Version Badge with playful pulse and hover */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.06, y: -1 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={openWhatsNew}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--m3-surface-container)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-primary)] border border-[var(--m3-outline-variant)] text-[11px] font-extrabold transition shadow-2xs cursor-pointer group"
+              title="Versionshinweise und Neuerungen anzeigen"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform" />
+              <span>v{currentAppVersion}</span>
+              <span className="text-[10px] text-[var(--m3-on-surface-variant)] group-hover:text-[var(--m3-primary)] font-bold transition">
+                • Was ist neu? ✨
+              </span>
+            </motion.button>
+          </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowProfileSelector(true)}
-              className="hover:text-slate-900 dark:hover:text-slate-200 transition font-medium"
+              className="hover:text-[var(--m3-on-surface)] transition font-medium cursor-pointer"
             >
               Profil wechseln
             </button>
             <span>•</span>
-            <span className="text-emerald-500 flex items-center gap-1 font-medium">
+            <span className="text-emerald-500 flex items-center gap-1.5 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-              Lokal & Tab-Sync aktiv
+              {firebaseUser ? 'Cloud-Sync aktiv' : 'Lokal & Tab-Sync'}
             </span>
           </div>
         </div>
@@ -277,10 +327,29 @@ const MainContent: React.FC = () => {
         onComplete={completeTutorial}
       />
 
+      {/* "Was ist neu?" Announcement Modal per Account */}
+      <WhatsNewModal
+        isOpen={isWhatsNewOpen && !isTutorialOpen && !showCloudOnboarding}
+        onClose={closeWhatsNew}
+        onAcknowledge={markCurrentVersionAsSeen}
+        activeUserName={activeUser?.name}
+      />
+
       {/* Gamified Task Completion Celebration & Flying Coins to Progress Bar */}
       <ChoreCompletionCelebration
         celebration={rewardCelebration}
         onComplete={clearRewardCelebration}
+      />
+
+      {/* Achievement Unlocked Reveal Modal */}
+      <AchievementRevealModal
+        badge={delayedBadge}
+        onClose={clearNewlyUnlockedBadge}
+        onSetAsActiveBadge={(bId) => {
+          if (activeUser) {
+            updateMemberActiveBadge(activeUser.id, () => bId);
+          }
+        }}
       />
     </div>
   );

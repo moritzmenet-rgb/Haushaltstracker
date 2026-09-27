@@ -131,7 +131,8 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
           star_multiplier_1: mult1,
           star_multiplier_2: mult2,
           star_multiplier_3: mult3
-        }
+        },
+        logToEdit?.timestamp
       )
     : 0;
 

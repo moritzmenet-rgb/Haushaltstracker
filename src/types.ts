@@ -15,6 +15,10 @@ export interface FamilyMember {
   has_seen_tutorial?: boolean;
   preferred_theme?: ColorTheme;
   preferred_mode?: 'light' | 'dark';
+  unlocked_badges?: Record<string, string>; // badgeId -> ISO string
+  showroom_badges?: string[]; // max 5 badge IDs
+  active_badge_id?: string; // active badge ID displayed as icon next to name
+  last_seen_version?: string;
 }
 
 export interface TaskItem {
@@ -65,6 +69,7 @@ export interface FamilySettings {
   scheduled_reset_hour?: number; // 0 to 23
   scheduled_reset_minute?: number; // 0 to 59
   auto_reset_enabled?: boolean;
+  last_scheduled_run?: string;
 }
 
 export interface SessionLog {
@@ -121,6 +126,7 @@ export interface FamilyData {
   tasks: Record<string, TaskItem>;
   logs: ChoreLog[];
   pinnwand?: Record<string, PinnwandNote>;
+  trophyOwners?: Record<string, string>;
 }
 
 export interface WeeklyRollOverPreview {

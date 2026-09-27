@@ -620,10 +620,10 @@ export const RuleSettingsTab: React.FC = () => {
         <div className="space-y-2 mb-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-wider text-[var(--m3-on-surface-variant)]">
-              Live-Vorschau: Alle Mitglieder bei sofortigem Reset
+              Live-Vorschau: Nächstes Wochenziel
             </span>
             <span className="text-[11px] text-[var(--m3-primary)] font-black">
-              Berechnet in Echtzeit
+              Punkte bleiben erhalten
             </span>
           </div>
 
@@ -643,23 +643,21 @@ export const RuleSettingsTab: React.FC = () => {
                       {p.memberName}
                     </span>
                     <span className="text-[var(--m3-outline)] text-[11px]">
-                      (Erreicht: {p.achievedPoints} / Soll: {p.oldTarget} Pkt.)
+                      (Aktuell: {p.achievedPoints} / Ziel: {p.oldTarget} Pkt.)
                     </span>
                   </div>
-
+ 
                   <div className="flex items-center gap-3">
                     {p.difference > 0 ? (
                       <span className="text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1">
                         <TrendingUp className="w-3.5 h-3.5" />
-                        +{p.difference} Pkt. Rückstand
-                      </span>
-                    ) : p.difference < 0 ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
-                        <TrendingDown className="w-3.5 h-3.5" />
-                        {Math.abs(p.difference)} Pkt. Vorsprung 🎉
+                        -{p.difference} Pkt. bis zum Ziel
                       </span>
                     ) : (
-                      <span className="text-[var(--m3-outline)] font-medium">Ziel exakt erreicht</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Ziel erreicht! 🎉
+                      </span>
                     )}
 
                     <div className="flex items-center gap-1.5 font-bold pl-2 border-l border-[var(--m3-outline-variant)]">
@@ -667,7 +665,7 @@ export const RuleSettingsTab: React.FC = () => {
                       <span className="text-[var(--m3-primary)] text-sm font-black">
                         {p.newTarget} Pkt.
                       </span>
-                      <span className="text-[10px] text-[var(--m3-outline)] font-normal">neu</span>
+                      <span className="text-[10px] text-[var(--m3-outline)] font-normal">nächstes Ziel</span>
                     </div>
                   </div>
                 </div>
@@ -685,7 +683,7 @@ export const RuleSettingsTab: React.FC = () => {
             className="m3-btn-filled px-6 py-3 text-xs font-black inline-flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Wochen-Reset jetzt manuell ausführen</span>
+            <span>Wochenziele jetzt manuell erhöhen</span>
           </motion.button>
         </div>
       </div>
@@ -693,9 +691,9 @@ export const RuleSettingsTab: React.FC = () => {
       {/* Confirmation Modal for Reset */}
       <ConfirmModal
         isOpen={showResetModal}
-        title="Wochen-Reset wirklich ausführen?"
-        message="Dadurch wird die neue Woche gestartet. Die erreichten Punkte der aktuellen Woche werden archiviert und die neuen individuellen Wochenziele anhand der Roll-Over-Formel berechnet und gesetzt."
-        confirmLabel="Ja, Reset ausführen"
+        title="Wochenziele jetzt erhöhen?"
+        message="Dadurch wird die neue Woche vorbereitet. Die Punkte bleiben erhalten, aber das Ziel jedes Mitglieds wird um das Standard-Wochenziel erhöht."
+        confirmLabel="Ja, Ziele erhöhen"
         cancelLabel="Abbrechen"
         onConfirm={handleExecuteConfirmedReset}
         onCancel={() => setShowResetModal(false)}

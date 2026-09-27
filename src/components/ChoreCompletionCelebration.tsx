@@ -98,10 +98,13 @@ export const ChoreCompletionCelebration: React.FC<ChoreCompletionCelebrationProp
       }
     }, 3300);
 
-    // End Celebration at 3.8s
+    // End Celebration at 3.8s + 250ms delay
     const timer4 = setTimeout(() => {
       setPhase('idle');
-      onComplete();
+      // Wait another 250ms as requested before finally calling onComplete
+      setTimeout(() => {
+        onComplete();
+      }, 250);
     }, 3800);
 
     return () => {

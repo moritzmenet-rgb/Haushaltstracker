@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getInitials, formatRelativeDate, getCategoryStyle } from '../utils';
+import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 
 interface MemberProfileModalProps {
   memberId: string | null;
@@ -32,6 +33,8 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
     if (!memberId) return null;
     return data.members[memberId];
   }, [memberId, data.members]);
+
+  const activeBadgeDef = member?.active_badge_id ? ACHIEVEMENTS_DATA.find(b => b.id === member.active_badge_id) : null;
 
   // Statistics Calculation
   const stats = useMemo(() => {
@@ -139,8 +142,13 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 {getInitials(member.name)}
               </motion.div>
               <div className="pb-4">
-                <h2 className="text-3xl font-black text-white drop-shadow-sm leading-none mb-2">
-                  {member.name}
+                <h2 className="text-3xl font-black text-white drop-shadow-sm leading-none mb-2 flex items-center gap-2.5">
+                  <span>{member.name}</span>
+                  {activeBadgeDef && (
+                    <span title={`Titel: ${activeBadgeDef.title}`} className="text-2xl drop-shadow-md">
+                      {activeBadgeDef.emoji}
+                    </span>
+                  )}
                 </h2>
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1 rounded-xl bg-white/20 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10">
@@ -173,6 +181,34 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 <Clock className="w-5 h-5 text-indigo-500 mb-2" />
                 <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.totalDurationHours || '0.0'}h</div>
                 <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Investiert</div>
+              </div>
+            </div>
+
+            {/* Showroom Badges in Profile Modal */}
+            <div className="p-5 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-500" />
+                Abzeichen-Showroom ({member.showroom_badges?.length || 0}/5)
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                {member.showroom_badges && member.showroom_badges.length > 0 ? (
+                  member.showroom_badges.map((bId: string) => {
+                    const bDef = ACHIEVEMENTS_DATA.find(b => b.id === bId);
+                    if (!bDef) return null;
+                    return (
+                      <div 
+                        key={bId}
+                        className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] shadow-2xs"
+                        title={bDef.description}
+                      >
+                        <span className="text-xl">{bDef.emoji}</span>
+                        <span className="text-xs font-black text-[var(--m3-on-surface)]">{bDef.title}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-[var(--m3-on-surface-variant)] italic">Noch keine Abzeichen im Showroom ausgestellt.</p>
+                )}
               </div>
             </div>
 

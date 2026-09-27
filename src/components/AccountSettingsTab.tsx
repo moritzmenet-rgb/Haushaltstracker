@@ -13,10 +13,14 @@ import {
   Eye, 
   EyeOff,
   AlertCircle,
-  Fingerprint
+  Fingerprint,
+  Trophy,
+  Star,
+  RotateCcw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
+import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 
 export const AccountSettingsTab: React.FC = () => {
   const { activeUser, updateProfile, openTutorial } = useApp();
@@ -31,6 +35,23 @@ export const AccountSettingsTab: React.FC = () => {
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricCredentialId, setBiometricCredentialId] = useState<string | null>(null);
+
+  const showroomBadgeIds = activeUser?.showroom_badges || [];
+  const activeBadgeId = activeUser?.active_badge_id;
+  const activeBadgeDef = activeBadgeId ? ACHIEVEMENTS_DATA.find(b => b.id === activeBadgeId) : null;
+  const showroomBadges = showroomBadgeIds.map((id: string) => ACHIEVEMENTS_DATA.find(b => b.id === id)).filter(Boolean);
+
+  const handleResetBadges = () => {
+    if (window.confirm('Möchtest du deine freigeschalteten Abzeichen und deinen Showroom zurücksetzen (Bugfix / Reset)?')) {
+      updateProfile({
+        unlocked_badges: {},
+        showroom_badges: [],
+        active_badge_id: undefined
+      });
+      setSaveSuccess('Abzeichen und Showroom wurden erfolgreich zurückgesetzt.');
+      setTimeout(() => setSaveSuccess(null), 4000);
+    }
+  };
 
   useEffect(() => {
     if (activeUser) {
@@ -204,8 +225,16 @@ export const AccountSettingsTab: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-black text-[var(--m3-on-surface)]">
-                  {name || activeUser.name}
+                <h2 className="text-xl font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+                  <span>{name || activeUser.name}</span>
+                  {activeBadgeDef && (
+                    <span 
+                      className="inline-flex items-center justify-center text-lg" 
+                      title={`Aktiver Titel: ${activeBadgeDef.title}`}
+                    >
+                      {activeBadgeDef.emoji}
+                    </span>
+                  )}
                 </h2>
                 {activeUser.role === 'admin' ? (
                   <span className="bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
@@ -231,6 +260,51 @@ export const AccountSettingsTab: React.FC = () => {
           >
             <HelpCircle className="w-4 h-4 text-[var(--m3-primary)]" />
             <span>App-Tour starten</span>
+          </button>
+        </div>
+
+        {/* Profile Showroom & Active Title Badge Preview */}
+        <div className="mb-6 p-4 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)]/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center font-black">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase text-[var(--m3-on-surface-variant)] tracking-wider">Mein Showroom & Titel</span>
+                {activeBadgeDef && (
+                  <span className="px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] text-[10px] font-bold flex items-center gap-1">
+                    <span>{activeBadgeDef.emoji}</span>
+                    <span>{activeBadgeDef.title}</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {showroomBadges.length > 0 ? (
+                  showroomBadges.map((badge: any) => (
+                    <div 
+                      key={badge.id}
+                      className="w-9 h-9 rounded-xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-center text-lg shadow-xs"
+                      title={badge.title}
+                    >
+                      {badge.emoji}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-xs text-[var(--m3-on-surface-variant)] italic">Noch keine Abzeichen im Showroom (wähle im Abzeichen-Museum deine Favoriten aus).</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleResetBadges}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold transition cursor-pointer border border-rose-500/30 shrink-0"
+            title="Freigeschaltete Abzeichen & Showroom zurücksetzen (bei Bugs)"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Abzeichen Reset</span>
           </button>
         </div>
 

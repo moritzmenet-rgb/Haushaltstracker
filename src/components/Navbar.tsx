@@ -12,15 +12,16 @@ import {
   Loader2,
   CheckCircle2,
   Sparkles,
-  Pin
+  Pin,
+  Trophy
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
 
 interface NavbarProps {
-  currentTab: 'dashboard' | 'tasks' | 'pinnwand' | 'settings';
-  onSelectTab: (tab: 'dashboard' | 'tasks' | 'pinnwand' | 'settings') => void;
+  currentTab: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings';
+  onSelectTab: (tab: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings') => void;
   onOpenProfileSelector: () => void;
   onOpenLogModal: () => void;
 }
@@ -47,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const householdTitle = data.settings?.household_name || 'Haushalt';
 
   const tabs: Array<{
-    id: 'dashboard' | 'tasks' | 'pinnwand' | 'settings';
+    id: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings';
     label: string;
     icon: React.ReactNode;
     badge?: string;
@@ -67,6 +68,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       label: 'Pinnwand',
       icon: <Pin className="w-5 h-5 fill-current rotate-12" />,
       badge: (pinnwandNotes?.length || 0) > 0 ? `${pinnwandNotes.length}` : undefined
+    },
+    {
+      id: 'abzeichen',
+      label: 'Abzeichen',
+      icon: <Trophy className="w-5 h-5 text-amber-500" />,
+      badge: '30'
     },
     {
       id: 'settings',
@@ -299,6 +306,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Pin className={`transition-transform ${currentTab === 'pinnwand' ? 'w-6.5 h-6.5 fill-current rotate-12' : 'w-5.5 h-5.5 rotate-12'}`} />
+          </button>
+
+          {/* Abzeichen Tab */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('abzeichen')}
+            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
+              currentTab === 'abzeichen' 
+                ? 'text-[var(--m3-on-surface)]' 
+                : 'text-[var(--m3-on-surface-variant)]/70'
+            }`}
+          >
+            <Trophy className={`transition-transform text-amber-500 ${currentTab === 'abzeichen' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
           </button>
 
           {/* Settings / Profile Tab */}

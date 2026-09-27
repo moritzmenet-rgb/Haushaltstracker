@@ -101,9 +101,13 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
     total_points: Number(member.total_points || 0),
     weekly_target: Number(member.weekly_target || 50),
     has_seen_tutorial: Boolean(member.has_seen_tutorial),
+    last_seen_version: member.last_seen_version ? String(member.last_seen_version) : null,
     pin_code: String(member.pin_code || ''),
     preferred_theme: member.preferred_theme || null,
     preferred_mode: member.preferred_mode || null,
+    unlocked_badges: member.unlocked_badges || {},
+    showroom_badges: Array.isArray(member.showroom_badges) ? member.showroom_badges : [],
+    active_badge_id: member.active_badge_id || null,
     householdId: HOUSEHOLD_ID
   };
 }

@@ -1,0 +1,84 @@
+import confetti from 'canvas-confetti';
+
+/**
+ * Fires a joyful, celebratory confetti shower
+ */
+export function fireConfetti(options?: {
+  particleCount?: number;
+  spread?: number;
+  origin?: { x: number; y: number };
+}) {
+  try {
+    const count = options?.particleCount || 60;
+    const spread = options?.spread || 70;
+    const origin = options?.origin || { x: 0.5, y: 0.6 };
+
+    confetti({
+      particleCount: count,
+      spread,
+      origin,
+      colors: ['#4F46E5', '#F59E0B', '#10B981', '#EC4899', '#3B82F6', '#8B5CF6'],
+      ticks: 200,
+      gravity: 1.1,
+      scalar: 1.1,
+      shapes: ['circle', 'square'],
+      disableForReducedMotion: true
+    });
+  } catch (e) {
+    console.warn('Confetti notice:', e);
+  }
+}
+
+/**
+ * Fires playful golden star confetti for major achievements
+ */
+export function fireStarConfetti() {
+  try {
+    confetti({
+      particleCount: 45,
+      spread: 80,
+      origin: { x: 0.5, y: 0.5 },
+      colors: ['#F59E0B', '#FBBF24', '#FCD34D', '#FFFFFF', '#6366F1'],
+      ticks: 240,
+      gravity: 0.9,
+      scalar: 1.3,
+      shapes: ['star'],
+      disableForReducedMotion: true
+    });
+  } catch (e) {
+    console.warn('Star confetti notice:', e);
+  }
+}
+
+/**
+ * Fires celebratory side cannons from left & right corners
+ */
+export function fireSideCannons() {
+  try {
+    const end = Date.now() + 800;
+
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#4F46E5', '#10B981', '#F59E0B', '#EC4899']
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#4F46E5', '#10B981', '#F59E0B', '#EC4899']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  } catch (e) {
+    console.warn('Cannons notice:', e);
+  }
+}

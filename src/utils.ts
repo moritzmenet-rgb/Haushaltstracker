@@ -54,10 +54,18 @@ export const RATING_FACTORS: Record<1 | 2 | 3, number> = {
 export function calculatePoints(
   basePoints: number, 
   stars: 1 | 2 | 3,
-  settings?: { star_multiplier_1?: number; star_multiplier_2?: number; star_multiplier_3?: number }
+  settings?: { star_multiplier_1?: number; star_multiplier_2?: number; star_multiplier_3?: number },
+  timestamp?: string
 ): number {
   let factor = RATING_FACTORS[stars] || 1;
-  if (settings) {
+  
+  // Cutoff date: September 27, 2026
+  const cutoffDate = new Date('2026-09-27T00:00:00Z').getTime();
+  const logDate = timestamp ? new Date(timestamp).getTime() : Date.now();
+  const isHistorical = logDate < cutoffDate;
+
+  // Only use settings multipliers for entries on or after the cutoff date
+  if (settings && !isHistorical) {
     if (stars === 1 && typeof settings.star_multiplier_1 === 'number') {
       factor = settings.star_multiplier_1 / 100;
     } else if (stars === 2 && typeof settings.star_multiplier_2 === 'number') {
@@ -66,6 +74,7 @@ export function calculatePoints(
       factor = settings.star_multiplier_3 / 100;
     }
   }
+  
   const result = Math.round(basePoints * factor);
   return basePoints > 0 ? Math.max(1, result) : 0;
 }

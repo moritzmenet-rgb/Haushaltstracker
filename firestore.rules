@@ -38,17 +38,16 @@ service cloud.firestore {
     function isBlocked() {
       return !isMoritz() &&
              exists(/databases/$(database)/documents/households/main_household) &&
-             'blocked_emails' in get(/databases/$(database)/documents/households/main_household).data &&
-             authEmail() != '' &&
+             authEmail() != "" && 
+             "blocked_emails" in get(/databases/$(database)/documents/households/main_household).data && 
              get(/databases/$(database)/documents/households/main_household).data.blocked_emails.hasAny([authEmail()]);
     }
     
     function isVerified() {
       return isSignedIn() && (
-        isMoritz() ||
-        (
+        isMoritz() || (
           !isBlocked() && (
-            ('email_verified' in request.auth.token && request.auth.token.email_verified == true) || 
+            ("email_verified" in request.auth.token && request.auth.token.email_verified == true) || 
             isGoogleUser() ||
             isAppleUser()
           )
@@ -58,12 +57,11 @@ service cloud.firestore {
     
     function isAdmin() {
       return isSignedIn() && (
-        isMoritz() ||
-        (
+        isMoritz() || (
           isVerified() &&
           exists(/databases/$(database)/documents/households/main_household) &&
-          'allowed_emails' in get(/databases/$(database)/documents/households/main_household).data &&
-          authEmail() != '' &&
+          authEmail() != "" && 
+          "allowed_emails" in get(/databases/$(database)/documents/households/main_household).data && 
           get(/databases/$(database)/documents/households/main_household).data.allowed_emails.hasAny([authEmail()])
         )
       );
@@ -86,9 +84,14 @@ service cloud.firestore {
     }
 
     function isValidMember(data) {
-      return 'id' in data && data.id is string && 
-             'name' in data && data.name is string && 
-             'role' in data && data.role in ['admin', 'member'];
+      return data.keys().hasAll(['id', 'name', 'role', 'avatar_color']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role in ['admin', 'member'] &&
+             data.avatar_color is string &&
+             (!('unlocked_badges' in data) || data.unlocked_badges is map) &&
+             (!('showroom_badges' in data) || data.showroom_badges is list) &&
+             (!('active_badge_id' in data) || (data.active_badge_id == null || data.active_badge_id is string));
     }
 
     function isValidTask(data) {
