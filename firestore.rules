@@ -150,7 +150,7 @@ service cloud.firestore {
       match /logs/{logId} {
         allow read: if isVerified();
         allow create, update: if isVerified() && (isMoritz() || isValidLog(incoming()));
-        allow delete: if isAdmin();
+        allow delete: if isAdmin() || isVerified();
       }
 
       // Pinnwand Subcollection (Notes, Threads, Polls, Reactions)

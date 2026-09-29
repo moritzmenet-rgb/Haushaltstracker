@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
 import { FamilyMember } from '../types';
 import { PinModal } from './PinModal';
+import { UserBadge } from './UserBadge';
 
 interface ProfileSelectorProps {
   isOpen: boolean;
@@ -196,7 +197,18 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
             {/* Profile Tiles Grid (When not initial setup) */}
             {!isInitialSetup && (
-              <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 mb-10">
+              <motion.div 
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.1 }
+                  }
+                }}
+                className="flex flex-wrap justify-center items-center gap-6 sm:gap-10 mb-10"
+              >
                 {membersList.map((member) => {
                   const isCurrent = activeUser?.id === member.id;
                   const initials = getInitials(member.name);
@@ -205,8 +217,12 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                   return (
                     <motion.button
                       key={member.id}
-                      whileHover={{ scale: 1.08, y: -4 }}
-                      whileTap={{ scale: 0.96 }}
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.8, y: 20 },
+                        visible: { opacity: 1, scale: 1, y: 0 }
+                      }}
+                      whileHover={{ scale: 1.1, y: -6 }}
+                      whileTap={{ scale: 0.94 }}
                       onClick={() => handleSelectProfile(member)}
                       className="group flex flex-col items-center focus:outline-none cursor-pointer"
                     >
@@ -251,9 +267,12 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                       </div>
 
                       {/* Name and points */}
-                      <span className="mt-3 text-base sm:text-lg font-black text-[var(--m3-on-surface)] group-hover:text-[var(--m3-primary)] transition-colors">
-                        {member.name}
-                      </span>
+                      <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+                        <span className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] group-hover:text-[var(--m3-primary)] transition-colors">
+                          {member.name}
+                        </span>
+                        <UserBadge badgeId={member.active_badge_id} size="sm" />
+                      </div>
                       <span className="text-xs font-bold text-[var(--m3-on-surface-variant)]">
                         {member.total_points || 0} Pkt.
                       </span>
@@ -264,6 +283,10 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                 {/* Add Profile Tile (Only visible if admin) */}
                 {canAddMembers && !showAddForm && (
                   <motion.button
+                    variants={{
+                      hidden: { opacity: 0, scale: 0.8, y: 20 },
+                      visible: { opacity: 1, scale: 1, y: 0 }
+                    }}
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.96 }}
                     onClick={() => setShowAddForm(true)}
@@ -280,7 +303,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                     </span>
                   </motion.button>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* Non-admin hint if profiles exist */}

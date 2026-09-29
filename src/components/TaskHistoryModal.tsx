@@ -4,6 +4,7 @@ import { History, Star, Clock, Trash2, X, ShieldAlert, Award } from 'lucide-reac
 import { useApp } from '../context/AppContext';
 import { formatRelativeDate, getInitials } from '../utils';
 import { ConfirmModal } from './ConfirmModal';
+import { UserBadge } from './UserBadge';
 
 interface TaskHistoryModalProps {
   taskId: string | null;
@@ -113,10 +114,11 @@ export const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
                       </div>
 
                       <div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-bold text-[var(--m3-on-surface)]">
                             {user.name}
                           </span>
+                          <UserBadge badgeId={user.active_badge_id} size="xs" />
                           <span className="text-[10px] text-[var(--m3-outline)] font-medium">
                             {formatRelativeDate(log.timestamp)}
                           </span>

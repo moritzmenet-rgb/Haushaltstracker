@@ -51,7 +51,7 @@ export const AchievementRevealModal: React.FC<AchievementRevealModalProps> = ({
               damping: 15,
               mass: 1.2
             }}
-            className="relative bg-[var(--m3-surface-container-high)] border-2 border-white/20 rounded-[48px] p-8 max-w-sm w-full shadow-[0_32px_80px_rgba(0,0,0,0.6)] text-center overflow-hidden"
+            className="relative bg-[var(--m3-surface-container-high)] border-2 border-white/20 rounded-[36px] sm:rounded-[48px] p-6 sm:p-8 max-w-sm w-full max-h-[92vh] overflow-y-auto shadow-[0_32px_80px_rgba(0,0,0,0.6)] text-center"
           >
             {/* Animated Glow behind the badge */}
             <motion.div 

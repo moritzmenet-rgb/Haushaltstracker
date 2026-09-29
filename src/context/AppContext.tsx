@@ -3,6 +3,7 @@ import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, Pinnwan
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
+import { scanAndAwardHistoricalAchievements, computeLiveTrophyOwners } from '../utils/achievementScanner';
 import { applyColorTheme } from '../theme';
 import { 
   db, 
@@ -87,6 +88,7 @@ interface AppContextType {
     timestamp?: string;
   }) => Promise<boolean>;
   deleteLog: (logId: string) => Promise<boolean>;
+  logPointsAdjustment?: (targetUserId: string, deltaPoints: number, reason?: string) => Promise<void>;
 
   // Task CRUD (Admin)
   createTask: (task: Omit<TaskItem, 'id' | 'created_by' | 'last_done'>) => void;
@@ -168,7 +170,9 @@ interface AppContextType {
   // Badges & Trophies
   newlyUnlockedBadge: AchievementDef | null;
   clearNewlyUnlockedBadge: () => void;
-  triggerTestAchievement: () => void;
+  rescanAllAchievements: () => number;
+  easterEggClickCount: number;
+  triggerEasterEggClick: () => void;
   updateMemberBadgeShowroom: (memberId: string, badgeIds: string[]) => void;
   updateMemberActiveBadge: (memberId: string, updater: (current?: string) => string | undefined) => void;
 }
@@ -207,10 +211,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [newlyUnlockedBadge, setNewlyUnlockedBadge] = useState<AchievementDef | null>(null);
   const clearNewlyUnlockedBadge = useCallback(() => setNewlyUnlockedBadge(null), []);
-  const triggerTestAchievement = useCallback(() => {
-    const randomBadge = ACHIEVEMENTS_DATA[Math.floor(Math.random() * ACHIEVEMENTS_DATA.length)];
-    setNewlyUnlockedBadge(randomBadge);
-  }, []);
+
+  const [easterEggClickCount, setEasterEggClickCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return Number(localStorage.getItem('household_easter_egg_clicks') || 0);
+    }
+    return 0;
+  });
 
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const openWhatsNew = useCallback(() => setIsWhatsNewOpen(true), []);
@@ -226,6 +233,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (parsed && parsed.members && parsed.tasks) {
             if (!parsed.pinnwand || Object.keys(parsed.pinnwand).length === 0) {
               parsed.pinnwand = { ...DEFAULT_PINNWAND_NOTES };
+            }
+            // Ensure every member's total_points is strictly calculated from all existing logs
+            const currentLogs: ChoreLog[] = Array.isArray(parsed.logs) ? parsed.logs : [];
+            for (const mId of Object.keys(parsed.members)) {
+              parsed.members[mId].total_points = currentLogs
+                .filter((l: any) => l.user_id === mId)
+                .reduce((sum: number, l: any) => sum + (Number(l.points_awarded) || 0), 0);
             }
             return parsed;
           }
@@ -266,10 +280,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const member = data.members[memberId];
     if (!member) return;
     const updated = { ...member, showroom_badges: badgeIds };
-    setData(prev => ({
-      ...prev,
-      members: { ...prev.members, [memberId]: updated }
-    }));
+    setData(prev => {
+      const nextMembers = { ...prev.members, [memberId]: updated };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
       await saveMemberToCloud(updated);
     }
@@ -279,17 +295,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const member = data.members[memberId];
     if (!member) return;
     const nextBadgeId = updater(member.active_badge_id);
-    const updated = { 
+    const updated: FamilyMember = { 
       ...member, 
-      active_badge_id: nextBadgeId,
-      unlocked_badges: nextBadgeId ? { ...(member.unlocked_badges || {}), [nextBadgeId]: member.unlocked_badges?.[nextBadgeId] || new Date().toISOString() } : member.unlocked_badges
+      active_badge_id: nextBadgeId || undefined,
+      unlocked_badges: nextBadgeId ? { 
+        ...(member.unlocked_badges || {}), 
+        [nextBadgeId]: member.unlocked_badges?.[nextBadgeId] || new Date().toISOString(),
+        badge_title: member.unlocked_badges?.['badge_title'] || new Date().toISOString()
+      } : member.unlocked_badges
     };
-    setData(prev => ({
-      ...prev,
-      members: { ...prev.members, [memberId]: updated }
-    }));
+    setData(prev => {
+      const nextMembers = { ...prev.members, [memberId]: updated };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
     if (firebaseUser) {
-      await saveMemberToCloud(updated);
+      try {
+        await saveMemberToCloud(updated);
+      } catch (err) {
+        console.warn('Could not save member active badge to cloud:', err);
+      }
     }
   }, [data.members, firebaseUser]);
 
@@ -354,13 +380,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return Promise.resolve(true);
   }, [firebaseUser]);
 
+  // Computed data state where members always have their total_points strictly calculated from all current logs,
+  // and Wanderpokale (trophyOwners) are calculated 100% dynamically and switch live!
+  const dataWithCalculatedPoints = useMemo<FamilyData>(() => {
+    const computedMembers: Record<string, FamilyMember> = {};
+    const logs = data.logs || [];
+    for (const [id, member] of Object.entries(data.members || {})) {
+      const calculatedTotal = logs
+        .filter(l => l.user_id === id)
+        .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+      computedMembers[id] = {
+        ...member,
+        total_points: calculatedTotal
+      };
+    }
+
+    // Compute live trophy owners dynamically from all current logs & members!
+    const liveTrophyOwners = computeLiveTrophyOwners(logs, computedMembers, data.trophyOwners);
+
+    // If any member's active_badge_id is a trophy they no longer hold, disallow it
+    for (const [id, member] of Object.entries(computedMembers)) {
+      if (member.active_badge_id && member.active_badge_id.startsWith('trophy_')) {
+        if (liveTrophyOwners[member.active_badge_id] !== id) {
+          computedMembers[id] = {
+            ...member,
+            active_badge_id: undefined
+          };
+        }
+      }
+    }
+
+    return {
+      ...data,
+      members: computedMembers,
+      trophyOwners: liveTrophyOwners
+    };
+  }, [data]);
+
   const isAdmin = useMemo(() => {
     if (firebaseUser?.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') return true;
-    const currentMember = activeUserId ? data.members[activeUserId] : null;
+    const currentMember = activeUserId ? dataWithCalculatedPoints.members[activeUserId] : null;
     return currentMember?.role === 'admin';
-  }, [firebaseUser, activeUserId, data.members]);
+  }, [firebaseUser, activeUserId, dataWithCalculatedPoints.members]);
 
-  const activeUser = useMemo(() => activeUserId ? data.members[activeUserId] || null : null, [activeUserId, data.members]);
+  const activeUser = useMemo(() => activeUserId ? dataWithCalculatedPoints.members[activeUserId] || null : null, [activeUserId, dataWithCalculatedPoints.members]);
 
   const markCurrentVersionAsSeen = useCallback(() => {
     if (!activeUser) return;
@@ -609,7 +672,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (Object.keys(membersMap).length > 0) {
         setData(prev => {
-          const next = { ...prev, members: membersMap };
+          const currentLogs = prev.logs || [];
+          const updatedMembersMap: Record<string, FamilyMember> = {};
+          for (const [mId, m] of Object.entries(membersMap)) {
+            const calculatedTotal = currentLogs
+              .filter(l => l.user_id === mId)
+              .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+            updatedMembersMap[mId] = {
+              ...m,
+              active_badge_id: m.active_badge_id || undefined,
+              total_points: calculatedTotal
+            };
+          }
+          const next = { ...prev, members: updatedMembersMap };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
           return next;
         });
@@ -676,7 +751,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       setData(prev => {
         const sorted = logsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        const next = { ...prev, logs: sorted };
+        // Calculate each member's total_points strictly from the updated logs!
+        const updatedMembers: Record<string, FamilyMember> = {};
+        for (const [mId, m] of Object.entries(prev.members || {})) {
+          const userLogsPoints = sorted
+            .filter(l => l.user_id === mId)
+            .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+          updatedMembers[mId] = {
+            ...m,
+            total_points: userLogsPoints
+          };
+        }
+        const next = { ...prev, logs: sorted, members: updatedMembers };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         return next;
       });
@@ -765,92 +851,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const updatedTask = { ...task, last_done: now };
-    let updatedMember = { ...data.members[activeUser.id], total_points: (data.members[activeUser.id].total_points || 0) + points };
+    const nextLogs = [newLog, ...data.logs];
+    const newTotalPoints = nextLogs
+      .filter(l => l.user_id === activeUser.id)
+      .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
 
-    // --- ACHIEVEMENT CHECKING LOGIC ---
-    const updatedMemberLogs = [newLog, ...data.logs].filter(l => l.user_id === activeUser.id);
-    const totalTasks = updatedMemberLogs.length;
-    const unlocked = { ...(updatedMember.unlocked_badges || {}) };
-    
-    let newBadgeId: string | null = null;
-
-    // Helper to check and set badge
-    const checkBadge = (id: string, condition: boolean) => {
-      if (condition && !unlocked[id]) {
-        // Prioritize "Secret" and "Milestones" over basic ones if multiple trigger
-        if (!newBadgeId || id.startsWith('secret_') || id.includes('goal')) {
-          newBadgeId = id;
-        }
-        unlocked[id] = now;
-      }
+    const tempMember = {
+      ...data.members[activeUser.id],
+      total_points: newTotalPoints
     };
 
-    // 1. Task count milestones
-    checkBadge('tasks_1', totalTasks >= 1);
-    checkBadge('tasks_25', totalTasks >= 25);
-    checkBadge('secret_devil', totalTasks === 66);
-    checkBadge('tasks_100', totalTasks >= 100);
-    checkBadge('tasks_250', totalTasks >= 250);
-    checkBadge('tasks_500', totalTasks >= 500);
+    const nextDataState: FamilyData = {
+      ...data,
+      tasks: { ...data.tasks, [taskId]: updatedTask },
+      logs: nextLogs,
+      members: { ...data.members, [activeUser.id]: tempMember }
+    };
 
-    // 2. Stars quality
-    if (stars === 3) {
-      checkBadge('stars_first_3', true);
-      
-      // Perfektionist: 5x 3-Sterne in einer Woche
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-      const week3StarLogs = updatedMemberLogs.filter(l => l.stars === 3 && new Date(l.timestamp) >= startOfWeek);
-      checkBadge('stars_5_per_week', week3StarLogs.length >= 5);
-    }
+    // Full historical scan across all day-1 logs + the new log for all 30 achievements
+    const scanResult = scanAndAwardHistoricalAchievements(nextDataState, activeUser.id, easterEggClickCount);
+    const updatedMember = scanResult.updatedMembers[activeUser.id] || tempMember;
 
-    // 3. Category based
-    if (task.category) {
-      const catLogs = updatedMemberLogs.filter(l => {
-        const t = data.tasks[l.task_id];
-        return t && t.category === task.category;
-      });
-      const catCount = catLogs.length;
-      
-      if (task.category.toLowerCase().includes('küche')) checkBadge('cat_kitchen_20', catCount >= 20);
-      if (task.category.toLowerCase().includes('bad')) checkBadge('cat_bad_15', catCount >= 15);
-      if (task.category.toLowerCase().includes('stube')) checkBadge('cat_stube_15', catCount >= 15);
-      if (task.category.toLowerCase().includes('zimmer')) checkBadge('cat_room_15', catCount >= 15);
-      if (task.category.toLowerCase().includes('garten')) checkBadge('cat_garten_15', catCount >= 15);
-      if (task.category.toLowerCase().includes('flur') || task.category.toLowerCase().includes('gänge')) checkBadge('cat_gänge_15', catCount >= 15);
-    }
-
-    // 4. Time based
-    const hour = new Date(now).getHours();
-    checkBadge('secret_night', hour >= 1 && hour <= 4);
-    
-    // Sunday night hero
-    const day = new Date(now).getDay();
-    if (day === 0 && hour >= 22) {
-      const cyclePoints = getMemberCyclePoints(activeUser.id, updatedMemberLogs, data.settings.last_reset_date);
-      checkBadge('secret_last_minute', cyclePoints >= targetPoints);
-    }
-
-    // 5. Points milestones
-    const currentCyclePoints = prevCyclePoints + points;
-    checkBadge('milestone_goal_1', currentCyclePoints >= targetPoints);
-    checkBadge('over_50', currentCyclePoints > 50);
-
-    if (newBadgeId) {
-      const badgeDef = ACHIEVEMENTS_DATA.find(b => b.id === newBadgeId);
-      if (badgeDef) {
-        setNewlyUnlockedBadge(badgeDef);
-        updatedMember = {
-          ...updatedMember,
-          unlocked_badges: unlocked
-        };
-      }
+    if (scanResult.newlyUnlockedForActiveUser.length > 0) {
+      setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
     }
 
     if (firebaseUser) {
-      // WAIT for cloud success before returning
-      // We don't call persistLocal here because onSnapshot will handle it
+      setData(prev => ({
+        ...prev,
+        tasks: { ...prev.tasks, [taskId]: updatedTask },
+        members: { ...prev.members, [activeUser.id]: updatedMember },
+        logs: [newLog, ...prev.logs],
+        trophyOwners: scanResult.trophyOwners
+      }));
       const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
       await triggerSyncFeedback('Aufgabe erledigt', p);
     } else {
@@ -859,7 +892,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...data,
         tasks: { ...data.tasks, [taskId]: updatedTask },
         members: { ...data.members, [activeUser.id]: updatedMember },
-        logs: [newLog, ...data.logs]
+        logs: [newLog, ...data.logs],
+        trophyOwners: scanResult.trophyOwners
       });
       triggerSyncFeedback('Aufgabe erledigt');
     }
@@ -917,37 +951,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: targetNotes
     };
 
-    const pointDifference = newPointsAwarded - oldLog.points_awarded;
+    const updatedLogs = data.logs.map(l => l.log_id === logId ? updatedLog : l);
     const updatedMembers = { ...data.members };
     
-    if (targetUserId === oldLog.user_id) {
-      // Same user, just update the difference
-      const member = updatedMembers[targetUserId];
-      if (member) {
-        updatedMembers[targetUserId] = {
-          ...member,
-          total_points: Math.max(0, (member.total_points || 0) + pointDifference)
-        };
-      }
-    } else {
-      // User changed: decrement old user, increment new user
-      const oldMember = updatedMembers[oldLog.user_id];
-      if (oldMember) {
-        updatedMembers[oldLog.user_id] = {
-          ...oldMember,
-          total_points: Math.max(0, (oldMember.total_points || 0) - oldLog.points_awarded)
-        };
-      }
-      const newMember = updatedMembers[targetUserId];
-      if (newMember) {
-        updatedMembers[targetUserId] = {
-          ...newMember,
-          total_points: (newMember.total_points || 0) + newPointsAwarded
-        };
-      }
+    // Recalculate total points strictly from all updated logs
+    for (const mId of Object.keys(updatedMembers)) {
+      const calculatedTotal = updatedLogs
+        .filter(l => l.user_id === mId)
+        .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+      updatedMembers[mId] = {
+        ...updatedMembers[mId],
+        total_points: calculatedTotal
+      };
     }
-
-    const updatedLogs = data.logs.map(l => l.log_id === logId ? updatedLog : l);
 
     if (firebaseUser) {
       const p = saveChoreLogToCloud(updatedLog, data.tasks[targetTaskId], updatedMembers[targetUserId]);
@@ -972,11 +988,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const member = data.members[log.user_id];
     const task = data.tasks[log.task_id];
 
+    // Recalculate new total points strictly from all remaining logs
+    const newTotalPoints = filteredLogs
+      .filter(l => l.user_id === log.user_id)
+      .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+
     let updatedMember: FamilyMember | undefined;
     if (member) {
       updatedMember = {
         ...member,
-        total_points: Math.max(0, (member.total_points || 0) - log.points_awarded)
+        total_points: newTotalPoints
       };
     }
 
@@ -991,10 +1012,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    const nextMembers = updatedMember 
+      ? { ...data.members, [log.user_id]: updatedMember } 
+      : data.members;
+
     const nextData: FamilyData = {
       ...data,
       logs: filteredLogs,
-      members: updatedMember ? { ...data.members, [log.user_id]: updatedMember } : data.members,
+      members: nextMembers,
       tasks: updatedTask ? { ...data.tasks, [task.id]: updatedTask } : data.tasks
     };
 
@@ -1008,6 +1033,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       triggerSyncFeedback('Eintrag gelöscht');
     }
     return true;
+  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+
+  const logPointsAdjustment = useCallback(async (targetUserId: string, deltaPoints: number, reason?: string) => {
+    const targetMember = data.members[targetUserId];
+    if (!targetMember || deltaPoints === 0) return;
+
+    const now = new Date().toISOString();
+    const newLog: ChoreLog = {
+      log_id: `log_adj_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      task_id: 'special_adjustment',
+      user_id: targetUserId,
+      stars: 3,
+      points_awarded: deltaPoints,
+      actual_duration: 0,
+      timestamp: now,
+      notes: reason?.trim() || (deltaPoints > 0 ? 'Sonderpunkte / Bonus' : 'Punkte-Korrektur')
+    };
+
+    const nextLogs = [newLog, ...data.logs];
+    const newTotalPoints = nextLogs
+      .filter(l => l.user_id === targetUserId)
+      .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+
+    const updatedMember = {
+      ...targetMember,
+      total_points: newTotalPoints
+    };
+
+    const nextDataState: FamilyData = {
+      ...data,
+      logs: nextLogs,
+      members: { ...data.members, [targetUserId]: updatedMember }
+    };
+
+    persistLocal(nextDataState);
+
+    if (firebaseUser) {
+      const p = saveChoreLogToCloud(newLog, {
+        id: 'special_adjustment',
+        title: 'Sonderpunkte / Bonus',
+        description: 'Manuelle Punkte-Anpassung durch Admin',
+        category: 'Allgemein',
+        base_points: Math.abs(deltaPoints),
+        estimated_duration: 0,
+        interval_days: 1,
+        created_by: 'Admin',
+        last_done: now
+      }, updatedMember);
+      await triggerSyncFeedback('Punkte angepasst', p);
+    } else {
+      triggerSyncFeedback('Punkte angepasst');
+    }
   }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
   const createTask = useCallback(async (task: any) => {
@@ -1720,6 +1797,96 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isAdmin, data, firebaseUser, persistLocal, triggerSyncFeedback]);
 
+  // --- Continuous Historical Scanner from Day 1 for All 30 Achievements & Trophies ---
+  const rescanAllAchievements = useCallback((): number => {
+    const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, easterEggClickCount);
+    let newBadgesCount = 0;
+    if (scanResult.hasChanges) {
+      setData(prev => ({
+        ...prev,
+        members: scanResult.updatedMembers,
+        trophyOwners: scanResult.trophyOwners
+      }));
+      persistLocal({
+        ...data,
+        members: scanResult.updatedMembers,
+        trophyOwners: scanResult.trophyOwners
+      });
+      if (firebaseUser) {
+        Object.values(scanResult.updatedMembers).forEach(m => {
+          const oldBadges = data.members[m.id]?.unlocked_badges || {};
+          const newBadges = m.unlocked_badges || {};
+          if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+            saveMemberToCloud(m).catch(console.warn);
+          }
+        });
+      }
+      newBadgesCount = scanResult.newlyUnlockedForActiveUser.length;
+      if (newBadgesCount > 0) {
+        setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
+      }
+    }
+    return newBadgesCount;
+  }, [data, activeUserId, easterEggClickCount, firebaseUser, persistLocal]);
+
+  // Triggered automatically on boot, data changes, and member changes
+  useEffect(() => {
+    if (!isAppLoaded) return;
+    const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, easterEggClickCount);
+    if (scanResult.hasChanges) {
+      setData(prev => ({
+        ...prev,
+        members: scanResult.updatedMembers,
+        trophyOwners: scanResult.trophyOwners
+      }));
+      persistLocal({
+        ...data,
+        members: scanResult.updatedMembers,
+        trophyOwners: scanResult.trophyOwners
+      });
+      if (firebaseUser) {
+        Object.values(scanResult.updatedMembers).forEach(m => {
+          const oldBadges = data.members[m.id]?.unlocked_badges || {};
+          const newBadges = m.unlocked_badges || {};
+          if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+            saveMemberToCloud(m).catch(console.warn);
+          }
+        });
+      }
+      if (scanResult.newlyUnlockedForActiveUser.length > 0 && !newlyUnlockedBadge) {
+        setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
+      }
+    }
+  }, [isAppLoaded, data.logs, activeUserId, easterEggClickCount]);
+
+  const triggerEasterEggClick = useCallback(() => {
+    setEasterEggClickCount(prev => {
+      const next = prev + 1;
+      localStorage.setItem('household_easter_egg_clicks', String(next));
+      if (next >= 10 && activeUser) {
+        const def = ACHIEVEMENTS_DATA.find(b => b.id === 'secret_easter_egg');
+        if (def && (!activeUser.unlocked_badges || !activeUser.unlocked_badges['secret_easter_egg'])) {
+          const nextBadges = { ...(activeUser.unlocked_badges || {}), secret_easter_egg: new Date().toISOString() };
+          setData(d => ({
+            ...d,
+            members: {
+              ...d.members,
+              [activeUser.id]: {
+                ...d.members[activeUser.id],
+                unlocked_badges: nextBadges
+              }
+            }
+          }));
+          if (firebaseUser) {
+            saveMemberToCloud({ ...activeUser, unlocked_badges: nextBadges }).catch(console.warn);
+          }
+          setNewlyUnlockedBadge(def);
+        }
+      }
+      return next;
+    });
+  }, [activeUser, firebaseUser]);
+
   // Automated Reset Check
   useEffect(() => {
     if (!isAppLoaded || !isAdmin || !data.settings.auto_reset_enabled) return;
@@ -1751,12 +1918,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{
-      isAppLoaded, isAuthResolving, data, activeUser, isAdmin, theme, toggleTheme,
+      isAppLoaded, isAuthResolving, data: dataWithCalculatedPoints, activeUser, isAdmin, theme, toggleTheme,
       colorTheme, effectiveTheme, setColorTheme,
       sessions, recordSession, blockUserByEmail, unblockUserByEmail, blockedEmails,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
-      logChore, updateLog, deleteLog, createTask, updateTask, deleteTask,
+      logChore, updateLog, deleteLog, logPointsAdjustment, createTask, updateTask, deleteTask,
       fishTask, unfishTask,
       rewardCelebration, triggerRewardCelebration, clearRewardCelebration,
       pinnwandNotes, createPinnwandNote, updatePinnwandNote, deletePinnwandNote,
@@ -1932,7 +2099,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       },
       newlyUnlockedBadge,
       clearNewlyUnlockedBadge,
-      triggerTestAchievement,
+      rescanAllAchievements,
+      easterEggClickCount,
+      triggerEasterEggClick,
       updateMemberBadgeShowroom,
       updateMemberActiveBadge,
       isWhatsNewOpen,

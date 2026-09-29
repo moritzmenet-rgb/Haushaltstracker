@@ -7,10 +7,12 @@ import {
   AlertTriangle, 
   Check, 
   RotateCcw,
-  Trophy
+  Trophy,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ConfirmModal } from '../ConfirmModal';
+import { ACHIEVEMENTS_DATA } from '../../data/achievementsData';
 
 export const DataManagementTab: React.FC = () => {
   const { 
@@ -18,7 +20,7 @@ export const DataManagementTab: React.FC = () => {
     importDataJSON, 
     clearAllData, 
     resetToDemoData,
-    triggerTestAchievement
+    rescanAllAchievements
   } = useApp();
 
   const [showClearModal, setShowClearModal] = useState(false);
@@ -242,19 +244,22 @@ export const DataManagementTab: React.FC = () => {
           <div className="p-5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] flex flex-col justify-between shadow-2xs">
             <div>
               <span className="font-black text-xs text-[var(--m3-on-surface)] block mb-1">
-                Achievement-Animation testen
+                Alle {ACHIEVEMENTS_DATA.length} Abzeichen scannen (seit Tag 1)
               </span>
               <p className="text-[11px] text-[var(--m3-on-surface-variant)] mb-4">
-                Zeigt ein zufälliges Abzeichen mit dem neuen "Clay-Style" Floating-Effekt und Konfetti.
+                Prüft die gesamte Historie aller Mitglieder lückenlos von Tag 1 an und schaltet verdiente Abzeichen frei.
               </p>
             </div>
             <button
               type="button"
-              onClick={triggerTestAchievement}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/80 text-[var(--m3-on-primary-container)] text-xs font-black transition border border-[var(--m3-outline-variant)] cursor-pointer"
+              onClick={() => {
+                const count = rescanAllAchievements();
+                showToast(`Scan fertig: ${count > 0 ? `${count} neue Abzeichen freigeschaltet!` : `Alle ${ACHIEVEMENTS_DATA.length} Abzeichen auf aktuellem Stand.`}`);
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--m3-surface-container)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-primary)] text-xs font-black transition border border-[var(--m3-outline-variant)] cursor-pointer"
             >
-              <Trophy className="w-4 h-4" />
-              <span>Test-Animation abfeuern</span>
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Verlauf jetzt vollständig scannen</span>
             </button>
           </div>
         </div>

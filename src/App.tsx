@@ -170,7 +170,7 @@ const MainContent: React.FC = () => {
       />
 
       {/* Main Container */}
-      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 pt-6 pb-28 sm:pb-20 ${
+      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 pt-5 pb-36 sm:pb-24 ${
         currentTab === 'pinnwand' ? 'max-w-6xl' : 'max-w-5xl'
       }`}>
         {currentTab === 'dashboard' && (

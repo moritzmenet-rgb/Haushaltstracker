@@ -17,9 +17,10 @@ import { useApp } from '../../context/AppContext';
 import { FamilyMember, UserRole } from '../../types';
 import { getInitials } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
+import { UserBadge } from '../UserBadge';
 
 export const UserManagementTab: React.FC = () => {
-  const { data, addMember, updateMember, deleteMember, activeUser } = useApp();
+  const { data, addMember, updateMember, deleteMember, activeUser, logPointsAdjustment } = useApp();
   const members = Object.values(data.members);
 
   // Modals & form state
@@ -120,9 +121,13 @@ export const UserManagementTab: React.FC = () => {
   const handleApplyPointsAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pointsAdjustMember || pointsDelta === 0) return;
-    const currentPoints = pointsAdjustMember.total_points || 0;
-    const updatedPoints = Math.max(0, currentPoints + pointsDelta);
-    await updateMember(pointsAdjustMember.id, { total_points: updatedPoints });
+    if (logPointsAdjustment) {
+      await logPointsAdjustment(pointsAdjustMember.id, pointsDelta, pointsReason);
+    } else {
+      const currentPoints = pointsAdjustMember.total_points || 0;
+      const updatedPoints = Math.max(0, currentPoints + pointsDelta);
+      await updateMember(pointsAdjustMember.id, { total_points: updatedPoints });
+    }
     setPointsAdjustMember(null);
     setPointsReason('');
     showToast(`${pointsDelta > 0 ? `+${pointsDelta}` : pointsDelta} Punkte für ${pointsAdjustMember.name} verbucht!`);
@@ -179,14 +184,29 @@ export const UserManagementTab: React.FC = () => {
       </div>
 
       {/* Members Grid / Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.08 }
+          }
+        }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
         {members.map((m) => {
           const isCurrentActive = activeUser?.id === m.id;
           const isAdminRole = m.role === 'admin';
 
           return (
-            <div
+            <motion.div
               key={m.id}
+              variants={{
+                hidden: { opacity: 0, y: 15 },
+                visible: { opacity: 1, y: 0 }
+              }}
               className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm relative flex flex-col justify-between"
             >
               <div>
@@ -204,6 +224,7 @@ export const UserManagementTab: React.FC = () => {
                         <span className="font-black text-base text-[var(--m3-on-surface)]">
                           {m.name}
                         </span>
+                        <UserBadge badgeId={m.active_badge_id} size="sm" />
                         {isCurrentActive && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] font-black">
                             Du
@@ -301,10 +322,10 @@ export const UserManagementTab: React.FC = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* MODAL: ADD MEMBER */}
       {showAddModal && (

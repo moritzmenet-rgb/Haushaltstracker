@@ -29,6 +29,7 @@ import { ChoreLog, TaskItem } from '../types';
 import { FishingModal } from './FishingModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import { MemberProfileModal } from './MemberProfileModal';
+import { UserBadge } from './UserBadge';
 
 interface DashboardProps {
   onOpenLogModal: (preselectedTaskId?: string) => void;
@@ -187,15 +188,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [activeUser]);
 
   return (
-    <div className="space-y-7 pb-12">
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: { staggerChildren: 0.12, delayChildren: 0.1 }
+        }
+      }}
+      className="space-y-8 pb-16"
+    >
       {/* 1. Header & Material 3 Extended FAB */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          visible: { opacity: 1, y: 0 }
+        }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--m3-on-surface)] flex items-center gap-2.5">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--m3-on-surface)] flex items-center gap-2.5 flex-wrap">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--m3-primary)] to-[var(--m3-primary)]/70">
                 {greeting}
               </span>
+              <UserBadge badgeId={activeUser?.active_badge_id} size="lg" />
               <motion.span 
                 animate={{ rotate: [0, 14, -14, 14, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
@@ -239,7 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Plus className="w-5 h-5 stroke-[3]" />
           <span>Arbeit erfassen</span>
         </motion.button>
-      </div>
+      </motion.div>
 
       {/* 2. Personal Progress Bar & Family Summary in Material 3 Expressive Card */}
       {activeUserProgress && (() => {
@@ -249,18 +268,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
         return (
           <motion.div 
             id="weekly-progress-bar"
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ 
-              opacity: 1, 
-              scale: impactGlow ? 1.025 : 1, 
-              y: 0 
+            variants={{
+              hidden: { opacity: 0, scale: 0.96, y: 20 },
+              visible: { opacity: 1, scale: impactGlow ? 1.025 : 1, y: 0 }
             }}
-            whileHover={{ scale: 1.01 }}
+            whileHover={{ scale: 1.01, y: -2 }}
             transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            className={`p-6 rounded-[28px] m3-glass-surface border relative overflow-hidden transition-all duration-200 ${
+            className={`p-5 sm:p-7 rounded-[32px] m3-glass-surface border relative overflow-hidden transition-all duration-300 ${
               impactGlow 
-                ? 'border-amber-400 shadow-[0_0_35px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/60' 
-                : 'border-white/5'
+                ? 'border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.4)] ring-2 ring-amber-400/50' 
+                : 'border-white/10 shadow-xl shadow-indigo-900/5'
             }`}
           >
             <div className="flex items-center justify-between text-xs sm:text-sm mb-3.5">
@@ -326,7 +343,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       })()}
 
       {/* 3. Fällige Hausarbeiten (Priority Section) */}
-      <section className="space-y-4">
+      <motion.section 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          visible: { opacity: 1, y: 0 }
+        }}
+        className="space-y-4"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-amber-500" />
@@ -502,7 +525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             })}
           </motion.div>
         )}
-      </section>
+      </motion.section>
 
       {selectedProfileId && (
         <MemberProfileModal
@@ -538,7 +561,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* 4. Two-Column Layout: Familien-Rangliste & Sterne-Regelwerk */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
         {/* Familien-Rangliste */}
-        <section className="space-y-3.5">
+        <motion.section 
+          variants={{
+            hidden: { opacity: 0, y: 15 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="space-y-3.5"
+        >
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-500" />
@@ -589,12 +618,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {getInitials(member.name)}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-sm font-bold text-[var(--m3-on-surface)] truncate">
                             {member.name}
                           </span>
+                          <UserBadge badgeId={member.active_badge_id} size="xs" />
                           {isSelf && (
-                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] shrink-0">
                               Du
                             </span>
                           )}
@@ -624,10 +654,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
               })}
             </motion.div>
           )}
-        </section>
+        </motion.section>
 
         {/* Sterne- & Bonussystem (Regelwerk) */}
-        <section className="space-y-3.5">
+        <motion.section 
+          variants={{
+            hidden: { opacity: 0, y: 15 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="space-y-3.5"
+        >
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
               <Zap className="w-5 h-5 text-amber-500" />
@@ -683,11 +719,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Jeder Eintrag wird transparent berechnet. Bei 3 Sternen nennst du 2 besondere Qualitätsmerkmale. Bei 2 Sternen begründest du, was gefehlt hat. Mindestens 1 Punkt wird garantiert!
             </p>
           </motion.div>
-        </section>
+        </motion.section>
       </div>
 
       {/* 5. DER GROSSE MATERIAL 3 AKTIVITÄTEN-VERLAUF */}
-      <section className="space-y-4 pt-3">
+      <motion.section 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          visible: { opacity: 1, y: 0 }
+        }}
+        className="space-y-4 pt-3"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-[var(--m3-on-surface)] flex items-center gap-2.5">
@@ -780,7 +822,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         className="w-3 h-3 rounded-full shrink-0"
                       />
                     )}
-                    <span>{m.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{m.name}</span>
+                      <UserBadge badgeId={m.active_badge_id} size="xs" />
+                    </div>
                     <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[var(--m3-surface-container-highest)]">
                       {cyclePts} Pkt. ({memberLogsCount})
                     </span>
@@ -860,20 +905,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* List of Filtered Logs in Material 3 Elevated Cards */}
         {filteredLogs.length === 0 ? (
-          <div className="p-10 text-center rounded-[28px] m3-glass-surface border border-white/5">
-            <History className="w-10 h-10 text-[var(--m3-outline)] mx-auto mb-2.5 opacity-50" />
-            <p className="text-sm font-bold text-[var(--m3-on-surface)]">
-              Keine Einträge für diese Filterkriterien gefunden.
+          <motion.div 
+            variants={{
+              hidden: { opacity: 0, scale: 0.95 },
+              visible: { opacity: 1, scale: 1 }
+            }}
+            className="p-12 text-center rounded-[32px] m3-glass-surface border border-white/5"
+          >
+            <History className="w-12 h-12 text-[var(--m3-outline)] mx-auto mb-3 opacity-40" />
+            <p className="text-sm font-black text-[var(--m3-on-surface)]">
+              Noch keine Aktivitäten vorhanden.
             </p>
-            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1">
-              Erfasse eine neue Arbeit oder ändere die Filtereinstellungen.
+            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1.5 max-w-xs mx-auto">
+              Erfasse eine neue Arbeit oben über den Button, um den Verlauf zu füllen!
             </p>
-          </div>
+          </motion.div>
         ) : (
-          <div className="space-y-3.5">
+          <motion.div 
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.05 }
+              }
+            }}
+            className="space-y-4"
+          >
             {filteredLogs.map((log, index) => {
               const user = data.members[log.user_id] || { name: 'Unbekannt', avatar_color: '#4F46E5', role: 'member' };
-              const task = data.tasks[log.task_id] || { title: 'Gelöschte Aufgabe', category: 'Allgemein', base_points: 20 };
+              const task = data.tasks[log.task_id] || (log.task_id === 'special_adjustment'
+                ? { title: 'Sonderpunkte / Bonus', category: 'Allgemein', base_points: Math.abs(log.points_awarded) }
+                : { title: 'Gelöschte Aufgabe', category: 'Allgemein', base_points: 20 });
               
               // Calculation details
               const mult = log.stars === 1 ? mult1 : log.stars === 2 ? mult2 : mult3;
@@ -943,13 +1005,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           {getInitials(user.name)}
                         </div>
                         <div className="text-xs">
-                          <span className="font-bold text-[var(--m3-on-surface)] mr-2 group-hover:text-[var(--m3-primary)] transition-colors">
-                            {user.name}
-                          </span>
-                          <span className="text-[var(--m3-on-surface-variant)] font-medium inline-flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
-                            {log.actual_duration || 15} Min. ausgeführt
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-[var(--m3-on-surface)] group-hover:text-[var(--m3-primary)] transition-colors">
+                              {user.name}
+                            </span>
+                            <UserBadge badgeId={user.active_badge_id} size="xs" />
+                            <span className="text-[var(--m3-on-surface-variant)] font-medium inline-flex items-center gap-1 ml-1">
+                              <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
+                              {log.actual_duration || 15} Min. ausgeführt
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -1064,9 +1129,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 };

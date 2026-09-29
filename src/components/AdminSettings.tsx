@@ -86,13 +86,28 @@ export const AdminSettings: React.FC = () => {
       </div>
 
       {/* Material 3 Segment / Chips Carousel - Only showing available tabs */}
-      <div className="p-2 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm flex items-center gap-2 overflow-x-auto scrollbar-none">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.04, delayChildren: 0.1 }
+          }
+        }}
+        className="p-2 rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm flex items-center gap-2 overflow-x-auto scrollbar-none"
+      >
         {visibleTabs.map((tab) => {
           const isActive = activeSubTab === tab.id;
 
           return (
             <motion.button
               key={tab.id}
+              variants={{
+                hidden: { opacity: 0, x: -10 },
+                visible: { opacity: 1, x: 0 }
+              }}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setActiveSubTab(tab.id)}
@@ -111,7 +126,7 @@ export const AdminSettings: React.FC = () => {
             </motion.button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Tab Content Rendering in M3 Container */}
       <AnimatePresence mode="wait">

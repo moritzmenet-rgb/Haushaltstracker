@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { PinnwandNote, PostItColor } from '../../types';
 import { formatRelativeDate, getInitials } from '../../utils';
+import { useApp } from '../../context/AppContext';
+import { UserBadge } from '../UserBadge';
 
 interface PinnwandPostItProps {
   note: PinnwandNote;
@@ -57,6 +59,7 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
   parentAuthorName,
   viewMode = 'canvas'
 }) => {
+  const { data } = useApp();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -248,6 +251,7 @@ export const PinnwandPostIt: React.FC<PinnwandPostItProps> = ({
               <span className="text-xs font-bold truncate text-current group-hover/author:underline">
                 {note.authorName}
               </span>
+              <UserBadge badgeId={data.members[note.authorId]?.active_badge_id} size="xs" />
               {note.category && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/8 text-current/80 font-bold shrink-0">
                   {note.category}

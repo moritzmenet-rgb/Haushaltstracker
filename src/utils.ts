@@ -168,3 +168,13 @@ export function getMemberCyclePoints(memberId: string, logs: ChoreLog[], cycleSt
     .filter(l => l.user_id === memberId)
     .reduce((sum, l) => sum + (l.points_awarded || 0), 0);
 }
+
+/**
+ * Calculates member total points strictly from all existing chore logs
+ */
+export function getMemberTotalPoints(memberId: string, logs: ChoreLog[]): number {
+  if (!logs || !Array.isArray(logs)) return 0;
+  return logs
+    .filter(l => l.user_id === memberId)
+    .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+}

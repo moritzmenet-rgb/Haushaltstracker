@@ -8,6 +8,7 @@ import { useApp } from '../context/AppContext';
 import { formatRelativeDate, getInitials, getCategoryStyle, getTaskDueStatus } from '../utils';
 import { ConfirmModal } from './ConfirmModal';
 import { TaskItem } from '../types';
+import { UserBadge } from './UserBadge';
 
 interface TaskDetailModalProps {
   taskId: string | null;
@@ -242,6 +243,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-[var(--m3-on-surface)]">{user.name}</span>
+                              <UserBadge badgeId={user.active_badge_id} size="xs" />
                               <span className="text-[10px] text-[var(--m3-outline)]">{formatRelativeDate(log.timestamp)}</span>
                             </div>
 

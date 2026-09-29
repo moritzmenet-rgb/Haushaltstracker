@@ -18,6 +18,8 @@ import {
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
+import { UserBadge } from './UserBadge';
+import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 
 interface NavbarProps {
   currentTab: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings';
@@ -42,10 +44,29 @@ export const Navbar: React.FC<NavbarProps> = ({
     syncStatus, 
     syncFeedback,
     loginWithGoogle,
-    pinnwandNotes
+    pinnwandNotes,
+    easterEggClickCount,
+    triggerEasterEggClick
   } = useApp();
 
   const householdTitle = data.settings?.household_name || 'Haushalt';
+
+  // Count strictly the achievements unlocked by the current member (including currently held Wanderpokale)
+  const myUnlockedCount = React.useMemo(() => {
+    if (!activeUser) return 0;
+    return ACHIEVEMENTS_DATA.filter(b => {
+      if (b.section === 'trophies') {
+        return data.trophyOwners?.[b.id] === activeUser.id;
+      }
+      return Boolean(activeUser.unlocked_badges?.[b.id]);
+    }).length;
+  }, [activeUser, data.trophyOwners]);
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerEasterEggClick();
+    onSelectTab('dashboard');
+  };
 
   const tabs: Array<{
     id: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings';
@@ -73,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'abzeichen',
       label: 'Abzeichen',
       icon: <Trophy className="w-5 h-5 text-amber-500" />,
-      badge: '30'
+      badge: `${myUnlockedCount}`
     },
     {
       id: 'settings',
@@ -85,41 +106,61 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Material 3 Expressive Top App Bar - Laptop/Desktop Solid Background */}
-      <header className="sticky top-0 z-40 bg-[var(--m3-surface)] border-b border-[var(--m3-outline-variant)]/60 transition-colors shadow-sm">
+      {/* Material 3 Expressive Top App Bar - Glassmorphism & Micro-elevations */}
+      <header className="sticky top-0 z-40 bg-[var(--m3-surface)]/90 backdrop-blur-md border-b border-[var(--m3-outline-variant)]/40 transition-colors shadow-xs">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           {/* Brand Logo & Desktop Tabs */}
           <div className="flex items-center gap-6">
             <div 
-              onClick={() => onSelectTab('dashboard')}
-              className="flex items-center gap-3 cursor-pointer group"
+              onClick={handleLogoClick}
+              className="flex items-center gap-3 cursor-pointer group select-none"
+              title="Klicke auf das Logo (Osterei-Jäger!)"
             >
               <motion.div 
                 whileHover={{ scale: 1.08, rotate: -3 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                whileTap={{ scale: 0.88, rotate: 6 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                 className="w-11 h-11 rounded-2xl bg-indigo-600 border border-white/20 flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0 relative overflow-hidden"
               >
                 <span className="text-white font-black text-lg tracking-tighter relative z-10">
                   F&W
                 </span>
+                {easterEggClickCount > 0 && easterEggClickCount < 10 && (
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute inset-0 bg-amber-500/30 flex items-center justify-center pointer-events-none"
+                  />
+                )}
               </motion.div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight">
                     Fish & Wish
                   </span>
+                  {easterEggClickCount > 0 && easterEggClickCount < 10 && (
+                    <motion.span 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black"
+                    >
+                      🥚 {easterEggClickCount}/10
+                    </motion.span>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Desktop Navigation Tabs with Iconic M3 Pill Indicator */}
             <nav className="hidden md:flex items-center gap-1 p-1.5 rounded-full bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]/50 relative">
-              {tabs.map((tab) => {
+              {tabs.map((tab, idx) => {
                 const isActive = currentTab === tab.id;
                 return (
-                  <button
+                  <motion.button
                     key={tab.id}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + idx * 0.05 }}
                     onClick={() => onSelectTab(tab.id)}
                     className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-colors ${
                       isActive
@@ -141,12 +182,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                     <span className="w-4 h-4 flex items-center justify-center">{tab.icon}</span>
                     <span>{tab.label}</span>
-                    {tab.badge && (
-                      <span className="ml-1 px-1.5 py-0.2 rounded-md bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] text-[9px] font-black uppercase tracking-wider">
+                    {tab.badge !== undefined && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-md bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] text-[9px] font-black uppercase tracking-wider shadow-2xs">
                         {tab.badge}
                       </span>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
             </nav>
@@ -238,10 +279,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {getInitials(activeUser.name)}
                 </div>
                 <div className="text-left hidden xs:block">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-[var(--m3-on-surface)] leading-none">
                       {activeUser.name}
                     </span>
+                    <UserBadge badgeId={activeUser.active_badge_id} size="xs" />
                     {isAdmin && (
                       <ShieldCheck className="w-3.5 h-3.5 text-[var(--m3-primary)]" />
                     )}
@@ -263,80 +305,69 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* Liquid Glass Bottom Navigation Bar for Mobile */}
-      <div className="md:hidden fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
+      {/* Mobile Floating Action Button (FAB) for fast one-thumb logging from any tab */}
+      <div className="md:hidden fixed bottom-24 right-4 z-40 pointer-events-auto">
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+          onClick={onOpenLogModal}
+          className="h-13 px-4 rounded-full bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-xl shadow-indigo-600/35 border border-white/20 flex items-center gap-2 font-black text-xs cursor-pointer active:scale-95"
+          aria-label="Aufgabe erfassen"
+        >
+          <Plus className="w-5 h-5 stroke-[3]" />
+          <span className="font-extrabold tracking-tight">Erfassen</span>
+        </motion.button>
+      </div>
+
+      {/* Material 3 Expressive Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-3 inset-x-3 z-50 flex justify-center pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
         <nav 
           aria-label="Mobile Navigation"
-          className="pointer-events-auto liquid-navbar px-2 py-1.5 flex items-center justify-around w-full max-w-sm transition-all"
+          className="pointer-events-auto liquid-navbar px-2 py-1.5 flex items-center justify-around w-full max-w-md shadow-2xl rounded-[28px] border border-[var(--m3-outline-variant)]/60 bg-[var(--m3-surface-container)]/95 backdrop-blur-xl transition-all"
         >
-          {/* Dashboard Tab */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('dashboard')}
-            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
-              currentTab === 'dashboard' 
-                ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/70'
-            }`}
-          >
-            <LayoutDashboard className={`transition-transform ${currentTab === 'dashboard' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
-          </button>
+          {tabs.map((tab, idx) => {
+            const isActive = currentTab === tab.id;
+            return (
+              <motion.button
+                key={tab.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.05 }}
+                type="button"
+                onClick={() => onSelectTab(tab.id)}
+                className={`relative flex-1 py-1.5 px-1 min-h-[50px] flex flex-col items-center justify-center transition-all active:scale-92 cursor-pointer ${
+                  isActive 
+                    ? 'text-[var(--m3-primary)] font-black' 
+                    : 'text-[var(--m3-on-surface-variant)]/75 hover:text-[var(--m3-on-surface)]'
+                }`}
+              >
+                {/* Active Indicator Pill */}
+                {isActive && (
+                  <motion.div
+                    layoutId="m3NavActiveMobile"
+                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                    className="absolute inset-0 rounded-2xl bg-[var(--m3-primary-container)]/60 border border-[var(--m3-primary)]/20 -z-10 shadow-xs"
+                  />
+                )}
 
-          {/* Tasks Tab */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('tasks')}
-            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
-              currentTab === 'tasks' 
-                ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/70'
-            }`}
-          >
-            <CheckSquare className={`transition-transform ${currentTab === 'tasks' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
-          </button>
+                <div className="relative">
+                  <span className={`transition-transform duration-200 block ${isActive ? 'scale-110' : 'scale-100'}`}>
+                    {tab.icon}
+                  </span>
+                  {tab.badge !== undefined && (
+                    <span className="absolute -top-1 -right-2.5 px-1.5 py-0.2 rounded-full bg-[var(--m3-primary)] text-[var(--m3-on-primary)] text-[8px] font-black leading-none shadow-xs">
+                      {tab.badge}
+                    </span>
+                  )}
+                </div>
 
-          {/* Pinnwand Tab */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('pinnwand')}
-            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
-              currentTab === 'pinnwand' 
-                ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/70'
-            }`}
-          >
-            <Pin className={`transition-transform ${currentTab === 'pinnwand' ? 'w-6.5 h-6.5 fill-current rotate-12' : 'w-5.5 h-5.5 rotate-12'}`} />
-          </button>
-
-          {/* Abzeichen Tab */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('abzeichen')}
-            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
-              currentTab === 'abzeichen' 
-                ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/70'
-            }`}
-          >
-            <Trophy className={`transition-transform text-amber-500 ${currentTab === 'abzeichen' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
-          </button>
-
-          {/* Settings / Profile Tab */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('settings')}
-            className={`flex-1 py-1 flex flex-col items-center justify-center transition-all active:scale-95 ${
-              currentTab === 'settings' 
-                ? 'text-[var(--m3-on-surface)]' 
-                : 'text-[var(--m3-on-surface-variant)]/70'
-            }`}
-          >
-            {isAdmin ? (
-              <ShieldCheck className={`transition-transform ${currentTab === 'settings' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
-            ) : (
-              <User className={`transition-transform ${currentTab === 'settings' ? 'w-6.5 h-6.5' : 'w-5.5 h-5.5'}`} />
-            )}
-          </button>
+                <span className="text-[10px] font-extrabold tracking-tight mt-0.5 leading-tight truncate max-w-[62px]">
+                  {tab.label}
+                </span>
+              </motion.button>
+            );
+          })}
         </nav>
       </div>
     </>
