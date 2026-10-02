@@ -21,14 +21,32 @@ import {
   Info,
   ChevronDown,
   Layers,
-  Calendar
+  Calendar,
+  Coins,
+  Crown,
+  CalendarDays,
+  TrendingUp,
+  BarChart3,
+  Medal,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatRelativeDate, getCategoryStyle, getInitials, getMemberCyclePoints, getTaskDueStatus } from '../utils';
+import { 
+  formatRelativeDate, 
+  getCategoryStyle, 
+  getInitials, 
+  getMemberCyclePoints, 
+  getMemberChips,
+  getNextSaturdayReset,
+  computeWeeklyHistory,
+  getTaskDueStatus 
+} from '../utils';
 import { ChoreLog, TaskItem } from '../types';
 import { FishingModal } from './FishingModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import { MemberProfileModal } from './MemberProfileModal';
+import { PinTaskModal } from './PinTaskModal';
 import { UserBadge } from './UserBadge';
 
 interface DashboardProps {
@@ -44,7 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenTaskHistory,
   onNavigateToTasks
 }) => {
-  const { data, activeUser, isAdmin, deleteLog, fishTask, unfishTask } = useApp();
+  const { data, activeUser, isAdmin, deleteLog, fishTask, unfishTask, togglePinTask } = useApp();
 
   // Real-time dynamic coin hit & progress bar fill state
   const [impactGlow, setImpactGlow] = useState(false);
@@ -85,17 +103,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Profile modal state
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
-  // Fishing state
+  // Selected week index in weekly history view (0 = aktuelle Woche, 1 = letzte Woche, ...)
+  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(0);
+
+  // Fishing & Pinning & Detail state
   const [fishingTask, setFishingTask] = useState<TaskItem | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [pinModalTask, setPinModalTask] = useState<TaskItem | null>(null);
 
   const membersList = Object.values(data.members);
   const tasksList = Object.values(data.tasks);
 
-  // Compute members with current cycle points
+  // Compute members with current cycle points (Wochenpunkte ab Sa. 00:00) and Lifetime-Chips (von Tag 1 an)
   const membersWithProgress = useMemo(() => {
     return membersList.map(member => {
       const cyclePoints = getMemberCyclePoints(member.id, data.logs, data.settings.last_reset_date);
+      const chips = getMemberChips(member.id, data.logs);
+      const taskCount = data.logs.filter(l => l.user_id === member.id).length;
       const target = member.weekly_target || data.settings.default_weekly_target || 50;
       const progressPercent = Math.min(100, Math.round((cyclePoints / target) * 100));
       const difference = cyclePoints - target;
@@ -103,6 +127,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return {
         ...member,
         cyclePoints,
+        chips,
+        taskCount,
         target,
         progressPercent,
         difference
@@ -110,25 +136,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }).sort((a, b) => b.cyclePoints - a.cyclePoints);
   }, [membersList, data.logs, data.settings]);
 
+  // Sort members by Chips (Total Points from Day 1)
+  const membersSortedByChips = useMemo(() => {
+    return [...membersWithProgress].sort((a, b) => b.chips - a.chips);
+  }, [membersWithProgress]);
+
+  // Compute 6-week history from Saturday resets
+  const weeklyHistory = useMemo(() => {
+    return computeWeeklyHistory(data.logs, data.members, 6);
+  }, [data.logs, data.members]);
+
+  const selectedWeekData = weeklyHistory[selectedHistoryIndex] || weeklyHistory[0];
+
+  // Time until next Saturday 00:00 reset
+  const resetCountdownText = useMemo(() => {
+    const nextReset = getNextSaturdayReset();
+    const diffMs = nextReset.getTime() - Date.now();
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const diffHours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    if (diffDays > 0) {
+      return `${diffDays}d ${diffHours}h bis Reset (Sa. 00:00)`;
+    }
+    return `${diffHours}h bis Reset (Sa. 00:00)`;
+  }, []);
+
   // Current active user progress
   const activeUserProgress = useMemo(() => {
     if (!activeUser) return null;
     return membersWithProgress.find(m => m.id === activeUser.id) || null;
   }, [activeUser, membersWithProgress]);
 
-  // Priority sorted tasks: Overdue first, then due soon, then ok
-  const prioritizedTasks = useMemo(() => {
-    const tasksWithDue = tasksList.map(t => ({
-      task: t,
-      due: getTaskDueStatus(t)
-    }));
-
-    return tasksWithDue.sort((a, b) => {
-      const order = { overdue: 0, 'due-soon': 1, ok: 2 };
-      const diff = order[a.due.status] - order[b.due.status];
-      if (diff !== 0) return diff;
-      return b.due.daysOverdue - a.due.daysOverdue;
-    });
+  // Pinned urgent tasks: ONLY pinned tasks are shown in the overview/dashboard
+  const pinnedTasks = useMemo(() => {
+    return tasksList
+      .filter(t => t.is_pinned === true)
+      .map(t => ({
+        task: t,
+        due: getTaskDueStatus(t)
+      }))
+      .sort((a, b) => {
+        const order = { overdue: 0, 'due-soon': 1, ok: 2 };
+        const diff = order[a.due.status] - order[b.due.status];
+        if (diff !== 0) return diff;
+        return (b.task.pinned_bonus_points || 0) - (a.task.pinned_bonus_points || 0);
+      });
   }, [tasksList]);
 
   // Multipliers for transparent calculation
@@ -342,89 +393,95 @@ export const Dashboard: React.FC<DashboardProps> = ({
         );
       })()}
 
-      {/* 3. Fällige Hausarbeiten (Priority Section) */}
-      <motion.section 
-        variants={{
-          hidden: { opacity: 0, y: 15 },
-          visible: { opacity: 1, y: 0 }
-        }}
-        className="space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-500" />
-            <span>Was steht an? (Dringend & Fällig)</span>
-          </h2>
-          <button
-            onClick={onNavigateToTasks}
-            className="text-xs font-bold text-[var(--m3-primary)] hover:underline flex items-center gap-1"
-          >
-            <span>Katalog öffnen ({tasksList.length})</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {prioritizedTasks.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-8 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] space-y-3"
-          >
-            <p className="text-xs text-[var(--m3-on-surface-variant)] font-semibold">
-              Noch keine Aufgaben angelegt. Erstelle jetzt Aufgaben für deinen Haushalt!
-            </p>
+      {/* 3. Angepinnte & Dringende Aufgaben (Wird komplett ausgeblendet wenn keine Aufgaben angepinnt sind) */}
+      {pinnedTasks.length > 0 && (
+        <motion.section 
+          variants={{
+            hidden: { opacity: 0, y: 15 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Pin className="w-4 h-4 fill-current rotate-12" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+                  <span>Dringend angepinnt</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                    {pinnedTasks.length}
+                  </span>
+                </h2>
+              </div>
+            </div>
             <button
               onClick={onNavigateToTasks}
-              className="m3-btn-filled px-4 py-2 text-xs font-black inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="text-xs font-bold text-[var(--m3-primary)] hover:underline flex items-center gap-1"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Aufgabe erstellen</span>
+              <span>Katalog öffnen ({tasksList.length})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          </motion.div>
-        ) : (
+          </div>
+
           <motion.div 
             initial="hidden"
             animate="visible"
             variants={{
-              hidden: { opacity: 0 },
+              hidden: { opacity: 1 },
               visible: {
                 opacity: 1,
                 transition: {
-                  staggerChildren: 0.1
+                  staggerChildren: 0.08
                 }
               }
             }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            {prioritizedTasks.slice(0, 4).map(({ task, due }) => {
+            {pinnedTasks.map(({ task, due }) => {
               const isOverdue = due.status === 'overdue';
               const isDueSoon = due.status === 'due-soon';
               const fishedByMember = task.fished_by ? data.members[task.fished_by] : null;
               const isFished = !!task.fished_until && new Date(task.fished_until) > new Date();
               const isFishedByMe = isFished && task.fished_by === activeUser?.id;
+              const bonusPts = task.pinned_bonus_points || 0;
 
               return (
                 <motion.div
                   key={task.id}
                   variants={{
-                    hidden: { opacity: 0, x: -10 },
-                    visible: { opacity: 1, x: 0 }
+                    hidden: { opacity: 0, scale: 0.95 },
+                    visible: { opacity: 1, scale: 1 }
                   }}
                   whileHover={{ y: -3, scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   onClick={() => setDetailTaskId(task.id)}
-                  className={`p-5 rounded-[24px] m3-glass-container border border-white/5 hover:border-[var(--m3-primary)] transition-all duration-200 flex items-center justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
+                  className={`p-5 rounded-[24px] m3-glass-container border-2 border-amber-500/30 hover:border-amber-500 transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
                 >
-                  {isFished && (
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />
-                  )}
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500" />
                   
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${getCategoryStyle(task.category)}`}>
-                        {task.category}
-                      </span>
+                  <div className="min-w-0 pl-1">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinModalTask(task);
+                          }}
+                          className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-2xs hover:bg-amber-500/30 transition cursor-pointer"
+                          title="Klicken zum Anpassen des Bonus"
+                        >
+                          <Pin className="w-3 h-3 fill-current rotate-12" />
+                          <span>Dringend</span>
+                        </span>
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${getCategoryStyle(task.category)}`}>
+                          {task.category}
+                        </span>
+                      </div>
+
+                      {/* Due text */}
                       {isOverdue ? (
                         <span className="text-[10px] font-black text-rose-600 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md">
                           {due.text}
@@ -440,26 +497,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       )}
                     </div>
 
-                    <h3 className="text-sm sm:text-base font-bold text-[var(--m3-on-surface)] truncate">
+                    <h3 className="text-base font-bold text-[var(--m3-on-surface)] truncate">
                       {task.title}
                     </h3>
-                    <div className="flex items-center gap-2.5 text-xs text-[var(--m3-on-surface-variant)] mt-1.5 flex-wrap">
+                    {task.description && (
+                      <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1 line-clamp-1 leading-relaxed">
+                        {task.description}
+                      </p>
+                    )}
+
+                    {/* Points & Bonus Display */}
+                    <div className="flex items-center gap-2 text-xs mt-2.5 flex-wrap">
                       <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg whitespace-nowrap">
-                        +{task.base_points} Pkt.
+                        +{task.base_points} Basis
                       </span>
-                      {task.frequency_per_day && task.frequency_per_day > 1 && (
-                        <span className="font-black text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg whitespace-nowrap">
-                          {task.frequency_per_day}x tägl.
-                        </span>
+
+                      {bonusPts > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinModalTask(task);
+                          }}
+                          className="font-black text-amber-700 dark:text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs whitespace-nowrap hover:bg-amber-500/30 transition text-xs text-left"
+                          title="Bonus anpassen"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>+{bonusPts} Bonus (sterneunabhängig)</span>
+                        </button>
                       )}
-                      {task.preferred_time && (
-                        <span className="font-black text-amber-600 bg-amber-500/10 px-2.5 py-0.5 rounded-lg flex items-center gap-1 whitespace-nowrap">
-                          <Zap className="w-3 h-3" />
-                          {task.preferred_time === 'morning' ? 'Morgens' : task.preferred_time === 'noon' ? 'Mittags' : 'Abends'}
-                        </span>
-                      )}
-                      <span>•</span>
-                      <span className="flex items-center gap-1 font-medium">
+
+                      <span className="flex items-center gap-1 font-medium text-[var(--m3-on-surface-variant)]">
                         <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
                         {task.estimated_duration >= 60 ? `${task.estimated_duration / 60}h` : `~${task.estimated_duration} Min.`}
                       </span>
@@ -468,64 +536,80 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {isFished && (
                       <div className="mt-2.5 flex items-center gap-2 text-[11px] font-bold text-[var(--m3-primary)]">
                         <Fish className="w-3.5 h-3.5" />
-                        <span>Gefischt von {fishedByMember?.name || 'Unbekannt'} bis {new Date(task.fished_until!).toLocaleDateString('de-DE')}</span>
+                        <span>Gefischt von {fishedByMember?.name || 'Unbekannt'}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {!isFished ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFishingTask(task);
-                          }}
-                          className="px-4 py-2 rounded-2xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <span>Fischen</span>
-                          <Fish className="w-4 h-4" />
-                        </button>
-                        <motion.button
-                          whileHover={{ scale: 1.06 }}
-                          whileTap={{ scale: 0.94 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenLogModal(task.id);
-                          }}
-                          className="shrink-0 px-4 py-2.5 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
-                        >
-                          <span>Gönnen</span>
-                          <Check className="w-4 h-4" />
-                        </motion.button>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {isFishedByMe && (
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--m3-outline-variant)]/50 pl-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinModalTask(task);
+                      }}
+                      className="text-[11px] font-bold text-[var(--m3-outline)] hover:text-amber-600 flex items-center gap-1.5 transition p-1"
+                      title="Bonus anpassen oder Pin lösen"
+                    >
+                      <Pin className="w-3.5 h-3.5 rotate-12" />
+                      <span>Pin / Bonus anpassen</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {!isFished ? (
+                        <>
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              unfishTask(task.id);
+                              setFishingTask(task);
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all"
+                            className="px-3.5 py-1.5 rounded-xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-bold transition shadow-2xs flex items-center gap-1 cursor-pointer"
                           >
-                            Freigeben
+                            <Fish className="w-3.5 h-3.5" />
+                            <span>Fischen</span>
                           </button>
-                        )}
-                        <span className="text-xs font-black text-[var(--m3-outline)] italic px-2">
-                          Besetzt
-                        </span>
-                      </div>
-                    )}
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenLogModal(task.id);
+                            }}
+                            className="px-4 py-1.5 rounded-xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <Check className="w-4 h-4 stroke-[3]" />
+                            <span>Erledigen</span>
+                          </motion.button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {isFishedByMe && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                unfishTask(task.id);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all"
+                            >
+                              Freigeben
+                            </button>
+                          )}
+                          <span className="text-xs font-black text-[var(--m3-outline)] italic px-2">
+                            Besetzt
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );
             })}
           </motion.div>
-        )}
-      </motion.section>
+        </motion.section>
+      )}
 
       {selectedProfileId && (
         <MemberProfileModal
@@ -558,9 +642,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       )}
 
-      {/* 4. Two-Column Layout: Familien-Rangliste & Sterne-Regelwerk */}
+      {pinModalTask && (
+        <PinTaskModal
+          isOpen={!!pinModalTask}
+          onClose={() => setPinModalTask(null)}
+          task={pinModalTask}
+        />
+      )}
+
+      {/* 4. Scoreboards Grid: Wochen-Punkte & Allzeit-Chips (2 Kacheln) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-        {/* Familien-Rangliste */}
+        {/* Kachel 1: Wochen-Scoreboard (Punkte) */}
         <motion.section 
           variants={{
             hidden: { opacity: 0, y: 15 },
@@ -568,13 +660,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           }}
           className="space-y-3.5"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-500" />
-              <span>Familien-Wochenstand</span>
+              <span>Wochen-Scoreboard (Punkte)</span>
             </h2>
-            <span className="text-xs font-bold text-[var(--m3-on-surface-variant)]">
-              Aktueller Zyklus
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center gap-1.5 shadow-2xs">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{resetCountdownText}</span>
             </span>
           </div>
 
@@ -582,7 +675,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="p-6 text-center rounded-[24px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]"
+              className="p-6 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]"
             >
               <p className="text-xs text-[var(--m3-on-surface-variant)]">
                 Noch keine Familienmitglieder angelegt.
@@ -601,15 +694,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                 return (
                   <div
-                    key={member.id}
+                    key={`points-${member.id}`}
                     onClick={() => setSelectedProfileId(member.id)}
                     className={`p-4 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
                       isSelf ? 'bg-[var(--m3-secondary-container)]/35' : 'hover:bg-[var(--m3-surface-container-high)]/50'
                     }`}
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <span className="w-6 text-center text-xs font-black text-[var(--m3-outline)]">
-                        #{index + 1}
+                      <span className={`w-6 text-center text-xs font-black ${
+                        index === 0 ? 'text-amber-500 text-sm' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-700' : 'text-[var(--m3-outline)]'
+                      }`}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                       </span>
                       <div
                         style={{ backgroundColor: member.avatar_color }}
@@ -656,7 +751,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
         </motion.section>
 
-        {/* Sterne- & Bonussystem (Regelwerk) */}
+        {/* Kachel 2: Allzeit-Scoreboard (Chips) */}
         <motion.section 
           variants={{
             hidden: { opacity: 0, y: 15 },
@@ -664,63 +759,345 @@ export const Dashboard: React.FC<DashboardProps> = ({
           }}
           className="space-y-3.5"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" />
-              <span>Sterne- & Bonussystem</span>
+              <Coins className="w-5 h-5 text-amber-500" />
+              <span>Allzeit-Scoreboard (Chips)</span>
             </h2>
-            <span className="text-xs font-bold text-[var(--m3-primary)]">
-              M3 Expressive
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 flex items-center gap-1 shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Von Tag 1 an</span>
             </span>
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] p-5 shadow-sm space-y-3.5"
-          >
-            <div className="grid grid-cols-3 gap-2.5 text-center">
-              {/* 1 Star */}
-              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                <div className="flex justify-center text-rose-500 mb-1">
-                  <Star className="w-4 h-4 fill-rose-500" />
-                </div>
-                <div className="text-xs font-bold text-[var(--m3-on-surface)]">1 Stern</div>
-                <div className="text-xs font-black text-rose-600 dark:text-rose-400">{mult1}%</div>
-                <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">Basis</div>
-              </div>
+          {membersSortedByChips.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-6 text-center rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]"
+            >
+              <p className="text-xs text-[var(--m3-on-surface-variant)]">
+                Noch keine Familienmitglieder angelegt.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, x: 15 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25 }}
+              className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] divide-y divide-[var(--m3-outline-variant)]/50 overflow-hidden shadow-sm"
+            >
+              {membersSortedByChips.map((member, index) => {
+                const isSelf = activeUser?.id === member.id;
+                const maxChips = membersSortedByChips[0]?.chips || 1;
+                const chipPercent = maxChips > 0 ? Math.round((member.chips / maxChips) * 100) : 0;
 
-              {/* 2 Stars */}
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                <div className="flex justify-center text-amber-500 mb-1 gap-0.5">
-                  <Star className="w-4 h-4 fill-amber-500" />
-                  <Star className="w-4 h-4 fill-amber-500" />
-                </div>
-                <div className="text-xs font-bold text-[var(--m3-on-surface)]">2 Sterne</div>
-                <div className="text-xs font-black text-amber-600 dark:text-amber-400">{mult2}%</div>
-                <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">1 Begründung</div>
-              </div>
+                return (
+                  <div
+                    key={`chips-${member.id}`}
+                    onClick={() => setSelectedProfileId(member.id)}
+                    className={`p-4 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                      isSelf ? 'bg-[var(--m3-secondary-container)]/35' : 'hover:bg-[var(--m3-surface-container-high)]/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <span className={`w-6 text-center text-xs font-black ${
+                        index === 0 ? 'text-amber-500 text-sm' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-700' : 'text-[var(--m3-outline)]'
+                      }`}>
+                        {index === 0 ? '👑' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </span>
+                      <div
+                        style={{ backgroundColor: member.avatar_color }}
+                        className="w-10 h-10 rounded-2xl shrink-0 flex items-center justify-center text-white font-black text-sm shadow-sm"
+                      >
+                        {getInitials(member.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-bold text-[var(--m3-on-surface)] truncate">
+                            {member.name}
+                          </span>
+                          <UserBadge badgeId={member.active_badge_id} size="xs" />
+                          {isSelf && (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] shrink-0">
+                              Du
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-28 sm:w-40 bg-[var(--m3-surface-container-highest)] h-2 rounded-full overflow-hidden mt-1.5 shadow-inner">
+                          <div
+                            style={{
+                              width: `${chipPercent}%`,
+                              backgroundColor: '#F59E0B'
+                            }}
+                            className="h-full rounded-full transition-all duration-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-              {/* 3 Stars */}
-              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex justify-center text-emerald-500 mb-1 gap-0.5">
-                  <Star className="w-4 h-4 fill-emerald-500" />
-                  <Star className="w-4 h-4 fill-emerald-500" />
-                  <Star className="w-4 h-4 fill-emerald-500" />
-                </div>
-                <div className="text-xs font-bold text-[var(--m3-on-surface)]">3 Sterne</div>
-                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">{mult3}%</div>
-                <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">2 Highlights</div>
-              </div>
-            </div>
-
-            <p className="text-xs text-[var(--m3-on-surface-variant)] leading-relaxed">
-              Jeder Eintrag wird transparent berechnet. Bei 3 Sternen nennst du 2 besondere Qualitätsmerkmale. Bei 2 Sternen begründest du, was gefehlt hat. Mindestens 1 Punkt wird garantiert!
-            </p>
-          </motion.div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400 flex items-center justify-end gap-1.5">
+                        <span className="text-base font-black">{member.chips}</span>
+                        <span className="text-sm">🪙</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-[var(--m3-on-surface-variant)]">
+                        {member.taskCount} {member.taskCount === 1 ? 'Aufgabe' : 'Aufgaben'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          )}
         </motion.section>
       </div>
+
+      {/* 4b. WOCHENANSICHT & HISTORIE (Die letzten Wochen) */}
+      <motion.section 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          visible: { opacity: 1, y: 0 }
+        }}
+        className="space-y-4 pt-2"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-[var(--m3-primary)]" />
+              <span>Wochen-Chronik & Punkte-Archiv</span>
+            </h2>
+            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5 font-medium">
+              Sieh genau, wer in welcher Woche wie viele Punkte geholt hat (Zyklus: Samstag bis Freitag).
+            </p>
+          </div>
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] self-start sm:self-auto">
+            {weeklyHistory.length} Wochen erfasst
+          </span>
+        </div>
+
+        {/* Horizontal Week Selector Tabs */}
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+          {weeklyHistory.map((week, idx) => {
+            const isSelected = selectedHistoryIndex === idx;
+            return (
+              <motion.button
+                key={week.id}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
+                type="button"
+                onClick={() => setSelectedHistoryIndex(idx)}
+                className={`h-11 px-4 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center gap-2 shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'm3-chip-selected shadow-sm'
+                    : 'bg-[var(--m3-surface-container-low)] text-[var(--m3-on-surface-variant)] border border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-high)]'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <div className="text-left leading-tight">
+                  <div className="font-black flex items-center gap-1.5">
+                    <span>{week.label}</span>
+                    {week.isCurrentWeek && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    )}
+                  </div>
+                  <div className="text-[10px] opacity-75 font-normal">{week.subLabel}</div>
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-[var(--m3-surface-container-highest)] ml-1">
+                  {week.totalPoints} Pkt.
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Selected Week Detail Card */}
+        <motion.div 
+          key={selectedWeekData.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="rounded-[32px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] p-6 shadow-sm space-y-6"
+        >
+          {/* Week Summary Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--m3-outline-variant)]/60">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black text-[var(--m3-on-surface)]">
+                  {selectedWeekData.label} ({selectedWeekData.subLabel})
+                </span>
+                {selectedWeekData.isCurrentWeek && (
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    Läuft gerade
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1 font-medium">
+                Haushaltsergebnis: <strong>{selectedWeekData.totalPoints} Punkte</strong> aus <strong>{selectedWeekData.taskCount} Hausarbeiten</strong>
+              </p>
+            </div>
+
+            {/* Wochensieger Badge */}
+            {selectedWeekData.winnerMemberId && data.members[selectedWeekData.winnerMemberId] && (
+              <div className="flex items-center gap-3 p-3 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 self-start sm:self-auto shadow-2xs">
+                <Crown className="w-5 h-5 text-amber-500 shrink-0" />
+                <div className="text-xs font-bold leading-tight">
+                  <span className="text-[10px] uppercase font-black tracking-wider block opacity-80">Wochensieger</span>
+                  <span>{data.members[selectedWeekData.winnerMemberId].name} ({selectedWeekData.winnerPoints} Pkt.)</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Members Breakdown for this Week */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--m3-on-surface-variant)] flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-[var(--m3-primary)]" />
+              <span>Punkteverteilung aller Familienmitglieder</span>
+            </h3>
+
+            {membersList.length === 0 ? (
+              <p className="text-xs text-[var(--m3-outline)]">Keine Mitglieder vorhanden.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {membersList
+                  .map(m => ({
+                    member: m,
+                    points: selectedWeekData.memberPoints[m.id] || 0
+                  }))
+                  .sort((a, b) => b.points - a.points)
+                  .map(({ member, points }, idx) => {
+                    const maxPtsInWeek = Math.max(1, selectedWeekData.winnerPoints || 1);
+                    const percentOfTop = Math.round((points / maxPtsInWeek) * 100);
+                    const isWinner = selectedWeekData.winnerMemberId === member.id && points > 0;
+                    const isSelf = activeUser?.id === member.id;
+
+                    return (
+                      <div 
+                        key={`week-member-${member.id}`}
+                        onClick={() => setSelectedProfileId(member.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isWinner 
+                            ? 'bg-amber-500/5 border-amber-500/30' 
+                            : 'bg-[var(--m3-surface)] border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-high)]/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="text-xs font-black w-5 text-center text-[var(--m3-outline)]">
+                            {isWinner ? '👑' : `#${idx + 1}`}
+                          </span>
+                          <div 
+                            style={{ backgroundColor: member.avatar_color }}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-xs shrink-0"
+                          >
+                            {getInitials(member.name)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-[var(--m3-on-surface)] truncate">
+                                {member.name}
+                              </span>
+                              {isSelf && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                                  Du
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-full bg-[var(--m3-surface-container-highest)] h-1.5 rounded-full overflow-hidden mt-1.5">
+                              <div 
+                                style={{ 
+                                  width: `${percentOfTop}%`,
+                                  backgroundColor: isWinner ? '#F59E0B' : member.avatar_color 
+                                }}
+                                className="h-full rounded-full transition-all duration-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-black text-[var(--m3-on-surface)]">
+                            {points} <span className="text-[10px] font-normal text-[var(--m3-outline)]">Pkt.</span>
+                          </span>
+                          <span className="block text-[10px] text-[var(--m3-on-surface-variant)] font-bold">
+                            {selectedWeekData.totalPoints > 0 
+                              ? `${Math.round((points / selectedWeekData.totalPoints) * 100)}% Anteil` 
+                              : '0%'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </motion.section>
+
+      {/* 4c. Sterne- & Bonussystem (Regelwerk) */}
+      <motion.section 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          visible: { opacity: 1, y: 0 }
+        }}
+        className="space-y-3.5 pt-2"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-black text-[var(--m3-on-surface)] flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" />
+            <span>Sterne- & Bonussystem (Regelwerk)</span>
+          </h2>
+          <span className="text-xs font-bold text-[var(--m3-primary)]">
+            Transparente Berechnung
+          </span>
+        </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] p-5 shadow-sm space-y-3.5"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center">
+            {/* 1 Star */}
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+              <div className="flex justify-center text-rose-500 mb-1">
+                <Star className="w-4 h-4 fill-rose-500" />
+              </div>
+              <div className="text-xs font-bold text-[var(--m3-on-surface)]">1 Stern</div>
+              <div className="text-xs font-black text-rose-600 dark:text-rose-400">{mult1}%</div>
+              <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">Basis-Ausführung</div>
+            </div>
+
+            {/* 2 Stars */}
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <div className="flex justify-center text-amber-500 mb-1 gap-0.5">
+                <Star className="w-4 h-4 fill-amber-500" />
+                <Star className="w-4 h-4 fill-amber-500" />
+              </div>
+              <div className="text-xs font-bold text-[var(--m3-on-surface)]">2 Sterne</div>
+              <div className="text-xs font-black text-amber-600 dark:text-amber-400">{mult2}%</div>
+              <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">1 Begründung nötig</div>
+            </div>
+
+            {/* 3 Stars */}
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex justify-center text-emerald-500 mb-1 gap-0.5">
+                <Star className="w-4 h-4 fill-emerald-500" />
+                <Star className="w-4 h-4 fill-emerald-500" />
+                <Star className="w-4 h-4 fill-emerald-500" />
+              </div>
+              <div className="text-xs font-bold text-[var(--m3-on-surface)]">3 Sterne</div>
+              <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">{mult3}%</div>
+              <div className="text-[10px] text-[var(--m3-outline)] mt-0.5">2 Highlights genannt</div>
+            </div>
+          </div>
+
+          <p className="text-xs text-[var(--m3-on-surface-variant)] leading-relaxed font-medium">
+            Jeder Eintrag wird transparent berechnet. Bei 3 Sternen nennst du 2 besondere Qualitätsmerkmale. Bei 2 Sternen begründest du, was gefehlt hat. Mindestens 1 Punkt wird garantiert!
+          </p>
+        </motion.div>
+      </motion.section>
 
       {/* 5. DER GROSSE MATERIAL 3 AKTIVITÄTEN-VERLAUF */}
       <motion.section 

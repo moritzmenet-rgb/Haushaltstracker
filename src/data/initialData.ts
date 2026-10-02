@@ -25,7 +25,11 @@ export const INITIAL_FAMILY_DATA: FamilyData = {
     rollover_deficit_factor: 100,
     rollover_min_target: 10,
     rollover_max_target: 200,
-    week_start_day: 'monday'
+    week_start_day: 'saturday',
+    scheduled_reset_day: 6,
+    scheduled_reset_hour: 0,
+    scheduled_reset_minute: 0,
+    auto_reset_enabled: true
   },
   members: {},
   tasks: {},
@@ -47,7 +51,11 @@ export const DEMO_FAMILY_DATA: FamilyData = {
     rollover_deficit_factor: 100,
     rollover_min_target: 10,
     rollover_max_target: 200,
-    week_start_day: 'monday'
+    week_start_day: 'saturday',
+    scheduled_reset_day: 6,
+    scheduled_reset_hour: 0,
+    scheduled_reset_minute: 0,
+    auto_reset_enabled: true
   },
   members: {},
   tasks: {},

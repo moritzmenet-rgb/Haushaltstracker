@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: var(--m3-primary);
+  --color-primary-hover: var(--m3-primary-hover);
+  --color-primary-container: var(--m3-primary-container);
+  --color-on-primary: var(--m3-on-primary);
+  --color-on-primary-container: var(--m3-on-primary-container);
+
+  --color-surface: var(--m3-surface);
+  --color-on-surface: var(--m3-on-surface);
+  --color-on-surface-variant: var(--m3-on-surface-variant);
+  --color-outline: var(--m3-outline);
+  --color-outline-variant: var(--m3-outline-variant);
+
+  --color-indigo-50: var(--color-indigo-50, #EEF2FF);
+  --color-indigo-100: var(--color-indigo-100, #E0E7FF);
+  --color-indigo-200: var(--color-indigo-200, #C7D2FE);
+  --color-indigo-300: var(--color-indigo-300, #A5B4FC);
+  --color-indigo-400: var(--color-indigo-400, #818CF8);
+  --color-indigo-500: var(--color-indigo-500, #6366F1);
+  --color-indigo-600: var(--color-indigo-600, #4F46E5);
+  --color-indigo-700: var(--color-indigo-700, #4338CA);
+  --color-indigo-800: var(--color-indigo-800, #3730A3);
+  --color-indigo-900: var(--color-indigo-900, #312E81);
+  --color-indigo-950: var(--color-indigo-950, #1E1B4B);
+}
+
 /* ==========================================================================
    CORKBOARD & PINBOARD AESTHETICS (WOLLFADEN & POST-ITS)
    ========================================================================== */
@@ -167,6 +193,75 @@
     --color-primary-light: #FFDDB2;
   }
 
+  [data-theme="cyberpunk"] {
+    --m3-primary: #0891B2;
+    --m3-primary-hover: #06B6D4;
+    --m3-primary-container: #CFFAFE;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #164E63;
+
+    --m3-secondary: #4A5568;
+    --m3-secondary-container: #E2E8F0;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #1A202C;
+
+    --m3-surface: #F8FAFC;
+    --m3-surface-container-low: #F1F5F9;
+    --m3-surface-container: #E2E8F0;
+    --m3-surface-container-high: #CBD5E1;
+    --m3-surface-container-highest: #94A3B8;
+
+    --color-primary: #0891B2;
+    --color-primary-hover: #06B6D4;
+    --color-primary-light: #CFFAFE;
+  }
+
+  [data-theme="sunset"] {
+    --m3-primary: #C2410C;
+    --m3-primary-hover: #EA580C;
+    --m3-primary-container: #FFEDD5;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #7C2D12;
+
+    --m3-secondary: #6B4E3D;
+    --m3-secondary-container: #F7E5DB;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #26170E;
+
+    --m3-surface: #FFF9F5;
+    --m3-surface-container-low: #FBF0E8;
+    --m3-surface-container: #F6E6DB;
+    --m3-surface-container-high: #EEDCCE;
+    --m3-surface-container-highest: #E5D2C2;
+
+    --color-primary: #C2410C;
+    --color-primary-hover: #EA580C;
+    --color-primary-light: #FFEDD5;
+  }
+
+  [data-theme="forest"] {
+    --m3-primary: #0F766E;
+    --m3-primary-hover: #0D9488;
+    --m3-primary-container: #CCFBF1;
+    --m3-on-primary: #FFFFFF;
+    --m3-on-primary-container: #134E4A;
+
+    --m3-secondary: #4A635D;
+    --m3-secondary-container: #CEE9E1;
+    --m3-on-secondary: #FFFFFF;
+    --m3-on-secondary-container: #0A201B;
+
+    --m3-surface: #F4FAF8;
+    --m3-surface-container-low: #ECF5F2;
+    --m3-surface-container: #E3EFEB;
+    --m3-surface-container-high: #DAE8E4;
+    --m3-surface-container-highest: #D0E1DC;
+
+    --color-primary: #0F766E;
+    --color-primary-hover: #0D9488;
+    --color-primary-light: #CCFBF1;
+  }
+
   /* Dark mode Material 3 Tonal system */
   .dark {
     --m3-primary: #BEC2FF;
@@ -247,6 +342,48 @@
     --m3-surface-container: #251F18;
     --m3-surface-container-high: #302922;
     --m3-surface-container-highest: #3B342C;
+  }
+
+  .dark[data-theme="cyberpunk"] {
+    --m3-primary: #22D3EE;
+    --m3-primary-hover: #67E8F9;
+    --m3-primary-container: #155E75;
+    --m3-on-primary: #083344;
+    --m3-on-primary-container: #CFFAFE;
+
+    --m3-surface: #090E17;
+    --m3-surface-container-low: #0F172A;
+    --m3-surface-container: #1E293B;
+    --m3-surface-container-high: #334155;
+    --m3-surface-container-highest: #475569;
+  }
+
+  .dark[data-theme="sunset"] {
+    --m3-primary: #FB923C;
+    --m3-primary-hover: #FDBA74;
+    --m3-primary-container: #7C2D12;
+    --m3-on-primary: #431407;
+    --m3-on-primary-container: #FFEDD5;
+
+    --m3-surface: #18110D;
+    --m3-surface-container-low: #231812;
+    --m3-surface-container: #2E1F18;
+    --m3-surface-container-high: #3C2920;
+    --m3-surface-container-highest: #4A3328;
+  }
+
+  .dark[data-theme="forest"] {
+    --m3-primary: #2DD4BF;
+    --m3-primary-hover: #5EEAD4;
+    --m3-primary-container: #115E59;
+    --m3-on-primary: #042F2E;
+    --m3-on-primary-container: #CCFBF1;
+
+    --m3-surface: #0A1412;
+    --m3-surface-container-low: #101E1B;
+    --m3-surface-container: #172B27;
+    --m3-surface-container-high: #203A35;
+    --m3-surface-container-highest: #2A4A43;
   }
 
   body {

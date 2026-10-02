@@ -14,7 +14,9 @@ import {
   Sparkles,
   Check,
   Filter,
-  Zap
+  Zap,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TaskItem } from '../types';
@@ -22,6 +24,7 @@ import { formatRelativeDate, getCategoryStyle, getTaskDueStatus } from '../utils
 import { ConfirmModal } from './ConfirmModal';
 import { FishingModal } from './FishingModal';
 import { TaskDetailModal } from './TaskDetailModal';
+import { PinTaskModal } from './PinTaskModal';
 
 interface TaskCatalogProps {
   onOpenLogModal: (taskId: string) => void;
@@ -36,13 +39,14 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
   onOpenCreateTaskModal,
   onOpenEditTaskModal
 }) => {
-  const { data, activeUser, isAdmin, deleteTask, fishTask, unfishTask } = useApp();
+  const { data, activeUser, isAdmin, deleteTask, fishTask, unfishTask, togglePinTask } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlyDue, setOnlyDue] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
   const [fishingTask, setFishingTask] = useState<TaskItem | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [pinModalTask, setPinModalTask] = useState<TaskItem | null>(null);
 
   const categories = data.settings.categories;
   const tasksList = Object.values(data.tasks);
@@ -235,17 +239,28 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 whileHover={{ y: -3 }}
                 onClick={() => setDetailTaskId(task.id)}
-                className={`p-5 rounded-[24px] m3-glass-container border border-white/5 hover:border-[var(--m3-primary)] transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
+                className={`p-5 rounded-[24px] m3-glass-container border ${task.is_pinned ? 'border-amber-500/50 bg-amber-500/5' : 'border-white/5'} hover:border-[var(--m3-primary)] transition-all duration-200 flex flex-col justify-between gap-4 group relative overflow-hidden cursor-pointer ${isFished ? 'opacity-90' : ''}`}
               >
-                {isFished && (
+                {task.is_pinned && (
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500" />
+                )}
+                {isFished && !task.is_pinned && (
                   <div className="absolute top-0 left-0 w-1 h-full bg-[var(--m3-primary)]" />
                 )}
                 <div>
-                  {/* Top Bar: Category & Due Badge */}
+                  {/* Top Bar: Category & Pin / Due Badge */}
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${getCategoryStyle(task.category)}`}>
-                      {task.category}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${getCategoryStyle(task.category)}`}>
+                        {task.category}
+                      </span>
+                      {task.is_pinned && (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-2xs">
+                          <Pin className="w-3 h-3 fill-current rotate-12" />
+                          <span>Angepinnt</span>
+                        </span>
+                      )}
+                    </div>
 
                     {isOverdue ? (
                       <span className="text-[10px] font-black text-rose-600 bg-rose-500/15 border border-rose-500/30 px-2.5 py-0.5 rounded-md flex items-center gap-1">
@@ -275,11 +290,17 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                     </p>
                   )}
 
-                  {/* Task Meta (Base Points & Duration) */}
-                  <div className="flex items-center gap-3 text-xs text-[var(--m3-on-surface-variant)] mt-3 flex-wrap">
+                  {/* Task Meta (Base Points, Pinned Bonus & Duration) */}
+                  <div className="flex items-center gap-2.5 text-xs text-[var(--m3-on-surface-variant)] mt-3 flex-wrap">
                     <span className="font-black text-[var(--m3-primary)] bg-[var(--m3-primary-container)] px-2.5 py-0.5 rounded-lg shadow-2xs whitespace-nowrap">
                       +{task.base_points} Pkt.
                     </span>
+                    {task.is_pinned && task.pinned_bonus_points && task.pinned_bonus_points > 0 && (
+                      <span className="font-black text-amber-700 dark:text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs whitespace-nowrap">
+                        <Sparkles className="w-3 h-3" />
+                        <span>+{task.pinned_bonus_points} Bonus</span>
+                      </span>
+                    )}
                     <span className="flex items-center gap-1 font-semibold whitespace-nowrap">
                       <Clock className="w-3.5 h-3.5 text-[var(--m3-outline)]" />
                       {task.estimated_duration >= 60 ? `${task.estimated_duration / 60}h` : `~${task.estimated_duration} Min.`}
@@ -308,9 +329,26 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                   )}
                 </div>
 
-                {/* Bottom Actions: History & Done Button & Admin Edit */}
+                {/* Bottom Actions: History & Pin & Edit & Done Button */}
                 <div className="flex items-center justify-between pt-3 border-t border-[var(--m3-outline-variant)]/50">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {/* Pin/Unpin Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinModalTask(task);
+                      }}
+                      className={`p-2 rounded-xl transition ${
+                        task.is_pinned 
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30' 
+                          : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)] hover:text-amber-500'
+                      }`}
+                      title={task.is_pinned ? "Angepinnt (Klicken für Bonus / Pin lösen)" : "Als dringend anpinnen & Bonus festlegen"}
+                    >
+                      <Pin className={`w-4 h-4 ${task.is_pinned ? 'fill-current rotate-12' : ''}`} />
+                    </button>
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -444,6 +482,14 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
             setDetailTaskId(null);
             onOpenEditTaskModal(task);
           }}
+        />
+      )}
+
+      {pinModalTask && (
+        <PinTaskModal
+          isOpen={!!pinModalTask}
+          onClose={() => setPinModalTask(null)}
+          task={pinModalTask}
         />
       )}
     </div>

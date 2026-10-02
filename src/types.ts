@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'member';
 
-export type ColorTheme = 'indigo' | 'emerald' | 'rose' | 'amber';
+export type ColorTheme = 'indigo' | 'emerald' | 'rose' | 'amber' | 'daily' | 'cyberpunk' | 'sunset' | 'forest';
 
 export interface FamilyMember {
   id: string;
@@ -35,6 +35,8 @@ export interface TaskItem {
   last_done: string | null; // ISO string
   fished_by?: string | null; // member ID
   fished_until?: string | null; // ISO string
+  is_pinned?: boolean; // Pinned as urgent at the top of overview
+  pinned_bonus_points?: number; // Flat bonus points awarded on completion without star multiplier
 }
 
 export interface ChoreLog {

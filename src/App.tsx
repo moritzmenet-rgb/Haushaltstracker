@@ -46,10 +46,9 @@ const MainContent: React.FC = () => {
   } = useApp();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings'>('dashboard');
 
-  // Automatically switch to overview / dashboard when celebration triggers so user sees the progress bar
+  // Close log modal when celebration triggers without forcibly switching tabs
   useEffect(() => {
     if (rewardCelebration) {
-      setCurrentTab('dashboard');
       setIsLogModalOpen(false);
     }
   }, [rewardCelebration]);
@@ -100,9 +99,6 @@ const MainContent: React.FC = () => {
   useEffect(() => {
     if (!activeUser) {
       setShowProfileSelector(true);
-    } else {
-      // Whenever the active user changes (and is not null), always reset to dashboard
-      setCurrentTab('dashboard');
     }
   }, [activeUser]);
 

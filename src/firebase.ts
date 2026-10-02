@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -34,6 +35,22 @@ const app = initializeApp(isConfigValid ? firebaseConfig : {
   authDomain: "mock.firebaseapp.com",
   projectId: "mock-project"
 });
+
+// Optional Firebase App Check (reCAPTCHA v3) integration for bot defense
+if (typeof window !== 'undefined' && isConfigValid) {
+  const recaptchaKey = (import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY;
+  if (recaptchaKey && typeof recaptchaKey === 'string' && recaptchaKey.trim().length > 0) {
+    try {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaKey.trim()),
+        isTokenAutoRefreshEnabled: true
+      });
+      console.log('Firebase App Check: Initialized with reCAPTCHA v3.');
+    } catch (e) {
+      console.warn('Firebase App Check initialization notice:', e);
+    }
+  }
+}
 
 // Primary services
 export const auth = getAuth(app);

@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileHover={{ scale: 1.08, rotate: -3 }}
                 whileTap={{ scale: 0.88, rotate: 6 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-                className="w-11 h-11 rounded-2xl bg-indigo-600 border border-white/20 flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0 relative overflow-hidden"
+                className="w-11 h-11 rounded-2xl bg-[var(--m3-primary)] border border-white/20 flex items-center justify-center shadow-lg shadow-[var(--m3-primary)]/25 shrink-0 relative overflow-hidden"
               >
                 <span className="text-white font-black text-lg tracking-tighter relative z-10">
                   F&W
@@ -293,21 +293,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </header>
-
-      {/* Mobile Floating Action Button (FAB) for fast one-thumb logging from any tab */}
-      <div className="md:hidden fixed bottom-24 right-4 z-40 pointer-events-auto">
-        <motion.button
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-          onClick={onOpenLogModal}
-          className="h-13 px-4 rounded-full bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-xl shadow-indigo-600/35 border border-white/20 flex items-center gap-2 font-black text-xs cursor-pointer active:scale-95"
-          aria-label="Aufgabe erfassen"
-        >
-          <Plus className="w-5 h-5 stroke-[3]" />
-          <span className="font-extrabold tracking-tight">Erfassen</span>
-        </motion.button>
-      </div>
 
       {/* Material 3 Expressive Mobile Bottom Navigation Bar */}
       <div className="md:hidden fixed bottom-3 inset-x-3 z-50 flex justify-center pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">

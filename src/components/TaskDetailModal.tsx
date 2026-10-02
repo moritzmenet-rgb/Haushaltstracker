@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Info, History, Star, Clock, Trash2, ShieldAlert, 
-  Award, Calendar, Zap, Fish, Edit3, CheckCircle2 
+  Award, Calendar, Zap, Fish, Edit3, CheckCircle2,
+  Pin, PinOff, Sparkles 
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatRelativeDate, getInitials, getCategoryStyle, getTaskDueStatus } from '../utils';
 import { ConfirmModal } from './ConfirmModal';
 import { TaskItem } from '../types';
 import { UserBadge } from './UserBadge';
+import { PinTaskModal } from './PinTaskModal';
 
 interface TaskDetailModalProps {
   taskId: string | null;
@@ -27,6 +29,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 }) => {
   const { data, isAdmin, deleteLog, activeUser, unfishTask } = useApp();
   const [logToDelete, setLogToDelete] = useState<{ id: string; user: string; points: number } | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   if (!taskId) return null;
 
@@ -138,6 +141,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               )}
 
               <div className="flex flex-wrap gap-3">
+                {task.is_pinned && (
+                  <div 
+                    onClick={() => setIsPinModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-2 shadow-2xs cursor-pointer hover:bg-amber-500/25 transition"
+                    title="Klicken zum Bearbeiten des Bonus"
+                  >
+                    <Pin className="w-4 h-4 fill-current rotate-12 text-amber-500" />
+                    <span>Dringend angepinnt in Übersicht {task.pinned_bonus_points ? `(+${task.pinned_bonus_points} Extrapunkte Bonus!)` : '(Kein Bonus)'}</span>
+                  </div>
+                )}
+
                 {task.preferred_time && (
                   <div className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-bold flex items-center gap-2">
                     <Zap className="w-4 h-4" />
@@ -156,6 +170,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             {/* Action Section */}
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
+              <button
+                type="button"
+                onClick={() => setIsPinModalOpen(true)}
+                className={`px-5 py-4 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2 border shadow-xs ${
+                  task.is_pinned 
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' 
+                    : 'bg-[var(--m3-surface-container)] border-[var(--m3-outline-variant)] text-[var(--m3-on-surface)] hover:bg-[var(--m3-surface-container-high)]'
+                }`}
+              >
+                <Pin className={`w-4 h-4 ${task.is_pinned ? 'fill-current rotate-12' : ''}`} />
+                <span>{task.is_pinned ? 'Pin & Bonus anpassen' : 'Als dringend anpinnen 📌'}</span>
+              </button>
+
               {!isFished ? (
                 <>
                   <button
@@ -308,6 +335,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         }}
         onCancel={() => setLogToDelete(null)}
       />
+
+      {isPinModalOpen && (
+        <PinTaskModal
+          isOpen={isPinModalOpen}
+          onClose={() => setIsPinModalOpen(false)}
+          task={task}
+        />
+      )}
     </AnimatePresence>
   );
 };

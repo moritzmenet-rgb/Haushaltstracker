@@ -92,12 +92,13 @@ interface AppContextType {
   deleteLog: (logId: string) => Promise<boolean>;
   logPointsAdjustment?: (targetUserId: string, deltaPoints: number, reason?: string) => Promise<void>;
 
-  // Task CRUD (Admin)
+  // Task CRUD (Admin & Members)
   createTask: (task: Omit<TaskItem, 'id' | 'created_by' | 'last_done'>) => void;
-  updateTask: (taskId: string, updates: Partial<TaskItem>) => void;
+  updateTask: (taskId: string, updates: Partial<TaskItem>) => Promise<boolean>;
   deleteTask: (taskId: string) => void;
   fishTask: (taskId: string, untilDate: string) => Promise<void>;
   unfishTask: (taskId: string) => Promise<void>;
+  togglePinTask: (taskId: string, bonusPoints?: number) => Promise<boolean>;
 
   // Category CRUD (Admin)
   addCategory: (category: string) => boolean;
@@ -205,7 +206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(COLOR_THEME_KEY) as ColorTheme;
-      if (saved && ['indigo', 'emerald', 'rose', 'amber'].includes(saved)) return saved;
+      if (saved && ['indigo', 'emerald', 'rose', 'amber', 'daily', 'cyberpunk', 'sunset', 'forest'].includes(saved)) return saved;
     }
     return 'indigo';
   });
@@ -522,7 +523,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     applyColorTheme(effectiveTheme);
-  }, [effectiveTheme]);
+  }, [effectiveTheme, theme]);
 
   const persistLocal = useCallback((newData: FamilyData) => {
     setData(newData);
@@ -820,7 +821,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!task) return 0;
 
     const now = new Date().toISOString();
-    const points = calculatePoints(task.base_points, stars, data.settings, now);
+    const basePoints = calculatePoints(task.base_points, stars, data.settings, now);
+    const pinnedBonus = (task.is_pinned && task.pinned_bonus_points) ? Number(task.pinned_bonus_points) : 0;
+    const points = basePoints + pinnedBonus;
     const prevCyclePoints = getMemberCyclePoints(activeUser.id, data.logs, data.settings.last_reset_date);
     const targetPoints = activeUser.weekly_target || data.settings.default_weekly_target || 50;
 
@@ -864,11 +867,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     persistLocal({
       ...data,
       tasks: { ...data.tasks, [taskId]: updatedTask },
-      members: { ...data.members, [activeUser.id]: updatedMember },
+      members: { ...data.members, ...scanResult.updatedMembers, [activeUser.id]: updatedMember },
       logs: [newLog, ...data.logs],
       trophyOwners: scanResult.trophyOwners
     });
-    const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
+
+    const cloudPromises: Promise<any>[] = [saveChoreLogToCloud(newLog, updatedTask, updatedMember)];
+    // Ensure any other members with newly unlocked badges or Wanderpokale are synced to cloud 100%
+    Object.values(scanResult.updatedMembers).forEach(m => {
+      if (m.id !== activeUser.id) {
+        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const newBadges = m.unlocked_badges || {};
+        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+          cloudPromises.push(saveMemberToCloud(m));
+        }
+      }
+    });
+
+    const p = Promise.all(cloudPromises);
     await triggerSyncFeedback('Aufgabe erledigt', p);
 
     // Trigger gamified celebration & flying coins animation
@@ -909,9 +925,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetNotes = updates.notes !== undefined ? (updates.notes.trim() || undefined) : oldLog.notes;
 
     const task = data.tasks[targetTaskId];
-    const newPointsAwarded = task
+    const basePts = task
       ? calculatePoints(task.base_points, targetStars, data.settings, targetTimestamp)
       : oldLog.points_awarded;
+    const pinnedBonus = (task?.is_pinned && task?.pinned_bonus_points) ? Number(task.pinned_bonus_points) : 0;
+    const newPointsAwarded = basePts + pinnedBonus;
 
     const updatedLog: ChoreLog = {
       ...oldLog,
@@ -1061,9 +1079,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await triggerSyncFeedback('Aufgabe erstellt', p);
   }, [activeUser, triggerSyncFeedback]);
 
-  const updateTask = useCallback(async (id: string, updates: any) => {
+  const updateTask = useCallback(async (id: string, updates: any): Promise<boolean> => {
     const currentTask = data.tasks[id];
-    if (!currentTask) return;
+    if (!currentTask) return false;
     const updated = { ...currentTask, ...updates };
     setData(prev => {
       const nextTasks = { ...prev.tasks, [id]: updated };
@@ -1073,6 +1091,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const p = saveTaskToCloud(updated);
     await triggerSyncFeedback('Aufgabe geändert', p);
+    return true;
   }, [data.tasks, triggerSyncFeedback]);
 
   const deleteTask = useCallback(async (id: string) => {
@@ -1127,6 +1146,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const p = saveTaskToCloud(updated);
     await triggerSyncFeedback('Reservierung aufgehoben', p);
+  }, [data.tasks, triggerSyncFeedback]);
+
+  const togglePinTask = useCallback(async (taskId: string, bonusPoints?: number): Promise<boolean> => {
+    const currentTask = data.tasks[taskId];
+    if (!currentTask) return false;
+    const willPin = !currentTask.is_pinned;
+    const newBonus = willPin ? (bonusPoints !== undefined ? bonusPoints : (currentTask.pinned_bonus_points || 20)) : (currentTask.pinned_bonus_points || 0);
+    const updated: TaskItem = {
+      ...currentTask,
+      is_pinned: willPin,
+      pinned_bonus_points: newBonus
+    };
+    setData(prev => {
+      const nextTasks = { ...prev.tasks, [taskId]: updated };
+      const next = { ...prev, tasks: nextTasks };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    const p = saveTaskToCloud(updated);
+    await triggerSyncFeedback(willPin ? 'Aufgabe oben angepinnt 📌' : 'Aufgabe abgepinnt', p);
+    return true;
   }, [data.tasks, triggerSyncFeedback]);
 
   const addMember = useCallback(async (name: string, avatarColor: string, role: UserRole, weeklyTarget = 50, pinCode?: string): Promise<FamilyMember> => {
@@ -1676,15 +1716,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         members: scanResult.updatedMembers,
         trophyOwners: scanResult.trophyOwners
       });
-      if (firebaseUser) {
-        Object.values(scanResult.updatedMembers).forEach(m => {
-          const oldBadges = data.members[m.id]?.unlocked_badges || {};
-          const newBadges = m.unlocked_badges || {};
-          if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
-            saveMemberToCloud(m).catch(console.warn);
-          }
-        });
-      }
+      Object.values(scanResult.updatedMembers).forEach(m => {
+        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const newBadges = m.unlocked_badges || {};
+        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+          saveMemberToCloud(m).catch(console.warn);
+        }
+      });
       newBadgesCount = scanResult.newlyUnlockedForActiveUser.length;
       if (newBadgesCount > 0) {
         setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
@@ -1784,7 +1822,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
       logChore, updateLog, deleteLog, logPointsAdjustment, createTask, updateTask, deleteTask,
-      fishTask, unfishTask,
+      fishTask, unfishTask, togglePinTask,
       rewardCelebration, triggerRewardCelebration, clearRewardCelebration,
       pinnwandNotes, createPinnwandNote, updatePinnwandNote, deletePinnwandNote,
       votePinnwandPoll, togglePinnwandReaction, updateNotePosition, autoArrangePinnwand,

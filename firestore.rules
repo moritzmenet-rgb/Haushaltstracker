@@ -110,17 +110,21 @@ service cloud.firestore {
     }
 
     function isValidTask(data) {
-      return 'id' in data && data.id is string && 
-             'title' in data && data.title is string && 
-             'base_points' in data && data.base_points is number;
+      return 'id' in data && data.id is string && data.id.size() <= 128 &&
+             'title' in data && data.title is string && data.title.size() <= 200 &&
+             'base_points' in data && data.base_points is number &&
+             data.base_points >= -500 && data.base_points <= 1000 &&
+             (!('is_pinned' in data) || data.is_pinned is bool) &&
+             (!('pinned_bonus_points' in data) || (data.pinned_bonus_points is number && data.pinned_bonus_points >= 0 && data.pinned_bonus_points <= 5000));
     }
 
     function isValidLog(data) {
-      return 'log_id' in data && data.log_id is string && 
-             'task_id' in data && data.task_id is string && 
-             'user_id' in data && data.user_id is string &&
+      return 'log_id' in data && data.log_id is string && data.log_id.size() <= 128 &&
+             'task_id' in data && data.task_id is string && data.task_id.size() <= 128 &&
+             'user_id' in data && data.user_id is string && data.user_id.size() <= 128 &&
              'points_awarded' in data && data.points_awarded is number &&
-             'timestamp' in data && data.timestamp is string;
+             data.points_awarded >= -500 && data.points_awarded <= 1000 &&
+             'timestamp' in data && data.timestamp is string && data.timestamp.size() <= 64;
     }
 
     function isValidPinnwandNote(data) {
@@ -151,7 +155,7 @@ service cloud.firestore {
       match /members/{memberId} {
         allow read: if isVerified();
         allow create, update: if isVerified() && (isMoritz() || isValidMember(incoming()));
-        allow delete: if isAdmin() || isVerified();
+        allow delete: if (isAdmin() || isVerified()) && (!('role' in resource.data) || resource.data.role != 'admin' || isMoritz());
       }
 
       // Tasks Subcollection

@@ -121,9 +121,12 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
   const mult1 = data.settings.star_multiplier_1 ?? 50;
   const mult2 = data.settings.star_multiplier_2 ?? 75;
   const mult3 = data.settings.star_multiplier_3 ?? 100;
+  const currentMult = stars === 3 ? mult3 : stars === 2 ? mult2 : mult1;
 
-  // Calculate live preview points
-  const pointsPreview = currentTask
+  const pinnedBonus = (currentTask?.is_pinned && currentTask?.pinned_bonus_points) ? Number(currentTask.pinned_bonus_points) : 0;
+
+  // Calculate live preview points (base with star multiplier + flat pinned bonus)
+  const baseCalculatedPoints = currentTask
     ? calculatePoints(
         currentTask.base_points,
         stars,
@@ -135,6 +138,8 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
         logToEdit?.timestamp
       )
     : 0;
+
+  const pointsPreview = baseCalculatedPoints + pinnedBonus;
 
   const handleTaskChange = (taskId: string) => {
     setSelectedTaskId(taskId);
@@ -554,16 +559,19 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   Ergebnis dieser Aufgabe
                 </span>
                 <span className="text-xs font-medium">
-                  {currentTask?.base_points || 20} Basis × {stars === 3 ? mult3 : stars === 2 ? mult2 : mult1}%
+                  {currentTask?.base_points || 20} Basis × {currentMult}%
+                  {pinnedBonus > 0 && ` + ${pinnedBonus} Dringlichkeits-Bonus 📌`}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-black tracking-tight text-[var(--m3-primary)]">
                   +{pointsPreview} Pkt.
                 </span>
-                <span className="text-[10px] text-[var(--m3-on-primary-container)]/70 block">
-                  (mind. 1 Punkt garantiert)
-                </span>
+                {pinnedBonus > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block">
+                    (inkl. +{pinnedBonus} Bonus)
+                  </span>
+                )}
               </div>
             </div>
 

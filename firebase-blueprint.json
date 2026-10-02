@@ -10,7 +10,7 @@
         "default_weekly_target": { "type": "integer", "minimum": 0, "maximum": 10000 },
         "categories": { "type": "array", "maxItems": 50 },
         "last_reset_date": { "type": "string", "format": "date-time" },
-        "color_theme": { "type": "string", "enum": ["indigo", "emerald", "rose", "amber"] },
+        "color_theme": { "type": "string", "enum": ["indigo", "emerald", "rose", "amber", "daily", "cyberpunk", "sunset", "forest"] },
         "star_multiplier_1": { "type": "integer" },
         "star_multiplier_2": { "type": "integer" },
         "star_multiplier_3": { "type": "integer" },
@@ -70,6 +70,8 @@
         "last_done": { "type": "string", "format": "date-time" },
         "fished_by": { "type": "string" },
         "fished_until": { "type": "string", "format": "date-time" },
+        "is_pinned": { "type": "boolean" },
+        "pinned_bonus_points": { "type": "integer", "minimum": 0, "maximum": 5000 },
         "householdId": { "type": "string" }
       },
       "required": ["id", "title", "category", "base_points"]

@@ -149,32 +149,168 @@ export function getInitials(name: string): string {
 }
 
 /**
- * Filters chore logs belonging to the current cycle/week
+ * Ermittelt den Timestamp des jüngsten Samstags um 00:00:00 (lokale Zeit).
+ * Der Wochenzyklus für Punkte startet am Samstag um 00:00 Uhr und endet am Freitag um 23:59:59.
  */
-export function getCycleLogs(logs: ChoreLog[], cycleStartDate?: string): ChoreLog[] {
-  let startTimestamp = 0;
-  if (cycleStartDate) {
-    startTimestamp = new Date(cycleStartDate).getTime();
-  } else {
-    // Default to last 7 days
-    startTimestamp = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  }
-  return logs.filter(l => new Date(l.timestamp).getTime() >= startTimestamp);
+export function getSaturdayResetTimestamp(nowDate: Date = new Date()): number {
+  const d = new Date(nowDate);
+  const day = d.getDay(); // 0 = So, 1 = Mo, 2 = Di, 3 = Mi, 4 = Do, 5 = Fr, 6 = Sa
+  // Wie viele Tage liegt der jüngste Samstag zurück?
+  // Sa (6) -> 0 Tage (heute 00:00 Uhr)
+  // So (0) -> 1 Tag
+  // Mo (1) -> 2 Tage
+  // Di (2) -> 3 Tage
+  // Mi (3) -> 4 Tage
+  // Do (4) -> 5 Tage
+  // Fr (5) -> 6 Tage
+  const daysSinceSaturday = (day + 1) % 7;
+  d.setDate(d.getDate() - daysSinceSaturday);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
+/**
+ * Liefert das Datum des nächsten Samstag-Resets um 00:00 Uhr
+ */
+export function getNextSaturdayReset(nowDate: Date = new Date()): Date {
+  const currentSaturday = new Date(getSaturdayResetTimestamp(nowDate));
+  currentSaturday.setDate(currentSaturday.getDate() + 7);
+  return currentSaturday;
+}
+
+/**
+ * Filters chore logs belonging to the current cycle/week (ab jüngstem Samstag 00:00 Uhr)
+ */
+export function getCycleLogs(logs: ChoreLog[], cycleStartDate?: string): ChoreLog[] {
+  const saturdayTimestamp = getSaturdayResetTimestamp();
+  let startTimestamp = saturdayTimestamp;
+
+  if (cycleStartDate) {
+    const explicit = new Date(cycleStartDate).getTime();
+    if (!isNaN(explicit) && explicit > saturdayTimestamp) {
+      startTimestamp = explicit;
+    }
+  }
+
+  return (logs || []).filter(l => new Date(l.timestamp).getTime() >= startTimestamp);
+}
+
+/**
+ * Berechnet die Wochenpunkte eines Mitglieds (Reset jeden Samstag um 00:00 Uhr)
+ */
 export function getMemberCyclePoints(memberId: string, logs: ChoreLog[], cycleStartDate?: string): number {
   const cycleLogs = getCycleLogs(logs, cycleStartDate);
   return cycleLogs
     .filter(l => l.user_id === memberId)
-    .reduce((sum, l) => sum + (l.points_awarded || 0), 0);
+    .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
 }
 
 /**
- * Calculates member total points strictly from all existing chore logs
+ * Berechnet die gesamten Lifetime-Chips eines Mitglieds von Tag 1 an (Total Points, verfallen nie)
+ */
+export function getMemberChips(memberId: string, logs: ChoreLog[]): number {
+  return getMemberTotalPoints(memberId, logs);
+}
+
+/**
+ * Calculates member total points strictly from all existing chore logs (Total Chips)
  */
 export function getMemberTotalPoints(memberId: string, logs: ChoreLog[]): number {
   if (!logs || !Array.isArray(logs)) return 0;
   return logs
     .filter(l => l.user_id === memberId)
     .reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+}
+
+export interface WeekHistoryItem {
+  id: string;
+  weekIndex: number; // 0 = aktuelle Woche, 1 = letzte Woche, 2 = vor 2 Wochen...
+  label: string;
+  subLabel: string;
+  startDate: Date;
+  endDate: Date;
+  isCurrentWeek: boolean;
+  totalPoints: number;
+  winnerMemberId: string | null;
+  winnerPoints: number;
+  memberPoints: Record<string, number>;
+  taskCount: number;
+}
+
+/**
+ * Berechnet den historischen Wochenverlauf basierend auf dem Samstags-Reset
+ */
+export function computeWeeklyHistory(
+  logs: ChoreLog[],
+  members: Record<string, FamilyMember>,
+  weeksCount: number = 8
+): WeekHistoryItem[] {
+  const history: WeekHistoryItem[] = [];
+  const currentSaturdayStart = getSaturdayResetTimestamp();
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  for (let i = 0; i < weeksCount; i++) {
+    const startMs = currentSaturdayStart - (i * ONE_WEEK_MS);
+    const endMs = startMs + ONE_WEEK_MS - 1; // Bis Freitag 23:59:59.999
+    const startDate = new Date(startMs);
+    const endDate = new Date(endMs);
+
+    const weekLogs = (logs || []).filter(l => {
+      const t = new Date(l.timestamp).getTime();
+      return t >= startMs && t <= endMs;
+    });
+
+    const memberPts: Record<string, number> = {};
+    Object.keys(members || {}).forEach(mId => {
+      memberPts[mId] = 0;
+    });
+
+    weekLogs.forEach(l => {
+      if (memberPts[l.user_id] !== undefined) {
+        memberPts[l.user_id] += Number(l.points_awarded) || 0;
+      } else {
+        memberPts[l.user_id] = Number(l.points_awarded) || 0;
+      }
+    });
+
+    const totalPts = weekLogs.reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
+
+    let winnerId: string | null = null;
+    let maxPts = 0;
+    Object.entries(memberPts).forEach(([mId, pts]) => {
+      if (pts > maxPts) {
+        maxPts = pts;
+        winnerId = mId;
+      }
+    });
+
+    const startStr = `${startDate.getDate().toString().padStart(2, '0')}.${(startDate.getMonth() + 1).toString().padStart(2, '0')}.`;
+    const endStr = `${endDate.getDate().toString().padStart(2, '0')}.${(endDate.getMonth() + 1).toString().padStart(2, '0')}.`;
+
+    let label = '';
+    if (i === 0) {
+      label = 'Aktuelle Woche';
+    } else if (i === 1) {
+      label = 'Letzte Woche';
+    } else {
+      label = `Vor ${i} Wochen`;
+    }
+
+    history.push({
+      id: `cycle-week-${i}`,
+      weekIndex: i,
+      label,
+      subLabel: `${startStr} – ${endStr}`,
+      startDate,
+      endDate,
+      isCurrentWeek: i === 0,
+      totalPoints: totalPts,
+      winnerMemberId: maxPts > 0 ? winnerId : null,
+      winnerPoints: maxPts,
+      memberPoints: memberPts,
+      taskCount: weekLogs.length
+    });
+  }
+
+  return history;
 }

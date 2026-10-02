@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckSquare, X, Clock, Award, Calendar, Layers, Trash2 } from 'lucide-react';
+import { CheckSquare, X, Clock, Award, Calendar, Layers, Trash2, Pin, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TaskItem } from '../types';
 
@@ -25,6 +25,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const [intervalDays, setIntervalDays] = useState(7);
   const [frequencyPerDay, setFrequencyPerDay] = useState(1);
   const [preferredTime, setPreferredTime] = useState<'morning' | 'noon' | 'evening' | null>(null);
+  const [isPinned, setIsPinned] = useState(false);
+  const [pinnedBonusPoints, setPinnedBonusPoints] = useState(20);
 
   useEffect(() => {
     if (taskToEdit) {
@@ -36,6 +38,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setIntervalDays(taskToEdit.interval_days);
       setFrequencyPerDay(taskToEdit.frequency_per_day || 1);
       setPreferredTime(taskToEdit.preferred_time || null);
+      setIsPinned(!!taskToEdit.is_pinned);
+      setPinnedBonusPoints(taskToEdit.pinned_bonus_points || 20);
     } else {
       setTitle('');
       setDescription('');
@@ -45,6 +49,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setIntervalDays(7);
       setFrequencyPerDay(1);
       setPreferredTime(null);
+      setIsPinned(false);
+      setPinnedBonusPoints(20);
     }
   }, [taskToEdit, isOpen, data.settings.categories]);
 
@@ -64,7 +70,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           estimated_duration: Number(estimatedDuration) || 10,
           interval_days: Number(intervalDays) || 7,
           frequency_per_day: Number(frequencyPerDay) || 1,
-          preferred_time: preferredTime
+          preferred_time: preferredTime,
+          is_pinned: isPinned,
+          pinned_bonus_points: isPinned ? (Number(pinnedBonusPoints) || 0) : 0
         });
       } else {
         await createTask({
@@ -75,12 +83,14 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           estimated_duration: Number(estimatedDuration) || 10,
           interval_days: Number(intervalDays) || 7,
           frequency_per_day: Number(frequencyPerDay) || 1,
-          preferred_time: preferredTime
+          preferred_time: preferredTime,
+          is_pinned: isPinned,
+          pinned_bonus_points: isPinned ? (Number(pinnedBonusPoints) || 0) : 0
         });
       }
       onClose();
     } catch (err) {
-      // Error handled by SyncOverlay/AppContext, but we prevent onClose if failed
+      // Error handled by SyncOverlay/AppContext
     }
   };
 
@@ -363,6 +373,75 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* 5. Dringend Anpinnen & Extrapunkte-Bonus */}
+            <div className={`p-4 rounded-2xl border transition-all ${
+              isPinned 
+                ? 'bg-amber-500/10 border-amber-500/40 shadow-xs' 
+                : 'bg-[var(--m3-surface-container)] border-[var(--m3-outline-variant)]'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                    isPinned ? 'bg-amber-500 text-white' : 'bg-[var(--m3-surface)] text-[var(--m3-outline)]'
+                  }`}>
+                    <Pin className={`w-4 h-4 ${isPinned ? 'fill-current rotate-12' : ''}`} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-[var(--m3-on-surface)] flex items-center gap-1.5">
+                      <span>Als dringend oben anpinnen</span>
+                      {isPinned && (
+                        <span className="text-[9px] font-black uppercase px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                          In Übersicht aktiv
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-[var(--m3-on-surface-variant)]">
+                      Erscheint oben in der Dashboard-Übersicht für alle Haushaltsmitglieder.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPinned}
+                    onChange={(e) => setIsPinned(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-300 dark:bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {/* Bonus points input if pinned */}
+              {isPinned && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-3.5 pt-3 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Zusatz-Punktebonus bei Erledigung (sterneunabhängig):</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <div className="flex items-center gap-1 bg-[var(--m3-surface)] px-3 py-1.5 rounded-xl border border-amber-500/40">
+                      <span className="text-xs font-black text-amber-600 dark:text-amber-400">+</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="500"
+                        step="1"
+                        value={pinnedBonusPoints}
+                        onChange={(e) => setPinnedBonusPoints(Math.max(0, Number(e.target.value) || 0))}
+                        className="w-14 text-right bg-transparent text-xs font-black text-amber-600 dark:text-amber-400 focus:outline-none"
+                      />
+                      <span className="text-[11px] text-[var(--m3-outline)] font-bold">Pkt.</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Actions */}

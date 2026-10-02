@@ -292,6 +292,22 @@ export function scanAndAwardHistoricalAchievements(
       awardBadge('badge_title');
     }
 
+    // --- Secret: Multitasker (>= 3 distinct categories on a single day) ---
+    const dayCategoryMap: Record<string, Set<string>> = {};
+    memberLogs.forEach(l => {
+      const dayKey = new Date(l.timestamp).toDateString();
+      const task = allTasks[l.task_id];
+      const category = (task?.category || 'Allgemein').toLowerCase().trim();
+      if (!dayCategoryMap[dayKey]) dayCategoryMap[dayKey] = new Set();
+      dayCategoryMap[dayKey].add(category);
+    });
+    const hasMultitaskerDay = Object.values(dayCategoryMap).some(catSet => catSet.size >= 3);
+    if (hasMultitaskerDay) awardBadge('secret_multitasker');
+
+    // --- Secret: Wordsmith (detailed notes with >= 40 chars) ---
+    const hasWordsmithNote = memberLogs.some(l => l.notes && l.notes.trim().length >= 40);
+    if (hasWordsmithNote) awardBadge('secret_wordsmith');
+
     // --- Easter Egg Secret ---
     if (easterEggClicks >= 10 && activeUserId === member.id) {
       awardBadge('secret_easter_egg');
@@ -332,19 +348,24 @@ export function scanAndAwardHistoricalAchievements(
 
         if (all1Stars) hasAntsWeek = true;
 
-        // Check if achieved on a Monday
-        const mondayLogs = weekLogs.filter(l => new Date(l.timestamp).getDay() === 1);
-        const mondayPoints = mondayLogs.reduce((s, l) => s + (l.points_awarded || 0), 0);
-        if (mondayPoints >= targetPoints || mondayPoints >= 30) {
+        // Check if achieved on day 1 (Saturday or Monday)
+        const firstDayLogs = weekLogs.filter(l => {
+          const day = new Date(l.timestamp).getDay();
+          return day === 6 || day === 1;
+        });
+        const firstDayPoints = firstDayLogs.reduce((s, l) => s + (l.points_awarded || 0), 0);
+        if (firstDayPoints >= targetPoints || firstDayPoints >= 30) {
           hasSpeedMonday = true;
         }
 
-        // Check if finished on Sunday after 20:00
-        const hasSundayLate = weekLogs.some(l => {
+        // Check if finished on Friday before Saturday reset (after 18:00) or Sunday late
+        const hasLastMinuteLate = weekLogs.some(l => {
           const d = new Date(l.timestamp);
-          return d.getDay() === 0 && d.getHours() >= 20;
+          const day = d.getDay();
+          const hr = d.getHours();
+          return (day === 5 && hr >= 18) || (day === 0 && hr >= 20);
         });
-        if (hasSundayLate) hasSundayLastMinute = true;
+        if (hasLastMinuteLate) hasSundayLastMinute = true;
       }
 
       if (Math.abs(weekPoints - 30) < 0.15) hasExact30 = true;

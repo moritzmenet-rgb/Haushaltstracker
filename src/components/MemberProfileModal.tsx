@@ -12,10 +12,11 @@ import {
   Target,
   User as UserIcon,
   Zap,
-  History
+  History,
+  Coins
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getInitials, formatRelativeDate, getCategoryStyle } from '../utils';
+import { getInitials, formatRelativeDate, getCategoryStyle, getMemberCyclePoints } from '../utils';
 import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 
 interface MemberProfileModalProps {
@@ -74,11 +75,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
     const avgStars = (totalStars / memberLogs.length).toFixed(1);
 
     // Points over time
-    const currentCycleStart = data.settings.last_reset_date;
-    const currentCycleLogs = currentCycleStart 
-      ? memberLogs.filter(l => new Date(l.timestamp).getTime() >= new Date(currentCycleStart).getTime())
-      : memberLogs;
-    const currentCyclePoints = currentCycleLogs.reduce((sum, l) => sum + l.points_awarded, 0);
+    const currentCyclePoints = getMemberCyclePoints(memberId, data.logs, data.settings.last_reset_date);
 
     return {
       totalTasks: memberLogs.length,
@@ -163,14 +160,17 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
-                <Award className="w-5 h-5 text-amber-500 mb-2" />
-                <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.totalPoints || 0}</div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Gesamtpunkte</div>
+                <Coins className="w-5 h-5 text-amber-500 mb-2" />
+                <div className="text-xl font-black text-[var(--m3-on-surface)] flex items-center gap-1">
+                  <span>{stats?.totalPoints || 0}</span>
+                  <span className="text-xs text-amber-500 font-bold">🪙</span>
+                </div>
+                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Chips (Tag 1)</div>
               </div>
               <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
                 <Zap className="w-5 h-5 text-[var(--m3-primary)] mb-2" />
                 <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.currentCyclePoints || 0}</div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Diese Woche</div>
+                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Wochenpunkte</div>
               </div>
               <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
                 <Star className="w-5 h-5 text-emerald-500 mb-2" />
