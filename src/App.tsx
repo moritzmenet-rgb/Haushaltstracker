@@ -6,7 +6,6 @@ import { Dashboard } from './components/Dashboard';
 import { TaskCatalog } from './components/TaskCatalog';
 import { AdminSettings } from './components/AdminSettings';
 import { ProfileSelector } from './components/ProfileSelector';
-import { CloudOnboarding } from './components/CloudOnboarding';
 import { LogChoreModal } from './components/LogChoreModal';
 import { TaskHistoryModal } from './components/TaskHistoryModal';
 import { TaskFormModal } from './components/TaskFormModal';
@@ -54,31 +53,9 @@ const MainContent: React.FC = () => {
       setIsLogModalOpen(false);
     }
   }, [rewardCelebration]);
-  
-  // Decide if we should show the cloud onboarding screen
-  // (Empty local data + not logged in = likely new family member or fresh start)
-  const [showCloudOnboarding, setShowCloudOnboarding] = useState(false);
-  const [dismissedOnboarding, setDismissedOnboarding] = useState(false);
 
   const isDataEmpty = Object.keys(data.members).length === 0;
-  const isCloudConnecting = Boolean(firebaseUser && syncStatus === 'connecting' && isDataEmpty);
-
-  useEffect(() => {
-    // Show onboarding if:
-    // 1. User has not dismissed onboarding
-    // 2. App is loaded
-    // 3. Local data is empty
-    // 4. We are NOT resolving auth (definitively logged out)
-    // 5. We are NOT connecting to cloud (definitively offline)
-    const isConnecting = firebaseUser && syncStatus === 'connecting';
-    
-    // Strict check: Only show if we know for sure the user is not logged in and not about to be
-    if (!dismissedOnboarding && isAppLoaded && !isAuthResolving && isDataEmpty && !isConnecting && !firebaseUser) {
-      setShowCloudOnboarding(true);
-    } else {
-      setShowCloudOnboarding(false);
-    }
-  }, [isAppLoaded, isAuthResolving, isDataEmpty, firebaseUser, syncStatus, dismissedOnboarding]);
+  const isCloudConnecting = Boolean(syncStatus === 'connecting' && isDataEmpty && !isAppLoaded);
 
   // Hide the HTML loading screen when app is ready
   useEffect(() => {
@@ -233,21 +210,11 @@ const MainContent: React.FC = () => {
             <span>•</span>
             <span className="text-emerald-500 flex items-center gap-1.5 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-              {firebaseUser ? 'Cloud-Sync aktiv' : 'Lokal & Tab-Sync'}
+              Cloud-Sync aktiv (Online-First)
             </span>
           </div>
         </div>
       </footer>
-
-      {/* Screen 0: Cloud Onboarding (For fresh installs / family joins) */}
-      {showCloudOnboarding && (
-        <CloudOnboarding 
-          onLocalSetup={() => {
-            setDismissedOnboarding(true);
-            setShowCloudOnboarding(false);
-          }} 
-        />
-      )}
 
       {/* Cloud Synchronisation Connecting Loader (Prevents race condition) */}
       {isCloudConnecting && (
@@ -286,7 +253,7 @@ const MainContent: React.FC = () => {
 
       {/* Screen 1: Netflix-Style Profile Selector */}
       <ProfileSelector
-        isOpen={(showProfileSelector || !activeUser) && !showCloudOnboarding && !isCloudConnecting}
+        isOpen={(showProfileSelector || !activeUser) && !isCloudConnecting}
         onClose={() => setShowProfileSelector(false)}
         onOpenSettings={() => {
           setCurrentTab('settings');
@@ -329,7 +296,7 @@ const MainContent: React.FC = () => {
 
       {/* "Was ist neu?" Announcement Modal per Account */}
       <WhatsNewModal
-        isOpen={isWhatsNewOpen && !isTutorialOpen && !showCloudOnboarding}
+        isOpen={isWhatsNewOpen && !isTutorialOpen}
         onClose={closeWhatsNew}
         onAcknowledge={markCurrentVersionAsSeen}
         activeUserName={activeUser?.name}

@@ -135,11 +135,7 @@ export const SyncSettingsTab: React.FC = () => {
       <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3.5">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xs ${
-              firebaseUser
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
-            }`}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xs bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
               <Cloud className="w-6 h-6" />
             </div>
 
@@ -148,126 +144,119 @@ export const SyncSettingsTab: React.FC = () => {
                 <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
                   Firebase Cloud-Synchronisation
                 </h2>
-                {firebaseUser ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-xs font-black border border-emerald-500/30">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Live & Aktiv
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] text-xs font-bold">
-                    Lokaler Speicher
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-xs font-black border border-emerald-500/30">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Online-First Aktiv
+                </span>
               </div>
 
               <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
                 {firebaseUser
                   ? `Verbunden mit ${providerName}: ${firebaseUser.email || (isAppleUser ? 'Apple-ID verknüpft' : firebaseUser.uid)}`
-                  : 'Aktuell sind deine Daten lokal im Browser gespeichert. Melde dich mit Google oder Apple an für automatische Live-Synchronisation.'}
+                  : 'Online-First aktiv: Kein Google- oder Apple-Account erforderlich. Alle Geräte synchronisieren live im gemeinsamen Haushalt.'}
               </p>
             </div>
           </div>
 
-          {/* Action Login / Logout */}
-          <div>
+          {/* Action Buttons: Push & Optional Login / Logout */}
+          <div className="flex flex-wrap items-center gap-2">
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleUploadAll}
+              disabled={isUploading}
+              className="m3-btn-filled px-4 py-2.5 text-xs font-black inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <UploadCloud className="w-4 h-4" />
+              )}
+              <span>In Cloud pushen</span>
+            </motion.button>
+
             {firebaseUser ? (
+              <button
+                type="button"
+                onClick={logoutFirebase}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[var(--m3-surface)] hover:bg-rose-500/10 text-[var(--m3-on-surface-variant)] hover:text-rose-500 text-xs font-bold border border-[var(--m3-outline-variant)] transition cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Abmelden</span>
+              </button>
+            ) : (
               <div className="flex items-center gap-2">
                 <motion.button
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleUploadAll}
-                  disabled={isUploading}
-                  className="m3-btn-filled px-4 py-2.5 text-xs font-black inline-flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UploadCloud className="w-4 h-4" />
-                  )}
-                  <span>In Cloud pushen</span>
-                </motion.button>
-
-                <button
-                  type="button"
-                  onClick={logoutFirebase}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[var(--m3-surface)] hover:bg-rose-500/10 text-[var(--m3-on-surface-variant)] hover:text-rose-500 text-xs font-bold border border-[var(--m3-outline-variant)] transition cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Abmelden</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={loginWithGoogle}
-                  className="m3-btn-filled px-4 py-2 text-xs font-black inline-flex items-center gap-2 cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-2xl bg-[var(--m3-surface-container)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] text-xs font-bold border border-[var(--m3-outline-variant)] inline-flex items-center gap-2 cursor-pointer shadow-xs transition"
+                  title="Optional: Google-Konto verknüpfen"
                 >
-                  <Cloud className="w-4 h-4" />
-                  <span>Mit Google</span>
+                  <Cloud className="w-4 h-4 text-[var(--m3-primary)]" />
+                  <span>Google (Optional)</span>
                 </motion.button>
 
                 <motion.button
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={loginWithApple}
-                  className="px-4 py-2 rounded-2xl bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-black inline-flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-2xl bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-bold inline-flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  title="Optional: Apple-ID verknüpfen"
                 >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 170 170">
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 170 170">
                     <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.07-7.65-7.85-11.87-14.34-6.3-9.69-11.05-20.91-14.25-33.67-3.2-12.76-4.8-24.89-4.8-36.38 0-14.61 3.59-26.69 10.77-36.23 7.18-9.55 16.27-14.43 27.27-14.65 4.89 0 10.37 1.25 16.44 3.75 6.07 2.5 10.15 3.8 12.24 3.91 1.74-.11 6.04-1.46 12.91-4.04 6.87-2.58 12.44-3.72 16.71-3.41 12.82.88 23.01 5.92 30.58 15.13-11.09 6.74-16.53 15.98-16.32 27.72.22 9.24 3.7 17.06 10.45 23.48 6.74 6.41 14.88 10.11 24.43 11.09-2.17 6.74-4.89 13.91-8.15 21.52zM119.22 31.84c0-7.39 2.66-14.45 7.99-21.19 5.33-6.74 11.96-10.65 19.89-11.74.22 1.09.33 2.17.33 3.26 0 7.28-2.77 14.34-8.32 21.19-5.54 6.85-12.17 10.65-19.89 11.41z"/>
                   </svg>
-                  <span>Mit Apple</span>
+                  <span>Apple (Optional)</span>
                 </motion.button>
               </div>
             )}
           </div>
 
-          {firebaseUser && (
-            <div className="mt-4 pt-4 border-t border-[var(--m3-outline-variant)] flex flex-wrap items-center gap-4">
-              {!showResetConfirm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(true)}
-                  disabled={isResetting}
-                  className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black transition flex items-center gap-1.5 border border-rose-500/30 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Cloud komplett leeren</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30">
-                  <span className="text-[11px] font-black text-rose-600 dark:text-rose-400">
-                    Wirklich alle Daten in Firebase löschen?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleResetFirebaseCompletely}
-                    disabled={isResetting}
-                    className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-[11px] hover:bg-rose-700 transition"
-                  >
-                    {isResetting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ja, leeren'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowResetConfirm(false)}
-                    className="px-2 py-1 rounded-lg bg-[var(--m3-surface)] text-[var(--m3-on-surface)] font-bold text-[11px]"
-                  >
-                    Abbrechen
-                  </button>
-                </div>
-              )}
-
+          {/* Reset options */}
+          <div className="mt-4 pt-4 border-t border-[var(--m3-outline-variant)] flex flex-wrap items-center gap-4">
+            {!showResetConfirm ? (
               <button
                 type="button"
-                onClick={handleForceResync}
+                onClick={() => setShowResetConfirm(true)}
                 disabled={isResetting}
-                className="text-[10px] font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] hover:text-rose-500 transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black transition flex items-center gap-1.5 border border-rose-500/30 cursor-pointer"
               >
-                Lokalen Cache leeren & neu laden
+                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                <span>Cloud komplett leeren</span>
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30">
+                <span className="text-[11px] font-black text-rose-600 dark:text-rose-400">
+                  Wirklich alle Daten in Firebase löschen?
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetFirebaseCompletely}
+                  disabled={isResetting}
+                  className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-[11px] hover:bg-rose-700 transition"
+                >
+                  {isResetting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ja, leeren'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(false)}
+                  className="px-2 py-1 rounded-lg bg-[var(--m3-surface)] text-[var(--m3-on-surface)] font-bold text-[11px]"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleForceResync}
+              disabled={isResetting}
+              className="text-[10px] font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] hover:text-rose-500 transition flex items-center gap-1.5 cursor-pointer"
+            >
+              Lokalen Cache leeren & neu laden
+            </button>
+          </div>
         </div>
 
         {firebaseError === 'unauthorized-domain' && (
@@ -376,109 +365,109 @@ export const SyncSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* GEMEINSAMER HAUSHALT: JEDER GOOGLE ACCOUNT IST IM GLEICHEN HAUSHALT */}
-      {firebaseUser && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-sm"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-2xl bg-emerald-500 text-white shadow-sm">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
-                Gemeinsamer Haushalt (Alle Google-Konten)
-              </h2>
-              <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
-                Egal mit welchem Google-Account man sich anmeldet: Immer im selben Haushalt.
-              </p>
+      {/* GEMEINSAMER HAUSHALT: JEDER IST IM GLEICHEN HAUSHALT */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-6 rounded-[28px] bg-[var(--m3-surface-container-high)] border border-[var(--m3-outline-variant)] shadow-sm"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2.5 rounded-2xl bg-emerald-500 text-white shadow-sm">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[var(--m3-on-surface)]">
+              Gemeinsamer Haushalt (Alle Geräte)
+            </h2>
+            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-0.5">
+              Online-First: Alle Familienmitglieder teilen sich automatisch denselben Haushalt.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+            <Cloud className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-emerald-800 dark:text-emerald-200 leading-relaxed font-medium">
+              <strong>Automatischer Haushalts-Verbund:</strong> Alle Geräte, die diesen Link öffnen, sind direkt und ohne Login-Zwang im selben gemeinsamen Haushalt (<code>main_household</code>) synchronisiert.
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
-              <Cloud className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-emerald-800 dark:text-emerald-200 leading-relaxed font-medium">
-                <strong>Automatischer Haushalts-Verbund:</strong> Alle Familienmitglieder, die sich mit ihrem Google-Konto anmelden, sind sofort und ohne manuelle Einladungscodes im selben gemeinsamen Haushalt (<code>main_household</code>) verbunden.
+          {/* Add Email Form for reference */}
+          <div className="space-y-3 pt-2">
+            <h3 className="text-[10px] uppercase font-black text-[var(--m3-on-surface-variant)] tracking-wider px-1">
+              Familien-Kontakte / Notizbuch (Optional)
+            </h3>
+            <form onSubmit={handleAddEmail} className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--m3-outline)]" />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="E-Mail eines Familienmitglieds..."
+                  className="w-full pl-10 pr-4 py-2.5 text-sm font-bold rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)] placeholder-[var(--m3-outline)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)] shadow-xs transition-all"
+                />
               </div>
-            </div>
+              <button
+                type="submit"
+                disabled={!newEmail.trim() || !newEmail.includes('@')}
+                className="m3-btn-filled px-5 py-2.5 text-xs font-black disabled:opacity-40 disabled:grayscale whitespace-nowrap"
+              >
+                <UserPlus2 className="w-4 h-4 mr-2" />
+                Hinzufügen
+              </button>
+            </form>
 
-            {/* Add Email Form for reference */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-[10px] uppercase font-black text-[var(--m3-on-surface-variant)] tracking-wider px-1">
-                Familien-Kontakte / Notizbuch (Optional)
-              </h3>
-              <form onSubmit={handleAddEmail} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--m3-outline)]" />
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="E-Mail eines Familienmitglieds..."
-                    className="w-full pl-10 pr-4 py-2.5 text-sm font-bold rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-[var(--m3-on-surface)] placeholder-[var(--m3-outline)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)] shadow-xs transition-all"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!newEmail.trim() || !newEmail.includes('@')}
-                  className="m3-btn-filled px-5 py-2.5 text-xs font-black disabled:opacity-40 disabled:grayscale whitespace-nowrap"
-                >
-                  <UserPlus2 className="w-4 h-4 mr-2" />
-                  Hinzufügen
-                </button>
-              </form>
-
-              {/* Email List */}
-              <div className="space-y-2">
-                {/* Active user */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-[var(--m3-on-surface)]">
-                        {firebaseUser.email}
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Aktuell angemeldet</span>
-                    </div>
+            {/* Email List */}
+            <div className="space-y-2">
+              {/* Active user status */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-[var(--m3-on-surface)]">
+                      {firebaseUser?.email || 'Online-First (Kein Login nötig)'}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                      {firebaseUser ? 'Konto verknüpft' : 'Gast-Modus / Live synchron'}
+                    </span>
                   </div>
                 </div>
-
-                {/* Additional stored emails */}
-                {data.settings.allowed_emails && data.settings.allowed_emails.filter(e => e !== firebaseUser.email).length > 0 ? (
-                  data.settings.allowed_emails.filter(e => e !== firebaseUser.email).map((email) => (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      key={email}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] shadow-2xs group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--m3-surface-container-high)] flex items-center justify-center border border-[var(--m3-outline-variant)]">
-                          <Mail className="w-4 h-4 text-[var(--m3-on-surface-variant)]" />
-                        </div>
-                        <span className="text-xs font-bold text-[var(--m3-on-surface)]">{email}</span>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveEmail(email)}
-                        className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100"
-                        title="Entfernen"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </motion.div>
-                  ))
-                ) : null}
               </div>
+
+              {/* Additional stored emails */}
+              {data.settings.allowed_emails && data.settings.allowed_emails.filter(e => e !== firebaseUser?.email).length > 0 ? (
+                data.settings.allowed_emails.filter(e => e !== firebaseUser?.email).map((email) => (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    key={email}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--m3-surface-container-high)] flex items-center justify-center border border-[var(--m3-outline-variant)]">
+                        <Mail className="w-4 h-4 text-[var(--m3-on-surface-variant)]" />
+                      </div>
+                      <span className="text-xs font-bold text-[var(--m3-on-surface)]">{email}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveEmail(email)}
+                      className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100"
+                      title="Entfernen"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                ))
+              ) : null}
             </div>
           </div>
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
 
       {/* 2. MANUELLER WORKAROUND: JSON EXPORT/IMPORT */}
       <div className="p-6 rounded-[28px] bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-sm">
@@ -644,10 +633,10 @@ export const SyncSettingsTab: React.FC = () => {
             </div>
             <div className="text-xs">
               <strong className="block text-[var(--m3-on-surface)] mb-0.5">
-                Admin meldet sich an & sichert die Basisdaten
+                Sofort startklar (Online-First ohne Login-Zwang)
               </strong>
               <p className="text-[var(--m3-on-surface-variant)] leading-relaxed text-[11px]">
-                Klicke oben auf "Mit Google anmelden". Nach erfolgreichem Login klickst du einmal auf "In Cloud pushen", damit alle bisherigen Aufgaben, Mitglieder und Ziele in deiner Firestore-Datenbank gespeichert sind.
+                Kein Google- oder Apple-Konto erforderlich! Alle Daten werden automatisch online in der Cloud synchronisiert. Wer möchte, kann optional ein Konto verknüpfen oder per "In Cloud pushen" den aktuellen Stand abgleichen.
               </p>
             </div>
           </div>

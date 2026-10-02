@@ -7,6 +7,7 @@ import {
   signInWithRedirect,
   getRedirectResult,
   signOut, 
+  signInAnonymously,
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
@@ -139,20 +140,39 @@ export function handleFirestoreError(error: any, operationType: OperationType, p
   throw new Error(userMessage);
 }
 
-export async function testFirestoreConnection() {
-  if (!isConfigValid || !auth.currentUser) return;
+/**
+ * Automatically ensures an anonymous session if not already logged in,
+ * allowing online-first Firestore usage without requiring a Google/Apple account.
+ */
+export async function ensureAnonymousAuth(): Promise<User | null> {
+  if (!isConfigValid) return null;
+  if (auth.currentUser) return auth.currentUser;
   try {
-    const testDoc = doc(db, 'test', auth.currentUser.uid);
+    const cred = await signInAnonymously(auth);
+    console.log('Firebase: Anonymous sign-in established successfully (UID:', cred.user.uid, ')');
+    return cred.user;
+  } catch (err: any) {
+    // If anonymous auth is not yet toggled on in the console, operations proceed via unauthenticated rules
+    console.log('Firebase: Anonymous sign-in notice (optional, proceeding online-first):', err?.message || err);
+    return null;
+  }
+}
+
+export async function testFirestoreConnection() {
+  if (!isConfigValid) return;
+  try {
+    const testDocId = auth.currentUser?.uid || 'guest_client';
+    const testDoc = doc(db, 'test', testDocId);
     await setDoc(testDoc, {
       timestamp: new Date().toISOString(),
-      user: auth.currentUser?.email || 'anonymous',
+      user: auth.currentUser?.email || (auth.currentUser?.isAnonymous ? 'anonymous' : 'guest_online'),
       check: true
     }, { merge: true });
-    console.log('Firebase: Connection & Write Test established for', auth.currentUser.email);
+    console.log('Firebase: Connection & Write Test established successfully');
   } catch (error) {
     console.warn('Firebase: Connection write test notice:', error);
   }
 }
 
-export { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut };
+export { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, signInAnonymously };
 export type { User };

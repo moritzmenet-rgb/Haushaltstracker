@@ -8,6 +8,8 @@ import { applyColorTheme } from '../theme';
 import { 
   db, 
   auth, 
+  isConfigValid,
+  ensureAnonymousAuth,
   googleProvider, 
   appleProvider,
   signInWithPopup, 
@@ -286,10 +288,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      await saveMemberToCloud(updated);
-    }
-  }, [data.members, firebaseUser]);
+    saveMemberToCloud(updated).catch(console.warn);
+  }, [data.members]);
 
   const updateMemberActiveBadge = useCallback(async (memberId: string, updater: (current?: string) => string | undefined) => {
     const member = data.members[memberId];
@@ -310,19 +310,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      try {
-        await saveMemberToCloud(updated);
-      } catch (err) {
-        console.warn('Could not save member active badge to cloud:', err);
-      }
-    }
-  }, [data.members, firebaseUser]);
+    saveMemberToCloud(updated).catch(console.warn);
+  }, [data.members]);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
-    if (!firebaseUser) {
+    if (!cloudPromise) {
       setSyncFeedback({
         status: 'saved',
         text: `${actionName} gesichert`,
@@ -339,46 +333,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       text: `${actionName} wird gespeichert...`
     });
 
-    if (cloudPromise) {
-      // Add a safety timeout of 15 seconds to prevent hanging the UI forever
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 15000)
-      );
+    // Add a safety timeout of 15 seconds to prevent hanging the UI forever
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('timeout')), 15000)
+    );
 
-      return Promise.race([cloudPromise, timeoutPromise])
-        .then(() => {
-          // Keep the "saved" state a bit longer for visual confirmation
-          setSyncFeedback({
-            status: 'saved',
-            text: `${actionName} erfolgreich gespeichert ✓`,
-            timestamp: Date.now()
-          });
-          syncTimeoutRef.current = setTimeout(() => {
-            setSyncFeedback(prev => (prev.status === 'saved' || prev.status === 'uploading') ? { status: 'idle', text: '' } : prev);
-          }, 600);
-          return true;
-        })
-        .catch((err) => {
-          const isTimeout = err?.message === 'timeout';
-          console.warn(isTimeout ? 'Sync timed out' : 'Sync notice:', err);
-          
-          setSyncFeedback({
-            status: 'error',
-            text: isTimeout 
-              ? `Cloud-Verbindung langsam... (Timeout)` 
-              : `Synchronisierung fehlgeschlagen.`
-          });
-          
-          // Allow the user to dismiss the error after a few seconds
-          syncTimeoutRef.current = setTimeout(() => {
-            setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
-          }, 4000);
-          
-          return false;
+    return Promise.race([cloudPromise, timeoutPromise])
+      .then(() => {
+        // Keep the "saved" state a bit longer for visual confirmation
+        setSyncFeedback({
+          status: 'saved',
+          text: `${actionName} erfolgreich gespeichert ✓`,
+          timestamp: Date.now()
         });
-    }
-    return Promise.resolve(true);
-  }, [firebaseUser]);
+        syncTimeoutRef.current = setTimeout(() => {
+          setSyncFeedback(prev => (prev.status === 'saved' || prev.status === 'uploading') ? { status: 'idle', text: '' } : prev);
+        }, 800);
+        return true;
+      })
+      .catch((err) => {
+        const isTimeout = err?.message === 'timeout';
+        console.warn(isTimeout ? 'Sync timed out' : 'Sync notice:', err);
+        
+        setSyncFeedback({
+          status: 'error',
+          text: isTimeout 
+            ? `Cloud-Verbindung langsam... (Timeout)` 
+            : `Synchronisierung fehlgeschlagen.`
+        });
+        
+        // Allow the user to dismiss the error after a few seconds
+        syncTimeoutRef.current = setTimeout(() => {
+          setSyncFeedback(prev => prev.status === 'error' ? { status: 'idle', text: '' } : prev);
+        }, 4000);
+        
+        return false;
+      });
+  }, []);
 
   // Computed data state where members always have their total_points strictly calculated from all current logs,
   // and Wanderpokale (trophyOwners) are calculated 100% dynamically and switch live!
@@ -535,11 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const persistLocal = useCallback((newData: FamilyData) => {
     setData(newData);
-    // Only persist to localStorage if NOT logged in to Firebase
-    // User requested "direct cloud" and "not local"
-    if (!auth.currentUser) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
   }, []);
 
   const [syncRetryKey, setSyncRetryKey] = useState(0);
@@ -580,26 +567,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (e) {
           console.warn('Could not refresh auth token:', e);
         }
-      }
-      
-      setFirebaseUser(user);
-      setIsAuthResolving(false);
-      
-      if (!user) {
-        setSyncStatus('offline');
-        setFirebaseError(null);
-        setIsAppLoaded(true);
+        setFirebaseUser(user);
       } else {
-        setSyncStatus('connecting');
-        setFirebaseError(null);
+        setFirebaseUser(null);
+        // Automatically attempt anonymous login in background for seamless online-first token
+        ensureAnonymousAuth().catch(console.warn);
       }
+      
+      setIsAuthResolving(false);
+      setFirebaseError(null);
     });
     return unsub;
   }, [recordSession]);
 
-  // Firestore Synchronizer
+  // Firestore Synchronizer (Always Online-First)
   useEffect(() => {
-    if (!firebaseUser) return;
+    if (!isConfigValid) {
+      setIsAppLoaded(true);
+      setSyncStatus('offline');
+      return;
+    }
 
     setSyncStatus('connecting');
     setFirebaseError(null);
@@ -619,9 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isCancelled) return;
       try {
         if (!snap.exists()) {
-          if (firebaseUser.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
-            await seedAllDataToCloud(data);
-          }
+          await seedAllDataToCloud(data);
         } else {
           const cloudData = snap.data();
           const cloudSettings = cloudData as FamilySettings;
@@ -629,7 +614,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setBlockedEmails(cloudBlocked);
 
           // Security check: if current user is blocked, sign them out
-          if (firebaseUser.email && cloudBlocked.includes(firebaseUser.email.toLowerCase())) {
+          if (auth.currentUser?.email && cloudBlocked.includes(auth.currentUser.email.toLowerCase())) {
             console.warn('User is blocked. Signing out...');
             await signOut(auth);
             return;
@@ -825,7 +810,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubPinnwand();
       unsubSessions();
     };
-  }, [firebaseUser, syncRetryKey, isAdmin]);
+  }, [syncRetryKey, isAdmin]);
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
@@ -876,27 +861,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
     }
 
-    if (firebaseUser) {
-      setData(prev => ({
-        ...prev,
-        tasks: { ...prev.tasks, [taskId]: updatedTask },
-        members: { ...prev.members, [activeUser.id]: updatedMember },
-        logs: [newLog, ...prev.logs],
-        trophyOwners: scanResult.trophyOwners
-      }));
-      const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
-      await triggerSyncFeedback('Aufgabe erledigt', p);
-    } else {
-      // Offline mode: update local immediately
-      persistLocal({
-        ...data,
-        tasks: { ...data.tasks, [taskId]: updatedTask },
-        members: { ...data.members, [activeUser.id]: updatedMember },
-        logs: [newLog, ...data.logs],
-        trophyOwners: scanResult.trophyOwners
-      });
-      triggerSyncFeedback('Aufgabe erledigt');
-    }
+    persistLocal({
+      ...data,
+      tasks: { ...data.tasks, [taskId]: updatedTask },
+      members: { ...data.members, [activeUser.id]: updatedMember },
+      logs: [newLog, ...data.logs],
+      trophyOwners: scanResult.trophyOwners
+    });
+    const p = saveChoreLogToCloud(newLog, updatedTask, updatedMember);
+    await triggerSyncFeedback('Aufgabe erledigt', p);
 
     // Trigger gamified celebration & flying coins animation
     setRewardCelebration({
@@ -909,7 +882,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return points;
-  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [activeUser, data, persistLocal, triggerSyncFeedback]);
 
   const updateLog = useCallback(async (
     logId: string, 
@@ -965,20 +938,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    if (firebaseUser) {
-      const p = saveChoreLogToCloud(updatedLog, data.tasks[targetTaskId], updatedMembers[targetUserId]);
-      await triggerSyncFeedback('Eintrag aktualisiert', p);
-    } else {
-      persistLocal({
-        ...data,
-        members: updatedMembers,
-        logs: updatedLogs
-      });
-      triggerSyncFeedback('Eintrag aktualisiert');
-    }
+    persistLocal({
+      ...data,
+      members: updatedMembers,
+      logs: updatedLogs
+    });
+    const p = saveChoreLogToCloud(updatedLog, data.tasks[targetTaskId], updatedMembers[targetUserId]);
+    await triggerSyncFeedback('Eintrag aktualisiert', p);
 
     return true; 
-  }, [isAdmin, activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [isAdmin, activeUser, data, persistLocal, triggerSyncFeedback]);
 
   const deleteLog = useCallback(async (logId: string) => {
     const log = data.logs.find(l => l.log_id === logId);
@@ -1026,14 +995,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Optimistic Update
     persistLocal(nextData);
 
-    if (firebaseUser) {
-      const p = deleteChoreLogFromCloud(logId, updatedTask, updatedMember);
-      await triggerSyncFeedback('Eintrag gelöscht', p);
-    } else {
-      triggerSyncFeedback('Eintrag gelöscht');
-    }
+    const p = deleteChoreLogFromCloud(logId, updatedTask, updatedMember);
+    await triggerSyncFeedback('Eintrag gelöscht', p);
     return true;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const logPointsAdjustment = useCallback(async (targetUserId: string, deltaPoints: number, reason?: string) => {
     const targetMember = data.members[targetUserId];
@@ -1069,23 +1034,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     persistLocal(nextDataState);
 
-    if (firebaseUser) {
-      const p = saveChoreLogToCloud(newLog, {
-        id: 'special_adjustment',
-        title: 'Sonderpunkte / Bonus',
-        description: 'Manuelle Punkte-Anpassung durch Admin',
-        category: 'Allgemein',
-        base_points: Math.abs(deltaPoints),
-        estimated_duration: 0,
-        interval_days: 1,
-        created_by: 'Admin',
-        last_done: now
-      }, updatedMember);
-      await triggerSyncFeedback('Punkte angepasst', p);
-    } else {
-      triggerSyncFeedback('Punkte angepasst');
-    }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+    const p = saveChoreLogToCloud(newLog, {
+      id: 'special_adjustment',
+      title: 'Sonderpunkte / Bonus',
+      description: 'Manuelle Punkte-Anpassung durch Admin',
+      category: 'Allgemein',
+      base_points: Math.abs(deltaPoints),
+      estimated_duration: 0,
+      interval_days: 1,
+      created_by: 'Admin',
+      last_done: now
+    }, updatedMember);
+    await triggerSyncFeedback('Punkte angepasst', p);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const createTask = useCallback(async (task: any) => {
     const id = `task_${Date.now()}`;
@@ -1096,17 +1057,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      try {
-        const p = saveTaskToCloud(newTask);
-        await triggerSyncFeedback('Aufgabe erstellt', p);
-      } catch (err) {
-        console.warn('Task create notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Aufgabe erstellt');
-    }
-  }, [activeUser, firebaseUser, triggerSyncFeedback]);
+    const p = saveTaskToCloud(newTask);
+    await triggerSyncFeedback('Aufgabe erstellt', p);
+  }, [activeUser, triggerSyncFeedback]);
 
   const updateTask = useCallback(async (id: string, updates: any) => {
     const currentTask = data.tasks[id];
@@ -1118,17 +1071,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      try {
-        const p = saveTaskToCloud(updated);
-        await triggerSyncFeedback('Aufgabe geändert', p);
-      } catch (err) {
-        console.warn('Task update notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Aufgabe geändert');
-    }
-  }, [data.tasks, firebaseUser, triggerSyncFeedback]);
+    const p = saveTaskToCloud(updated);
+    await triggerSyncFeedback('Aufgabe geändert', p);
+  }, [data.tasks, triggerSyncFeedback]);
 
   const deleteTask = useCallback(async (id: string) => {
     const { [id]: _, ...remaining } = data.tasks;
@@ -1137,17 +1082,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Optimistic Update
     persistLocal(nextData);
 
-    if (firebaseUser) {
-      try {
-        const p = deleteTaskFromCloud(id);
-        await triggerSyncFeedback('Aufgabe gelöscht', p);
-      } catch (err) {
-        console.warn('Task delete notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Aufgabe gelöscht');
-    }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+    const p = deleteTaskFromCloud(id);
+    await triggerSyncFeedback('Aufgabe gelöscht', p);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const fishTask = useCallback(async (taskId: string, untilDate: string) => {
     if (!activeUser) return;
@@ -1167,17 +1104,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
     
-    if (firebaseUser) {
-      try {
-        const p = saveTaskToCloud(updated);
-        await triggerSyncFeedback('Aufgabe gefischt', p);
-      } catch (err) {
-        console.warn('Task fish notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Aufgabe gefischt');
-    }
-  }, [activeUser, data.tasks, firebaseUser, triggerSyncFeedback]);
+    const p = saveTaskToCloud(updated);
+    await triggerSyncFeedback('Aufgabe gefischt', p);
+  }, [activeUser, data.tasks, triggerSyncFeedback]);
 
   const unfishTask = useCallback(async (taskId: string) => {
     const currentTask = data.tasks[taskId];
@@ -1196,17 +1125,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
     
-    if (firebaseUser) {
-      try {
-        const p = saveTaskToCloud(updated);
-        await triggerSyncFeedback('Reservierung aufgehoben', p);
-      } catch (err) {
-        console.warn('Task unfish notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Reservierung aufgehoben');
-    }
-  }, [data.tasks, firebaseUser, triggerSyncFeedback]);
+    const p = saveTaskToCloud(updated);
+    await triggerSyncFeedback('Reservierung aufgehoben', p);
+  }, [data.tasks, triggerSyncFeedback]);
 
   const addMember = useCallback(async (name: string, avatarColor: string, role: UserRole, weeklyTarget = 50, pinCode?: string): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
@@ -1225,18 +1146,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      try {
-        const p = saveMemberToCloud(newMember);
-        await triggerSyncFeedback('Profil erstellt', p);
-      } catch (err) {
-        console.warn('Add member notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Profil erstellt');
-    }
+    const p = saveMemberToCloud(newMember);
+    await triggerSyncFeedback('Profil erstellt', p);
     return newMember;
-  }, [firebaseUser, triggerSyncFeedback]);
+  }, [triggerSyncFeedback]);
 
   const initializeAdminProfile = useCallback(async (name: string, avatarColor = '#4F46E5', _withDefaultTasks = false): Promise<FamilyMember> => {
     const id = `user_${Date.now()}`;
@@ -1254,19 +1167,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       members: { ...data.members, [id]: adminMember }
     };
 
-    if (firebaseUser) {
-      const p = seedAllDataToCloud(nextData);
-      await triggerSyncFeedback('Profil eingerichtet', p);
-    } else {
-      persistLocal(nextData);
-      triggerSyncFeedback('Profil eingerichtet');
-    }
+    persistLocal(nextData);
+    const p = seedAllDataToCloud(nextData);
+    await triggerSyncFeedback('Profil eingerichtet', p);
     
     setActiveUserIdState(id);
     localStorage.setItem(ACTIVE_USER_KEY, id);
 
     return adminMember;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const updateMember = useCallback(async (id: string, updates: any) => {
     const currentMember = data.members[id];
@@ -1278,17 +1187,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    if (firebaseUser) {
-      try {
-        const p = saveMemberToCloud(updated);
-        await triggerSyncFeedback('Profil aktualisiert', p);
-      } catch (err) {
-        console.warn('Update member notice:', err);
-      }
-    } else {
-      triggerSyncFeedback('Profil aktualisiert');
-    }
-  }, [data.members, firebaseUser, triggerSyncFeedback]);
+    const p = saveMemberToCloud(updated);
+    await triggerSyncFeedback('Profil aktualisiert', p);
+  }, [data.members, triggerSyncFeedback]);
 
   const deleteMember = useCallback(async (id: string) => {
     const { [id]: _, ...remainingMembers } = data.members;
@@ -1297,13 +1198,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Optimistic Update
     persistLocal(nextData);
 
-    if (firebaseUser) {
-      const p = deleteMemberFromCloud(id);
-      await triggerSyncFeedback('Profil gelöscht', p);
-    } else {
-      triggerSyncFeedback('Profil gelöscht');
-    }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+    const p = deleteMemberFromCloud(id);
+    await triggerSyncFeedback('Profil gelöscht', p);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   // Auth Actions
   const loginWithGoogle = useCallback(async () => {
@@ -1388,19 +1285,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const uploadAllToCloud = useCallback(async () => {
-    if (firebaseUser) {
-      setSyncStatus('connecting');
-      const p = seedAllDataToCloud(data);
-      triggerSyncFeedback('Alle Daten', p);
-      await p;
-      setSyncStatus('synced');
-    }
-  }, [firebaseUser, data, triggerSyncFeedback]);
+    setSyncStatus('connecting');
+    const p = seedAllDataToCloud(data);
+    triggerSyncFeedback('Alle Daten', p);
+    await p;
+    setSyncStatus('synced');
+  }, [data, triggerSyncFeedback]);
 
   const resetFirebaseCompletely = useCallback(async () => {
-    if (!firebaseUser) {
-      throw new Error('Du musst mit Google/Firebase angemeldet sein, um die Cloud zurückzusetzen.');
-    }
     setSyncStatus('connecting');
     setFirebaseError(null);
 
@@ -1433,7 +1325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveUserIdState(null);
     localStorage.removeItem(ACTIVE_USER_KEY);
     setSyncStatus('synced');
-  }, [firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [persistLocal, triggerSyncFeedback]);
 
   // Helpers
   const setActiveUserId = useCallback((id: string | null) => {
@@ -1523,22 +1415,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rotation: Number(rotation.toFixed(1))
     };
 
-    setData(prev => {
-      const nextPinnwand = { ...(prev.pinnwand || {}), [noteId]: newNote };
-      const next = { ...prev, pinnwand: nextPinnwand };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-
-    if (firebaseUser) {
-      const p = savePinnwandNoteToCloud(newNote);
-      triggerSyncFeedback(newNote.parentId ? 'Antwort angeheftet' : 'Neues Thema angeheftet', p);
-    } else {
-      triggerSyncFeedback(newNote.parentId ? 'Antwort angeheftet' : 'Neues Thema angeheftet');
-    }
+    persistLocal({ ...data, pinnwand: { ...(data.pinnwand || {}), [noteId]: newNote } });
+    const p = savePinnwandNoteToCloud(newNote);
+    triggerSyncFeedback(newNote.parentId ? 'Antwort angeheftet' : 'Neues Thema angeheftet', p);
 
     return newNote;
-  }, [activeUser, data, firebaseUser, triggerSyncFeedback]);
+  }, [activeUser, data, persistLocal, triggerSyncFeedback]);
 
   const updatePinnwandNote = useCallback(async (noteId: string, updates: Partial<PinnwandNote>): Promise<boolean> => {
     let targetNote: PinnwandNote | null = null;
@@ -1559,15 +1441,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    if (targetNote && firebaseUser) {
+    if (targetNote) {
       const p = savePinnwandNoteToCloud(targetNote);
       triggerSyncFeedback('Post-it aktualisiert', p);
-    } else {
-      triggerSyncFeedback('Post-it aktualisiert');
     }
 
     return true;
-  }, [firebaseUser, triggerSyncFeedback]);
+  }, [triggerSyncFeedback]);
 
   const deletePinnwandNote = useCallback(async (noteId: string): Promise<boolean> => {
     let idsToDelete: string[] = [];
@@ -1592,15 +1472,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Optimistic Update
     persistLocal(nextData);
 
-    if (firebaseUser) {
-      const p = Promise.all(idsToDelete.map(id => deletePinnwandNoteFromCloud(id)));
-      await triggerSyncFeedback('Post-it entfernt', p);
-    } else {
-      triggerSyncFeedback('Post-it entfernt');
-    }
+    const p = Promise.all(idsToDelete.map(id => deletePinnwandNoteFromCloud(id)));
+    await triggerSyncFeedback('Post-it entfernt', p);
 
     return true;
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const votePinnwandPoll = useCallback(async (noteId: string, optionId: string): Promise<boolean> => {
     const note = data.pinnwand?.[noteId];
@@ -1637,15 +1513,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
     persistLocal({ ...data, pinnwand: nextPinnwand });
 
-    if (firebaseUser) {
-      const p = savePinnwandNoteToCloud(updatedNote);
-      triggerSyncFeedback('Stimme gezählt', p);
-    } else {
-      triggerSyncFeedback('Stimme gezählt');
-    }
+    const p = savePinnwandNoteToCloud(updatedNote);
+    triggerSyncFeedback('Stimme gezählt', p);
 
     return true;
-  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [activeUser, data, persistLocal, triggerSyncFeedback]);
 
   const togglePinnwandReaction = useCallback(async (noteId: string, emoji: string): Promise<boolean> => {
     const note = data.pinnwand?.[noteId];
@@ -1676,15 +1548,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nextPinnwand = { ...(data.pinnwand || {}), [noteId]: updatedNote };
     persistLocal({ ...data, pinnwand: nextPinnwand });
 
-    if (firebaseUser) {
-      const p = savePinnwandNoteToCloud(updatedNote);
-      triggerSyncFeedback('Reaktion aktualisiert', p);
-    } else {
-      triggerSyncFeedback('Reaktion aktualisiert');
-    }
+    const p = savePinnwandNoteToCloud(updatedNote);
+    triggerSyncFeedback('Reaktion aktualisiert', p);
 
     return true;
-  }, [activeUser, data, firebaseUser, persistLocal, triggerSyncFeedback]);
+  }, [activeUser, data, persistLocal, triggerSyncFeedback]);
 
   const updateNotePosition = useCallback((noteId: string, position: { x: number; y: number }) => {
     let targetNote: PinnwandNote | null = null;
@@ -1702,10 +1570,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    if (targetNote && firebaseUser) {
+    if (targetNote) {
       savePinnwandNoteToCloud(targetNote).catch(console.warn);
     }
-  }, [firebaseUser]);
+  }, []);
 
   const autoArrangePinnwand = useCallback(() => {
     const allNotes = Object.values(data.pinnwand || {});
@@ -1745,14 +1613,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     persistLocal({ ...data, pinnwand: updatedNotes });
 
-    if (firebaseUser) {
-      const promises = Object.values(updatedNotes).map(n => savePinnwandNoteToCloud(n));
-      const p = Promise.all(promises);
-      triggerSyncFeedback('Pinnwand geordnet', p);
-    } else {
-      triggerSyncFeedback('Pinnwand geordnet');
-    }
-  }, [data, firebaseUser, persistLocal, triggerSyncFeedback]);
+    const promises = Object.values(updatedNotes).map(n => savePinnwandNoteToCloud(n));
+    const p = Promise.all(promises);
+    triggerSyncFeedback('Pinnwand geordnet', p);
+  }, [data, persistLocal, triggerSyncFeedback]);
 
   const executeWeeklyReset = useCallback(() => {
     if (!isAdmin) return;
@@ -1844,15 +1708,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         members: scanResult.updatedMembers,
         trophyOwners: scanResult.trophyOwners
       });
-      if (firebaseUser) {
-        Object.values(scanResult.updatedMembers).forEach(m => {
-          const oldBadges = data.members[m.id]?.unlocked_badges || {};
-          const newBadges = m.unlocked_badges || {};
-          if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
-            saveMemberToCloud(m).catch(console.warn);
-          }
-        });
-      }
+      Object.values(scanResult.updatedMembers).forEach(m => {
+        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const newBadges = m.unlocked_badges || {};
+        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+          saveMemberToCloud(m).catch(console.warn);
+        }
+      });
       if (scanResult.newlyUnlockedForActiveUser.length > 0 && !newlyUnlockedBadge) {
         setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
       }
@@ -1877,15 +1739,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             }
           }));
-          if (firebaseUser) {
-            saveMemberToCloud({ ...activeUser, unlocked_badges: nextBadges }).catch(console.warn);
-          }
+          saveMemberToCloud({ ...activeUser, unlocked_badges: nextBadges }).catch(console.warn);
           setNewlyUnlockedBadge(def);
         }
       }
       return next;
     });
-  }, [activeUser, firebaseUser]);
+  }, [activeUser]);
 
   // Automated Reset Check
   useEffect(() => {
@@ -1932,33 +1792,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.settings.categories.includes(c)) return false;
         const next = { ...data.settings, categories: [...data.settings.categories, c] };
         persistLocal({ ...data, settings: next });
-        if (firebaseUser) {
-          triggerSyncFeedback('Kategorie erstellt', saveSettingsToCloud(next));
-        } else {
-          triggerSyncFeedback('Kategorie erstellt');
-        }
+        triggerSyncFeedback('Kategorie erstellt', saveSettingsToCloud(next));
         return true;
       },
       renameCategory: (old, next) => {
         const categories = data.settings.categories.map(c => c === old ? next : c);
         const nextSettings = { ...data.settings, categories };
         persistLocal({ ...data, settings: nextSettings });
-        if (firebaseUser) {
-          triggerSyncFeedback('Kategorie umbenannt', saveSettingsToCloud(nextSettings));
-        } else {
-          triggerSyncFeedback('Kategorie umbenannt');
-        }
+        triggerSyncFeedback('Kategorie umbenannt', saveSettingsToCloud(nextSettings));
         return true;
       },
       deleteCategory: (c) => {
         const categories = data.settings.categories.filter(cat => cat !== c);
         const nextSettings = { ...data.settings, categories };
         persistLocal({ ...data, settings: nextSettings });
-        if (firebaseUser) {
-          triggerSyncFeedback('Kategorie gelöscht', saveSettingsToCloud(nextSettings));
-        } else {
-          triggerSyncFeedback('Kategorie gelöscht');
-        }
+        triggerSyncFeedback('Kategorie gelöscht', saveSettingsToCloud(nextSettings));
         return true;
       },
       addMember, initializeAdminProfile, updateMember, deleteMember,
@@ -1993,38 +1841,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return nextData;
         });
 
-        if (firebaseUser) {
-          pendingSettingsCloudSaveRef.current = {
-            settings: currentSettings,
-            membersToSave: u.default_weekly_target !== undefined ? Object.values(currentMembers) : undefined
-          };
+        pendingSettingsCloudSaveRef.current = {
+          settings: currentSettings,
+          membersToSave: u.default_weekly_target !== undefined ? Object.values(currentMembers) : undefined
+        };
 
-          if (settingsDebounceTimerRef.current) {
-            clearTimeout(settingsDebounceTimerRef.current);
-          }
-
-          settingsDebounceTimerRef.current = setTimeout(async () => {
-            const pending = pendingSettingsCloudSaveRef.current;
-            if (!pending) return;
-            try {
-              const promises = [saveSettingsToCloud(pending.settings)];
-              if (pending.membersToSave) {
-                pending.membersToSave.forEach(m => promises.push(saveMemberToCloud(m)));
-              }
-              await triggerSyncFeedback('Einstellungen', Promise.all(promises));
-            } catch (err) {
-              console.warn('Settings cloud sync notice, retrying once:', err);
-              try {
-                await new Promise(r => setTimeout(r, 500));
-                await saveSettingsToCloud(pending.settings);
-              } catch (retryErr) {
-                console.warn('Settings retry notice:', retryErr);
-              }
-            }
-          }, 350);
-        } else {
-          triggerSyncFeedback('Einstellungen');
+        if (settingsDebounceTimerRef.current) {
+          clearTimeout(settingsDebounceTimerRef.current);
         }
+
+        settingsDebounceTimerRef.current = setTimeout(async () => {
+          const pending = pendingSettingsCloudSaveRef.current;
+          if (!pending) return;
+          try {
+            const promises = [saveSettingsToCloud(pending.settings)];
+            if (pending.membersToSave) {
+              pending.membersToSave.forEach(m => promises.push(saveMemberToCloud(m)));
+            }
+            await triggerSyncFeedback('Einstellungen', Promise.all(promises));
+          } catch (err) {
+            console.warn('Settings cloud sync notice, retrying once:', err);
+            try {
+              await new Promise(r => setTimeout(r, 500));
+              await saveSettingsToCloud(pending.settings);
+            } catch (retryErr) {
+              console.warn('Settings retry notice:', retryErr);
+            }
+          }
+        }, 350);
       },
       updateDefaultWeeklyTarget: (t) => {
         const nextSettings = { ...data.settings, default_weekly_target: t };
@@ -2036,15 +1880,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         persistLocal({ ...data, settings: nextSettings, members: nextMembers });
         
-        if (firebaseUser) {
-          const promises = [
-            saveSettingsToCloud(nextSettings),
-            ...Object.values(nextMembers).map(m => saveMemberToCloud(m))
-          ];
-          triggerSyncFeedback('Wochenziel', Promise.all(promises));
-        } else {
-          triggerSyncFeedback('Wochenziel');
-        }
+        const promises = [
+          saveSettingsToCloud(nextSettings),
+          ...Object.values(nextMembers).map(m => saveMemberToCloud(m))
+        ];
+        triggerSyncFeedback('Wochenziel', Promise.all(promises));
       },
       getWeeklyRollOverPreview: () => {
         const baseDefault = data.settings.default_weekly_target || 50;
@@ -2069,25 +1909,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         persistLocal(INITIAL_FAMILY_DATA);
         setActiveUserIdState(null);
         localStorage.removeItem(ACTIVE_USER_KEY);
-        if (firebaseUser) {
-          const p = clearAllCloudData();
-          triggerSyncFeedback('Daten gelöscht', p);
-          await p;
-        } else {
-          triggerSyncFeedback('Daten gelöscht');
-        }
+        const p = clearAllCloudData();
+        triggerSyncFeedback('Daten gelöscht', p);
+        await p;
       },
       resetToDemoData: async () => {
         persistLocal(INITIAL_FAMILY_DATA);
         setActiveUserIdState(null);
         localStorage.removeItem(ACTIVE_USER_KEY);
-        if (firebaseUser) {
-          const p = clearAllCloudData();
-          await triggerSyncFeedback('Haushalt geleert', p);
-          await p;
-        } else {
-          triggerSyncFeedback('Haushalt geleert');
-        }
+        const p = clearAllCloudData();
+        await triggerSyncFeedback('Haushalt geleert', p);
+        await p;
       },
       exportDataJSON: () => JSON.stringify(data),
       importDataJSON: (j) => {

@@ -7,7 +7,7 @@ import {
   getDoc,
   writeBatch
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, isConfigValid, handleFirestoreError, OperationType } from '../firebase';
 import { ChoreLog, FamilyData, FamilyMember, FamilySettings, PinnwandNote, TaskItem } from '../types';
 
 export const HOUSEHOLD_ID = 'main_household';
@@ -155,7 +155,7 @@ function sanitizeLog(log: ChoreLog): Record<string, any> {
  * Check if the household is initialized in Cloud Firestore
  */
 export async function isHouseholdInitializedInCloud(): Promise<boolean> {
-  if (!auth.currentUser) return false;
+  if (!isConfigValid) return false;
   try {
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     const snap = await getDoc(householdRef);
@@ -170,7 +170,7 @@ export async function isHouseholdInitializedInCloud(): Promise<boolean> {
  * Upload entire local family dataset to Cloud Firestore
  */
 export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
 
   try {
     // 1. Household doc (set directly with merge)
@@ -219,7 +219,7 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
  * Hard-Reset and completely rebuild all Firebase Cloud data from scratch
  */
 export async function resetAndRebuildCloudData(data: FamilyData): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
 
   try {
     // Step 1: Delete all existing subcollection docs if any exist
@@ -253,7 +253,7 @@ export async function saveChoreLogToCloud(
   updatedTask: TaskItem, 
   updatedMember: FamilyMember
 ): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
 
   try {
     const batch = writeBatch(db);
@@ -278,7 +278,7 @@ export async function deleteChoreLogFromCloud(
   updatedTask?: TaskItem, 
   updatedMember?: FamilyMember
 ): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
 
   try {
     const batch = writeBatch(db);
@@ -302,7 +302,7 @@ export async function deleteChoreLogFromCloud(
 }
 
 export async function saveTaskToCloud(task: TaskItem): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', task.id);
     await setDoc(taskRef, sanitizeTask(task), { merge: true });
@@ -312,7 +312,7 @@ export async function saveTaskToCloud(task: TaskItem): Promise<void> {
 }
 
 export async function deleteTaskFromCloud(taskId: string): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', taskId);
     await deleteDoc(taskRef);
@@ -322,7 +322,7 @@ export async function deleteTaskFromCloud(taskId: string): Promise<void> {
 }
 
 export async function saveMemberToCloud(member: FamilyMember): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', member.id);
     await setDoc(memberRef, sanitizeMember(member), { merge: true });
@@ -332,7 +332,7 @@ export async function saveMemberToCloud(member: FamilyMember): Promise<void> {
 }
 
 export async function deleteMemberFromCloud(memberId: string): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', memberId);
     await deleteDoc(memberRef);
@@ -342,7 +342,7 @@ export async function deleteMemberFromCloud(memberId: string): Promise<void> {
 }
 
 export async function saveSettingsToCloud(settings: FamilySettings): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     await setDoc(householdRef, sanitizeSettings(settings), { merge: true });
@@ -352,7 +352,7 @@ export async function saveSettingsToCloud(settings: FamilySettings): Promise<voi
 }
 
 export async function savePinnwandNoteToCloud(note: PinnwandNote): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', note.id);
     await setDoc(noteRef, sanitizePinnwandNote(note), { merge: true });
@@ -362,7 +362,7 @@ export async function savePinnwandNoteToCloud(note: PinnwandNote): Promise<void>
 }
 
 export async function deletePinnwandNoteFromCloud(noteId: string): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', noteId);
     await deleteDoc(noteRef);
@@ -372,7 +372,7 @@ export async function deletePinnwandNoteFromCloud(noteId: string): Promise<void>
 }
 
 export async function clearAllCloudData(): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!isConfigValid) return;
   try {
     const batch = writeBatch(db);
 
