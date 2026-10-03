@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
-import { Navbar } from './components/Navbar';
+import { 
+  Navbar, 
+  MainAppType, 
+  FishAndWishTab, 
+  PinnwandTab, 
+  MenuplannerTab 
+} from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
 import { TaskCatalog } from './components/TaskCatalog';
 import { AdminSettings } from './components/AdminSettings';
@@ -20,6 +26,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ChoreCompletionCelebration } from './components/ChoreCompletionCelebration';
 import { WhatsNewModal } from './components/WhatsNewModal';
 import { GlobalInteractiveEffects } from './components/GlobalInteractiveEffects';
+import { AppHubModal } from './components/hub/AppHubModal';
+import { MenuplannerView } from './components/menu/MenuplannerView';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud, Sparkles } from 'lucide-react';
 
@@ -45,7 +53,16 @@ const MainContent: React.FC = () => {
     clearNewlyUnlockedBadge,
     updateMemberActiveBadge
   } = useApp();
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings'>('dashboard');
+
+  // Multi-App state management
+  const [currentApp, setCurrentApp] = useState<MainAppType>('fish_and_wish');
+  const [currentFishTab, setCurrentFishTab] = useState<FishAndWishTab>('dashboard');
+  const [currentPinnwandTab, setCurrentPinnwandTab] = useState<PinnwandTab>('canvas');
+  const [currentMenuTab, setCurrentMenuTab] = useState<MenuplannerTab>('week');
+  
+  // Triggers for Quick Actions
+  const [pinnwandQuickTrigger, setPinnwandQuickTrigger] = useState<number>(0);
+  const [isHubOpen, setIsHubOpen] = useState(false);
 
   // Close log modal when celebration triggers without forcibly switching tabs
   useEffect(() => {
@@ -81,12 +98,10 @@ const MainContent: React.FC = () => {
   }>({ isOpen: false, taskToEdit: null });
 
   // --- Achievement Sequencing Logic ---
-  // We want to show the achievement ONLY after the coin celebration is finished.
   const [delayedBadge, setDelayedBadge] = useState<any>(null);
 
   useEffect(() => {
     if (newlyUnlockedBadge && !rewardCelebration) {
-      // Small additional safety delay to ensure celebration transition is fully gone
       const timer = setTimeout(() => {
         setDelayedBadge(newlyUnlockedBadge);
       }, 50);
@@ -115,6 +130,17 @@ const MainContent: React.FC = () => {
     setIsLogModalOpen(true);
   };
 
+  // Central Contextual Quick Action (Navbar "+ Action" Button)
+  const handleContextualQuickAction = () => {
+    if (currentApp === 'fish_and_wish') {
+      handleOpenLogModal();
+    } else if (currentApp === 'pinnwand') {
+      setPinnwandQuickTrigger(prev => prev + 1);
+    } else if (currentApp === 'menuplanner') {
+      setCurrentMenuTab('ideas');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--m3-surface)] text-[var(--m3-on-surface)] transition-colors duration-200 flex flex-col relative overflow-x-hidden m3-ambient-canvas">
       {/* Material 3 Expressive Dynamic Tonal Atmosphere */}
@@ -135,28 +161,35 @@ const MainContent: React.FC = () => {
       {/* Blocking Sync Overlay for critical updates */}
       <SyncOverlay />
 
-      {/* Main App Navigation Bar */}
+      {/* Main Unified App Navigation Bar */}
       <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        currentApp={currentApp}
+        currentFishTab={currentFishTab}
+        currentPinnwandTab={currentPinnwandTab}
+        currentMenuTab={currentMenuTab}
+        onSelectFishTab={setCurrentFishTab}
+        onSelectPinnwandTab={setCurrentPinnwandTab}
+        onSelectMenuTab={setCurrentMenuTab}
         onOpenProfileSelector={() => setShowProfileSelector(true)}
-        onOpenLogModal={() => handleOpenLogModal()}
+        onOpenQuickAction={handleContextualQuickAction}
+        onOpenHub={() => setIsHubOpen(true)}
       />
 
       {/* Main Container */}
       <main className={`flex-1 w-full mx-auto px-4 sm:px-6 pt-5 pb-36 sm:pb-24 ${
-        currentTab === 'pinnwand' ? 'max-w-6xl' : 'max-w-5xl'
+        currentApp === 'pinnwand' || currentApp === 'menuplanner' ? 'max-w-6xl' : 'max-w-5xl'
       }`}>
-        {currentTab === 'dashboard' && (
+        {/* 1. FISH & WISH APP VIEWS */}
+        {currentApp === 'fish_and_wish' && currentFishTab === 'dashboard' && (
           <Dashboard
             onOpenLogModal={handleOpenLogModal}
             onEditLog={handleOpenEditLogModal}
             onOpenTaskHistory={(taskId) => setHistoryTaskId(taskId)}
-            onNavigateToTasks={() => setCurrentTab('tasks')}
+            onNavigateToTasks={() => setCurrentFishTab('tasks')}
           />
         )}
 
-        {currentTab === 'tasks' && (
+        {currentApp === 'fish_and_wish' && currentFishTab === 'tasks' && (
           <TaskCatalog
             onOpenLogModal={(taskId) => handleOpenLogModal(taskId)}
             onOpenTaskHistory={(taskId) => setHistoryTaskId(taskId)}
@@ -165,11 +198,34 @@ const MainContent: React.FC = () => {
           />
         )}
 
-        {currentTab === 'pinnwand' && <PinnwandBoard />}
+        {currentApp === 'fish_and_wish' && currentFishTab === 'abzeichen' && (
+          <BadgesMuseum />
+        )}
 
-        {currentTab === 'abzeichen' && <BadgesMuseum />}
+        {currentApp === 'fish_and_wish' && currentFishTab === 'settings' && (
+          <AdminSettings onOpenProfileSelector={() => setShowProfileSelector(true)} />
+        )}
 
-        {currentTab === 'settings' && <AdminSettings />}
+        {/* 2. PINNWAND APP VIEWS */}
+        {currentApp === 'pinnwand' && (
+          <PinnwandBoard 
+            activeTab={currentPinnwandTab}
+            onSelectTab={setCurrentPinnwandTab}
+            openNewNoteTrigger={pinnwandQuickTrigger}
+          />
+        )}
+
+        {/* 3. MENÜPLANUNG APP VIEWS */}
+        {currentApp === 'menuplanner' && (
+          <MenuplannerView
+            activeTab={currentMenuTab}
+            onSelectTab={setCurrentMenuTab}
+            onNavigateToFishAndWish={() => {
+              setCurrentApp('fish_and_wish');
+              setCurrentFishTab('dashboard');
+            }}
+          />
+        )}
       </main>
 
       {/* Footer (Visible on desktop and mobile with safe padding) */}
@@ -177,7 +233,7 @@ const MainContent: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-start">
             <span className="font-semibold text-[var(--m3-on-surface)]">
-              {data.settings.household_name || 'Fish & Wish'}
+              {data.settings?.household_name || 'Fish & Wish'}
             </span>
             <span>•</span>
             {/* Clickable Version Badge with playful pulse and hover */}
@@ -213,7 +269,7 @@ const MainContent: React.FC = () => {
         </div>
       </footer>
 
-      {/* Cloud Synchronisation Connecting Loader (Prevents race condition) */}
+      {/* Cloud Synchronisation Connecting Loader */}
       {isCloudConnecting && (
         <div className="fixed inset-0 z-[95] bg-[var(--m3-surface)]/85 backdrop-blur-md flex items-center justify-center p-6">
           <motion.div 
@@ -253,7 +309,8 @@ const MainContent: React.FC = () => {
         isOpen={(showProfileSelector || !activeUser) && !isCloudConnecting}
         onClose={() => setShowProfileSelector(false)}
         onOpenSettings={() => {
-          setCurrentTab('settings');
+          setCurrentApp('fish_and_wish');
+          setCurrentFishTab('settings');
           setShowProfileSelector(false);
         }}
         canClose={!!activeUser}
@@ -289,6 +346,7 @@ const MainContent: React.FC = () => {
         isOpen={isTutorialOpen}
         onClose={closeTutorial}
         onComplete={completeTutorial}
+        userName={activeUser?.name}
       />
 
       {/* "Was ist neu?" Announcement Modal per Account */}
@@ -316,6 +374,23 @@ const MainContent: React.FC = () => {
         }}
       />
 
+      {/* Central 3-Way App Hub Launcher Modal */}
+      <AppHubModal
+        isOpen={isHubOpen}
+        onClose={() => setIsHubOpen(false)}
+        currentApp={currentApp}
+        onSelectHubItem={(target) => {
+          setCurrentApp(target);
+          if (target === 'fish_and_wish') {
+            setCurrentFishTab('dashboard');
+          } else if (target === 'pinnwand') {
+            setCurrentPinnwandTab('canvas');
+          } else if (target === 'menuplanner') {
+            setCurrentMenuTab('week');
+          }
+        }}
+      />
+
       {/* Global Tactile Haptics & Playful Click Micro-Interactions */}
       <GlobalInteractiveEffects />
     </div>
@@ -331,3 +406,4 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+

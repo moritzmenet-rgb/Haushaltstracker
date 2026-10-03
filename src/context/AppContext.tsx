@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { scanAndAwardHistoricalAchievements, computeLiveTrophyOwners } from '../utils/achievementScanner';
 import { applyColorTheme } from '../theme';
+import { CURRENT_VERSION, hasSeenCurrentVersion } from '../version';
 import { 
   db, 
   auth, 
@@ -80,7 +81,7 @@ interface AppContextType {
   retrySync: () => void;
 
   // Chore logging
-  logChore: (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string) => Promise<number>;
+  logChore: (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string, customTimestamp?: string) => Promise<number>;
   updateLog: (logId: string, updates: {
     task_id?: string;
     user_id?: string;
@@ -178,6 +179,15 @@ interface AppContextType {
   triggerEasterEggClick: () => void;
   updateMemberBadgeShowroom: (memberId: string, badgeIds: string[]) => void;
   updateMemberActiveBadge: (memberId: string, updater: (current?: string) => string | undefined) => void;
+
+  // Menuplanner (Meals, Week Plan & Ideas/Wishes)
+  menuPlan: Record<string, DayMenuPlan>;
+  menuWishes: MenuWish[];
+  setDayMeal: (dateStr: string, mealType: 'lunch' | 'dinner', meal: PlannedMeal | null) => Promise<void>;
+  addMenuWish: (title: string, notes?: string) => Promise<MenuWish>;
+  deleteMenuWish: (wishId: string) => Promise<boolean>;
+  toggleWishUpvote: (wishId: string) => Promise<boolean>;
+  transferIngredientsToPinnwand: (mealTitle: string, ingredients: string[]) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -225,7 +235,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const openWhatsNew = useCallback(() => setIsWhatsNewOpen(true), []);
   const closeWhatsNew = useCallback(() => setIsWhatsNewOpen(false), []);
-  const currentAppVersion = '5.0.0';
+  const currentAppVersion = CURRENT_VERSION;
 
   const [data, setData] = useState<FamilyData>(() => {
     if (typeof window !== 'undefined') {
@@ -410,24 +420,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data]);
 
   const isAdmin = useMemo(() => {
-    if (firebaseUser?.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') return true;
-    const currentMember = activeUserId ? dataWithCalculatedPoints.members[activeUserId] : null;
-    return currentMember?.role === 'admin';
+    // Strictly determine admin rights from the currently active profile!
+    // Non-admin members (e.g. children) must NEVER have admin rights.
+    if (activeUserId && dataWithCalculatedPoints.members[activeUserId]) {
+      return dataWithCalculatedPoints.members[activeUserId].role === 'admin';
+    }
+    // Only if the household has zero members yet and the owner is signed in, allow initial setup
+    const totalMembers = Object.keys(dataWithCalculatedPoints.members || {}).length;
+    if (totalMembers === 0 && firebaseUser?.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
+      return true;
+    }
+    return false;
   }, [firebaseUser, activeUserId, dataWithCalculatedPoints.members]);
 
   const activeUser = useMemo(() => activeUserId ? dataWithCalculatedPoints.members[activeUserId] || null : null, [activeUserId, dataWithCalculatedPoints.members]);
 
+  // Automatically trigger the onboarding mini-tutorial on first account/profile opening,
+  // or "Was ist neu" if tutorial is finished but version has updated
+  useEffect(() => {
+    if (!isAppLoaded || !activeUser) return;
+
+    // 1. If activeUser has not seen the onboarding tutorial yet, open TutorialModal
+    if (!activeUser.has_seen_tutorial) {
+      setIsTutorialOpen(true);
+      setIsWhatsNewOpen(false);
+    } else if (!hasSeenCurrentVersion(activeUser.last_seen_version)) {
+      // 2. If tutorial has been completed but new version has not been acknowledged, open WhatsNewModal
+      setIsWhatsNewOpen(true);
+    }
+  }, [isAppLoaded, activeUser?.id, activeUser?.has_seen_tutorial, activeUser?.last_seen_version]);
+
   const markCurrentVersionAsSeen = useCallback(() => {
     if (!activeUser) return;
-    const updated = { ...activeUser, last_seen_version: currentAppVersion };
+    const updated = { ...activeUser, last_seen_version: CURRENT_VERSION };
     setData(prev => ({
       ...prev,
       members: { ...prev.members, [activeUser.id]: updated }
     }));
+    setIsWhatsNewOpen(false);
     if (firebaseUser) {
       saveMemberToCloud(updated);
     }
-  }, [activeUser, firebaseUser, currentAppVersion]);
+  }, [activeUser, firebaseUser]);
 
   const effectiveTheme = useMemo(() => {
     // 1. Prioritize active user's individual preference
@@ -815,12 +849,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
-  const logChore = useCallback(async (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string): Promise<number> => {
+  const logChore = useCallback(async (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string, customTimestamp?: string): Promise<number> => {
     if (!activeUser) return 0;
     const task = data.tasks[taskId];
     if (!task) return 0;
 
-    const now = new Date().toISOString();
+    const now = customTimestamp || new Date().toISOString();
     const basePoints = calculatePoints(task.base_points, stars, data.settings, now);
     const pinnedBonus = (task.is_pinned && task.pinned_bonus_points) ? Number(task.pinned_bonus_points) : 0;
     const points = basePoints + pinnedBonus;
@@ -1828,6 +1862,123 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, [isAppLoaded, isAdmin, data.settings, executeWeeklyReset]);
 
+  // Menuplanner Hooks & Methods
+  const menuPlan = useMemo(() => data.menuPlan || {}, [data.menuPlan]);
+  
+  const menuWishes = useMemo(() => {
+    return Object.values(data.menuWishes || {}).sort((a, b) => {
+      if (b.upvotes.length !== a.upvotes.length) return b.upvotes.length - a.upvotes.length;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [data.menuWishes]);
+
+  const setDayMeal = useCallback(async (dateStr: string, mealType: 'lunch' | 'dinner', meal: PlannedMeal | null) => {
+    setData(prev => {
+      const currentDay = prev.menuPlan?.[dateStr] || {};
+      const updatedDay: DayMenuPlan = {
+        ...currentDay,
+        [mealType]: meal
+      };
+      const nextMenuPlan = {
+        ...(prev.menuPlan || {}),
+        [dateStr]: updatedDay
+      };
+      const next = { ...prev, menuPlan: nextMenuPlan };
+      persistLocal(next);
+      return next;
+    });
+
+    try {
+      if (isConfigValid && db) {
+        const mealDocRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateStr);
+        await setDoc(mealDocRef, {
+          date: dateStr,
+          [mealType]: meal || null,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Menu cloud sync notice:', e);
+    }
+  }, [persistLocal]);
+
+  const addMenuWish = useCallback(async (title: string, notes?: string): Promise<MenuWish> => {
+    const id = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const newWish: MenuWish = {
+      id,
+      title: title.trim(),
+      requestedBy: activeUser?.id || 'guest',
+      requestedByName: activeUser?.name || 'Familienmitglied',
+      notes: notes?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+      upvotes: activeUser ? [activeUser.id] : [],
+      planned: false
+    };
+
+    setData(prev => {
+      const nextWishes = { ...(prev.menuWishes || {}), [id]: newWish };
+      const next = { ...prev, menuWishes: nextWishes };
+      persistLocal(next);
+      return next;
+    });
+
+    try {
+      if (isConfigValid && db) {
+        const wishDocRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', id);
+        await setDoc(wishDocRef, newWish);
+      }
+    } catch (e) {
+      console.warn('Wish cloud sync notice:', e);
+    }
+
+    return newWish;
+  }, [activeUser, persistLocal]);
+
+  const deleteMenuWish = useCallback(async (wishId: string): Promise<boolean> => {
+    setData(prev => {
+      const nextWishes = { ...(prev.menuWishes || {}) };
+      delete nextWishes[wishId];
+      const next = { ...prev, menuWishes: nextWishes };
+      persistLocal(next);
+      return next;
+    });
+    return true;
+  }, [persistLocal]);
+
+  const toggleWishUpvote = useCallback(async (wishId: string): Promise<boolean> => {
+    if (!activeUser) return false;
+    setData(prev => {
+      const wish = prev.menuWishes?.[wishId];
+      if (!wish) return prev;
+      const hasUpvoted = wish.upvotes.includes(activeUser.id);
+      const updatedUpvotes = hasUpvoted
+        ? wish.upvotes.filter(uid => uid !== activeUser.id)
+        : [...wish.upvotes, activeUser.id];
+      const updatedWish = { ...wish, upvotes: updatedUpvotes };
+      const next = {
+        ...prev,
+        menuWishes: {
+          ...(prev.menuWishes || {}),
+          [wishId]: updatedWish
+        }
+      };
+      persistLocal(next);
+      return next;
+    });
+    return true;
+  }, [activeUser, persistLocal]);
+
+  const transferIngredientsToPinnwand = useCallback(async (mealTitle: string, ingredients: string[]): Promise<boolean> => {
+    const content = `🛒 Zutaten für: ${mealTitle}\n\n` + ingredients.map(ing => `• ${ing}`).join('\n');
+    await createPinnwandNote({
+      title: `Einkauf: ${mealTitle}`,
+      content,
+      color: 'yellow',
+      category: 'Einkauf'
+    });
+    return true;
+  }, [createPinnwandNote]);
+
   return (
     <AppContext.Provider value={{
       isAppLoaded, isAuthResolving, data: dataWithCalculatedPoints, activeUser, isAdmin, theme, toggleTheme,
@@ -1840,6 +1991,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rewardCelebration, triggerRewardCelebration, clearRewardCelebration,
       pinnwandNotes, createPinnwandNote, updatePinnwandNote, deletePinnwandNote,
       votePinnwandPoll, togglePinnwandReaction, updateNotePosition, autoArrangePinnwand,
+      menuPlan, menuWishes, setDayMeal, addMenuWish, deleteMenuWish, toggleWishUpvote, transferIngredientsToPinnwand,
       addCategory: (c) => {
         if (data.settings.categories.includes(c)) return false;
         const next = { ...data.settings, categories: [...data.settings.categories, c] };
@@ -1864,10 +2016,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addMember, initializeAdminProfile, updateMember, deleteMember,
       updateProfile: (u) => activeUserId && updateMember(activeUserId, u),
       isTutorialOpen, openTutorial: () => setIsTutorialOpen(true),
-      closeTutorial: () => setIsTutorialOpen(false),
+      closeTutorial: () => {
+        setIsTutorialOpen(false);
+        if (activeUserId && activeUser && !activeUser.has_seen_tutorial) {
+          updateMember(activeUserId, { 
+            has_seen_tutorial: true,
+            last_seen_version: CURRENT_VERSION
+          });
+        }
+      },
       completeTutorial: () => {
         setIsTutorialOpen(false);
-        if (activeUserId) updateMember(activeUserId, { has_seen_tutorial: true });
+        if (activeUserId) {
+          updateMember(activeUserId, { 
+            has_seen_tutorial: true,
+            last_seen_version: CURRENT_VERSION
+          });
+        }
       },
       updateSettings: (u) => {
         let currentSettings: FamilySettings = data.settings;

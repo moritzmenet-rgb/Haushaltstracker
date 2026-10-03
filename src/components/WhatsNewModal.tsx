@@ -13,7 +13,10 @@ import {
   Zap, 
   History, 
   ChevronRight,
-  PartyPopper
+  PartyPopper,
+  Utensils,
+  Compass,
+  BookOpen
 } from 'lucide-react';
 import { CURRENT_VERSION, RELEASE_NAME, VERSION_HISTORY, ReleaseFeature } from '../version';
 import { fireConfetti } from '../utils/confetti';
@@ -58,6 +61,12 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         return <Shield className={`${iconClass} text-blue-500`} />;
       case 'zap':
         return <Zap className={`${iconClass} text-yellow-500`} />;
+      case 'utensils':
+        return <Utensils className={`${iconClass} text-emerald-500`} />;
+      case 'compass':
+        return <Compass className={`${iconClass} text-indigo-500`} />;
+      case 'book':
+        return <BookOpen className={`${iconClass} text-cyan-500`} />;
       default:
         return <Sparkles className={`${iconClass} text-indigo-500`} />;
     }

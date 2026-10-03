@@ -106,14 +106,14 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto"
         >
           <motion.div
             initial={{ scale: 0.94, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-            className="w-full max-w-4xl text-center my-8 py-8 px-6 sm:px-10 m3-dialog relative"
+            className="w-full max-w-2xl md:max-w-3xl text-center my-auto py-6 sm:py-8 px-4 sm:px-8 max-h-[92vh] sm:max-h-[88vh] overflow-y-auto m3-dialog relative shadow-2xl"
           >
             {/* Header */}
             <div className="absolute top-6 right-6 flex gap-2">

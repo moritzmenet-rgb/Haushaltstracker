@@ -124,6 +124,47 @@ export interface PinnwandNote {
   rotation?: number; // subtle angle in deg (-3 to 3)
 }
 
+export interface PlannedMeal {
+  id: string;
+  title: string;
+  recipeId?: string;
+  notes?: string;
+  tags?: string[];
+  effort?: 'easy' | 'medium' | 'hard';
+  durationMinutes?: number;
+  requiresBaking?: boolean;
+  cookUserId?: string; // Who is cooking today
+}
+
+export interface DayMenuPlan {
+  lunch?: PlannedMeal | null;
+  dinner?: PlannedMeal | null;
+}
+
+export interface MenuWish {
+  id: string;
+  title: string;
+  requestedBy: string; // memberId
+  requestedByName: string;
+  notes?: string;
+  createdAt: string; // ISO string
+  upvotes: string[]; // memberIds
+  planned?: boolean;
+}
+
+export interface RecipeItem {
+  id: string;
+  title: string;
+  category: 'pasta' | 'fleisch' | 'fisch' | 'vegetarisch' | 'vegan' | 'auflauf' | 'suppe' | 'salat' | 'schnell' | 'klassiker' | 'dessert';
+  effort: 'easy' | 'medium' | 'hard'; // 'Einfach' | 'Mittel' | 'Aufwendig'
+  durationMinutes: number; // e.g. 15, 25, 45
+  requiresBaking: boolean; // Mit Backen / Ohne Backen
+  cookingMethod: 'herd' | 'backofen' | 'one-pot' | 'kalt' | 'grill';
+  ingredients: string[];
+  description?: string;
+  caloriesApprox?: number;
+}
+
 export interface FamilyData {
   settings: FamilySettings;
   members: Record<string, FamilyMember>;
@@ -131,6 +172,8 @@ export interface FamilyData {
   logs: ChoreLog[];
   pinnwand?: Record<string, PinnwandNote>;
   trophyOwners?: Record<string, string>;
+  menuPlan?: Record<string, DayMenuPlan>; // dateKey ("YYYY-MM-DD") -> DayMenuPlan
+  menuWishes?: Record<string, MenuWish>;
 }
 
 export interface WeeklyRollOverPreview {

@@ -96,16 +96,16 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
         <motion.div
           initial={{ scale: 0.92, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="w-full max-w-lg m3-dialog overflow-hidden my-12"
+          className="w-full max-w-lg md:max-w-xl max-h-[92vh] sm:max-h-[88vh] my-auto flex flex-col m3-dialog relative overflow-hidden shadow-2xl"
         >
           {/* M3 Dialog Header */}
-          <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">
+          <div className="p-5 sm:p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between shrink-0 bg-[var(--m3-surface-container)]">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] flex items-center justify-center shadow-xs">
                 <CheckSquare className="w-6 h-6" />
@@ -123,14 +123,14 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] transition"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Form / Scrollable Body */}
+          <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
             {/* Title */}
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-[var(--m3-on-surface-variant)] mb-1.5">

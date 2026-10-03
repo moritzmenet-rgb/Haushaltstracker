@@ -12,7 +12,8 @@ import {
   UserCheck, 
   AlertTriangle,
   Minus,
-  Plus
+  Plus,
+  Calendar
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { calculatePoints } from '../utils';
@@ -38,7 +39,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
 
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [stars, setStars] = useState<1 | 2 | 3>(3);
+  const [stars, setStars] = useState<1 | 2 | 3>(1);
   const [actualDuration, setActualDuration] = useState<number>(15);
   const [notes, setNotes] = useState<string>('');
 
@@ -49,6 +50,28 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Date selection state (YYYY-MM-DD)
+  const formatDateToYMD = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = React.useMemo(() => formatDateToYMD(new Date()), []);
+  const yesterdayStr = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return formatDateToYMD(d);
+  }, []);
+  const dayBeforeYesterdayStr = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return formatDateToYMD(d);
+  }, []);
+
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const prevOpenRef = useRef(false);
 
@@ -65,6 +88,17 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
         setSelectedUserId(logToEdit.user_id);
         setStars(logToEdit.stars);
         setActualDuration(logToEdit.actual_duration || 15);
+
+        if (logToEdit.timestamp) {
+          const d = new Date(logToEdit.timestamp);
+          if (!isNaN(d.getTime())) {
+            setSelectedDate(formatDateToYMD(d));
+          } else {
+            setSelectedDate(todayStr);
+          }
+        } else {
+          setSelectedDate(todayStr);
+        }
 
         // Parse structured justifications out of notes if present
         let rawNote = logToEdit.notes || '';
@@ -105,15 +139,16 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
           ? data.tasks[initialTaskId].estimated_duration
           : 15;
         setActualDuration(est || 15);
-        setStars(3);
+        setStars(1);
         setNotes('');
         setStar2Reason('');
         setStar3Highlight1('');
         setStar3Highlight2('');
+        setSelectedDate(todayStr);
       }
     }
     prevOpenRef.current = isOpen;
-  }, [isOpen, logToEdit, preselectedTaskId, data.tasks, tasksList, activeUser, membersList]);
+  }, [isOpen, logToEdit, preselectedTaskId, data.tasks, tasksList, activeUser, membersList, todayStr]);
 
   if (!isOpen) return null;
 
@@ -190,6 +225,20 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
       finalNote = finalNote ? `${finalNote} | Notiz: ${notes.trim()}` : notes.trim();
     }
 
+    let customTimestamp: string | undefined = undefined;
+    if (selectedDate) {
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const now = new Date();
+      if (logToEdit?.timestamp) {
+        const orig = new Date(logToEdit.timestamp);
+        const target = new Date(y, m - 1, d, orig.getHours(), orig.getMinutes(), orig.getSeconds());
+        customTimestamp = target.toISOString();
+      } else {
+        const target = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+        customTimestamp = target.toISOString();
+      }
+    }
+
     try {
       setIsSubmitting(true);
       // Wait a bit for the animation to start before actually closing/updating
@@ -200,12 +249,13 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
           user_id: isAdmin && selectedUserId ? selectedUserId : logToEdit.user_id,
           stars,
           actual_duration: Number(actualDuration) || 10,
-          notes: finalNote || undefined
+          notes: finalNote || undefined,
+          timestamp: customTimestamp
         });
         onClose();
       } else {
         // CREATE NEW LOG & trigger celebration
-        await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined);
+        await logChore(selectedTaskId, stars, Number(actualDuration) || 10, finalNote || undefined, customTimestamp);
         onClose();
       }
     } catch (err) {
@@ -218,7 +268,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -232,7 +282,7 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
             } 
           }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className={`w-full max-w-lg m3-dialog overflow-y-auto max-h-[92vh] my-auto sm:my-8 ${isSubmitting ? 'animate-playful-exit' : ''}`}
+          className={`w-full max-w-lg md:max-w-xl m3-dialog overflow-y-auto max-h-[92vh] sm:max-h-[88vh] my-auto shadow-2xl ${isSubmitting ? 'animate-playful-exit' : ''}`}
         >
           {/* M3 Dialog Header */}
           <div className="p-6 border-b border-[var(--m3-outline-variant)]/60 flex items-center justify-between">
@@ -307,6 +357,68 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Date Selection (Today, Yesterday, Custom Calendar) */}
+            <div className="p-4 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-[var(--m3-on-surface-variant)] flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-[var(--m3-primary)]" />
+                  Datum der Erledigung
+                </label>
+                <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                  {selectedDate === todayStr ? 'Heute' : selectedDate === yesterdayStr ? 'Gestern' : selectedDate === dayBeforeYesterdayStr ? 'Vorgestern' : selectedDate}
+                </span>
+              </div>
+
+              {/* Quick Select Buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(todayStr)}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    selectedDate === todayStr
+                      ? 'bg-[var(--m3-primary)] text-white border-[var(--m3-primary)] shadow-xs'
+                      : 'bg-[var(--m3-surface)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] border-[var(--m3-outline-variant)]'
+                  }`}
+                >
+                  Heute
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(yesterdayStr)}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    selectedDate === yesterdayStr
+                      ? 'bg-[var(--m3-primary)] text-white border-[var(--m3-primary)] shadow-xs'
+                      : 'bg-[var(--m3-surface)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] border-[var(--m3-outline-variant)]'
+                  }`}
+                >
+                  Gestern
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(dayBeforeYesterdayStr)}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    selectedDate === dayBeforeYesterdayStr
+                      ? 'bg-[var(--m3-primary)] text-white border-[var(--m3-primary)] shadow-xs'
+                      : 'bg-[var(--m3-surface)] hover:bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] border-[var(--m3-outline-variant)]'
+                  }`}
+                >
+                  Vorgestern
+                </button>
+              </div>
+
+              {/* Precise Calendar Input */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] font-semibold text-[var(--m3-on-surface-variant)] shrink-0">Anderes Datum:</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={todayStr}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] text-xs font-bold text-[var(--m3-on-surface)] focus:ring-2 focus:ring-[var(--m3-primary)]"
+                />
+              </div>
             </div>
 
             {/* Continuous Duration Slider (Stufenlos 1 Min bis 180 Min) */}

@@ -21,10 +21,15 @@ import { CategoryManagementTab } from './admin/CategoryManagementTab';
 import { SyncSettingsTab } from './admin/SyncSettingsTab';
 import { DataManagementTab } from './admin/DataManagementTab';
 import { SessionsTab } from './admin/SessionsTab';
+import { Lock } from 'lucide-react';
 
 type SubTabId = 'profile' | 'theme' | 'general' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions';
 
-export const AdminSettings: React.FC = () => {
+interface AdminSettingsProps {
+  onOpenProfileSelector?: () => void;
+}
+
+export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelector }) => {
   const { data, isAdmin, firebaseUser } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('profile');
@@ -53,7 +58,7 @@ export const AdminSettings: React.FC = () => {
 
   // If a non-admin is active and activeSubTab is an admin-only tab, revert to profile
   useEffect(() => {
-    if (!isAdmin && ['general', 'users', 'rules', 'categories', 'sync', 'data'].includes(activeSubTab)) {
+    if (!isAdmin && ['general', 'users', 'rules', 'categories', 'sync', 'data', 'sessions'].includes(activeSubTab)) {
       setActiveSubTab('profile');
     }
   }, [isAdmin, activeSubTab]);
@@ -84,6 +89,27 @@ export const AdminSettings: React.FC = () => {
             : `${data.settings.household_name || 'Haushalt'} • Passe dein Profil, Avatar und das Farbdesign an`}
         </p>
       </div>
+
+      {/* Non-Admin Notice Banner */}
+      {!isAdmin && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-300">
+            <Lock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              Du bist als <strong>Familienmitglied</strong> angemeldet. Erweiterte Haushalts-, Mitglieder- und Regeleinstellungen sind ausschließlich Administratoren vorbehalten.
+            </span>
+          </div>
+          {onOpenProfileSelector && (
+            <button
+              type="button"
+              onClick={onOpenProfileSelector}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition shrink-0 self-start sm:self-auto cursor-pointer shadow-xs"
+            >
+              Zu Admin wechseln
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Material 3 Segment / Chips Carousel - Only showing available tabs */}
       <motion.div 

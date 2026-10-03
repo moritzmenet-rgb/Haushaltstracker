@@ -13,7 +13,12 @@ import {
   PlusCircle,
   ShieldCheck,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Pin,
+  Utensils,
+  Compass,
+  Layers,
+  HelpCircle
 } from 'lucide-react';
 
 interface TutorialModalProps {
@@ -53,7 +58,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
       highlights: [
         { 
           title: 'Eigenes Profil mit Wochenziel', 
-          desc: 'Jedes Mitglied wählt oben sein Profil aus. Du siehst sofort dein Wochenziel, deinen Fortschritt und deine erledigten Aufgaben.' 
+          desc: 'Jedes Mitglied wählt sein Profil aus. Du siehst sofort dein Wochenziel, deinen Fortschritt und deine erledigten Aufgaben.' 
         },
         { 
           title: 'Transparenz für alle', 
@@ -63,85 +68,81 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
     },
     {
       step: 2,
-      badge: 'Aufgaben & Punkteformel',
-      icon: <Clock className="w-8 h-8 text-white" />,
-      colorGradient: 'from-blue-600 to-cyan-600',
-      title: 'Wie Punkte berechnet werden',
-      subtitle: 'Mathematisch fair nach Aufwand & Häufigkeit',
-      description: 'Aufgaben haben eine Dauer (in Minuten) und ein Wiederholungsintervall (in Tagen). Daraus berechnet sich der Basiswert (immer mindestens 1 Punkt):',
+      badge: 'Aufgaben & Punkte',
+      icon: <Star className="w-8 h-8 text-white" />,
+      colorGradient: 'from-amber-500 to-orange-500',
+      title: 'Arbeit erfassen & Sterne-System',
+      subtitle: 'Qualität & Extrameilen werden direkt belohnt',
+      description: 'Klicke auf den Plus-Button (+) oder "Gönnen", um erledigte Arbeiten einzutragen:',
       highlights: [
         { 
-          title: 'Arbeit erfassen per Plus-Button', 
-          desc: 'Klicke einfach auf den runden Plus-Button (+) in der unteren Leiste oder auf "Gönnen" direkt im Aufgaben-Katalog.' 
+          title: '★ 1 Stern (50% Punkte)', 
+          desc: 'Aufgabe ordentlich und normal erledigt ("solide").' 
         },
         { 
-          title: 'Stufenlose Zeit & Dauern', 
-          desc: 'Jede Aufgabe kann in Dauer und Intervall stufenlos angepasst werden. Längere und seltenere Aufgaben geben automatisch mehr Punkte!' 
+          title: '★★ 2 Sterne (75% Punkte)', 
+          desc: 'Besonders gründlich erledigt (z. B. alle Ecken sauber mitgewischt).' 
+        },
+        { 
+          title: '★★★ 3 Sterne (100% Voller Bonus)', 
+          desc: 'Die Extrameile gegangen und unaufgefordert noch mehr getan (z. B. Müll rausgebracht und Eimer ausgewaschen).' 
         }
       ]
     },
     {
       step: 3,
-      badge: 'Das 3-Sterne-System',
-      icon: <Star className="w-8 h-8 text-white" />,
-      colorGradient: 'from-amber-600 to-orange-600',
-      title: 'Sterne & Selbsteinschätzung',
-      subtitle: 'Qualität wird direkt belohnt',
-      description: 'Beim Eintragen einer Arbeit bewertest du deine Ausführung mit 1, 2 oder 3 Sternen:',
+      badge: '📌 Pinnwand',
+      icon: <Pin className="w-8 h-8 text-white rotate-12 fill-current" />,
+      colorGradient: 'from-amber-600 to-amber-700',
+      title: 'Wie du zur Familien-Pinnwand kommst',
+      subtitle: 'Notizen, Abstimmungen, Fäden & Einkaufslisten',
+      description: 'Du erreichst die Pinnwand jederzeit über zwei einfache Wege:',
       highlights: [
         { 
-          title: '★ 1 Stern – 50% Punkte (Basis / Standard)', 
-          desc: 'Aufgabe ordentlich und normal erledigt ("okay"). Keine Begründung nötig.' 
+          title: '1. Klick auf das F&W Logo (oben links)', 
+          desc: 'Tippe oben links auf das "F&W" Logo. In der geöffneten Familien-Zentrale wählst du direkt die "Pinnwand" an.' 
         },
         { 
-          title: '★★ 2 Sterne – 75% Punkte (Besonders gut)', 
-          desc: 'Besser als nur "okay"! Du nennst kurz, was besonders gut oder gründlicher war (z. B. alle Ecken sauber mitgewischt, glänzend nachpoliert).' 
-        },
-        { 
-          title: '★★★ 3 Sterne – 100% Voller Bonus (2★ + Extrameile)', 
-          desc: 'Das von 2 Sternen PLUS unaufgefordert noch MEHR als man eigentlich müsste (z. B. nicht nur Müll rausgebracht, sondern auch Eimer ausgewaschen & neue Beutel eingelegt)!' 
+          title: '2. Post-its, rote Fäden & Umfragen', 
+          desc: 'Hefte bunte Zettel auf das Korkbrett, verbinde zusammengehörende Notizen mit roten Wollfäden oder starte Familien-Abstimmungen!' 
         }
       ]
     },
     {
       step: 4,
-      badge: 'Wochenziel & Roll-Over',
-      icon: <RotateCcw className="w-8 h-8 text-white" />,
+      badge: '🍽️ Menüplaner',
+      icon: <Utensils className="w-8 h-8 text-white" />,
       colorGradient: 'from-emerald-600 to-teal-600',
-      title: 'Das faire Roll-Over-System',
-      subtitle: 'Dein Fleiß zahlt sich Woche für Woche aus',
-      description: 'Am Ende jeder Woche (z. B. Sonntag) wird abgerechnet. Das System gleicht die Ziele automatisch und fair an:',
+      title: 'Wie du zum Menüplaner kommst',
+      subtitle: 'Gemeinsame Speisepläne, Rezeptideen & Einkäufe',
+      description: 'Auch den Menüplaner erreichst du blitzschnell über die App-Zentrale:',
       highlights: [
         { 
-          title: 'Mehr geschafft als das Ziel? (Überschuss)', 
-          desc: 'Klasse Einsatz! Ein Teil deiner Überpunkte wird gutgeschrieben, sodass dein nächstes Wochenziel etwas sinkt (Erholungs-Effekt).' 
+          title: '1. Öffnen über das F&W Logo', 
+          desc: 'Klicke oben links auf das "F&W" Logo und wähle die Karte "Menüplanung". Schon bist du im Wochen-Speiseplan!' 
         },
         { 
-          title: 'Punkte im Rückstand? (Defizit)', 
-          desc: 'Kein Beinbruch: Fehlende Punkte werden sanft ins nächste Ziel übertragen, damit die Gesamtarbeit fair aufgeteilt bleibt.' 
+          title: '2. Mahlzeiten planen & Wünsche einreichen', 
+          desc: 'Trage Mittag- und Abendessen für jeden Tag ein, stimme über Essenswünsche ab und schicke Zutaten mit 1 Klick als Einkaufsliste an die Pinnwand.' 
         }
       ]
     },
     {
       step: 5,
-      badge: 'Rechte & Personalisierung',
-      icon: <Palette className="w-8 h-8 text-white" />,
-      colorGradient: 'from-rose-600 to-pink-600',
-      title: 'Editierrechte & Designs',
-      subtitle: 'Volle Kontrolle & Personalisierung',
-      description: 'In den Einstellungen kannst du deine App ganz nach deinen Wünschen anpassen:',
+      badge: '🧭 Familien-Zentrale',
+      icon: <Compass className="w-8 h-8 text-white" />,
+      colorGradient: 'from-indigo-600 to-blue-600',
+      title: 'Die Familien-Zentrale (App Hub)',
+      subtitle: 'Alles an einem Ort – immer griffbereit',
+      description: 'Die Zentrale verbindet alle 3 Bereiche deiner Haushalts-App:',
       highlights: [
         { 
-          title: 'Eigene Einträge bearbeiten', 
-          desc: 'Tippfehler beim Eintragen? Du kannst deine eigenen geloggten Einträge jederzeit nachträglich bearbeiten oder löschen. Moritz als Admin hat Vollzugriff.' 
+          title: 'Universal-Wechsler', 
+          desc: 'Ein Klick auf das "F&W" Logo bringt dich immer direkt zur 3-teiligen Auswahl (Fish & Wish, Pinnwand, Menüplaner).' 
         },
         { 
-          title: '4 Farbthemen', 
-          desc: 'Wähle Indigo, Emerald, Rose oder Amber als dein persönliches Lieblings-Farbkonzept aus!' 
-        },
-        { 
-          title: 'Immer fest im Griff am Handy', 
-          desc: 'Die Navigationsleiste ist mobil immer fest am unteren Bildschirmrand fixiert, damit du überall mit einem Klick erreichst, was du brauchst.' 
+          title: 'Feste Mobile Bottom Bar', 
+          desc: 'Am Smartphone ist die Navigationsleiste immer fest verankert, damit du mit dem Daumen mühelos alle Tabs erreichst.' 
         }
       ]
     }

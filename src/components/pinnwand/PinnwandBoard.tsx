@@ -29,7 +29,17 @@ import { PinnwandNoteModal } from './PinnwandNoteModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { MemberProfileModal } from '../MemberProfileModal';
 
-export const PinnwandBoard: React.FC = () => {
+interface PinnwandBoardProps {
+  activeTab?: 'canvas' | 'stream' | 'polls' | 'mine';
+  onSelectTab?: (tab: 'canvas' | 'stream' | 'polls' | 'mine') => void;
+  openNewNoteTrigger?: number;
+}
+
+export const PinnwandBoard: React.FC<PinnwandBoardProps> = ({
+  activeTab: controlledActiveTab,
+  onSelectTab: controlledOnSelectTab,
+  openNewNoteTrigger
+}) => {
   const {
     data,
     activeUser,
@@ -51,6 +61,29 @@ export const PinnwandBoard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'polls' | 'pinned' | 'mine'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Synchronize controlled tab from Navbar
+  useEffect(() => {
+    if (!controlledActiveTab) return;
+    if (controlledActiveTab === 'canvas') {
+      setViewMode('canvas');
+      setActiveFilter('all');
+    } else if (controlledActiveTab === 'stream') {
+      setViewMode('stream');
+      setActiveFilter('all');
+    } else if (controlledActiveTab === 'polls') {
+      setActiveFilter('polls');
+    } else if (controlledActiveTab === 'mine') {
+      setActiveFilter('mine');
+    }
+  }, [controlledActiveTab]);
+
+  // Handle Quick Action Trigger from Navbar
+  useEffect(() => {
+    if (openNewNoteTrigger && openNewNoteTrigger > 0) {
+      handleOpenNewTopic();
+    }
+  }, [openNewNoteTrigger]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

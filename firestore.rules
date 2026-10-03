@@ -95,7 +95,8 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     function isValidHousehold(data) {
-      return 'household_name' in data && data.household_name is string && data.household_name.size() <= 100;
+      return 'household_name' in data && data.household_name is string && data.household_name.size() <= 100 &&
+             (!('admin_only_settings' in data) || data.admin_only_settings is bool);
     }
 
     function isValidMember(data) {
@@ -104,6 +105,9 @@ service cloud.firestore {
              data.name is string && data.name.size() <= 100 &&
              data.role in ['admin', 'member'] &&
              data.avatar_color is string &&
+             (!('has_seen_tutorial' in data) || data.has_seen_tutorial is bool) &&
+             (!('last_seen_version' in data) || (data.last_seen_version is string && data.last_seen_version.size() <= 64)) &&
+             (!('preferred_theme' in data) || (data.preferred_theme is string && data.preferred_theme.size() <= 32)) &&
              (!('unlocked_badges' in data) || data.unlocked_badges is map) &&
              (!('showroom_badges' in data) || data.showroom_badges is list) &&
              (!('active_badge_id' in data) || (data.active_badge_id == null || data.active_badge_id is string)) &&
@@ -179,6 +183,25 @@ service cloud.firestore {
         allow read: if isVerified();
         allow create, update: if isVerified() && (isMoritz() || isValidPinnwandNote(incoming()));
         allow delete: if isVerified();
+      }
+
+      // Menuplanner Subcollection (Planned Meals & Recipes)
+      match /menus/{menuId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified();
+        allow delete: if isAdmin() || isVerified();
+      }
+
+      match /recipes/{recipeId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified();
+        allow delete: if isAdmin() || isVerified();
+      }
+
+      match /menu_wishes/{wishId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified();
+        allow delete: if isAdmin() || isVerified();
       }
     }
 
