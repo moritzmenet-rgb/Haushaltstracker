@@ -308,8 +308,8 @@ export function scanAndAwardHistoricalAchievements(
     const hasWordsmithNote = memberLogs.some(l => l.notes && l.notes.trim().length >= 40);
     if (hasWordsmithNote) awardBadge('secret_wordsmith');
 
-    // --- Easter Egg Secret ---
-    if (easterEggClicks >= 10 && activeUserId === member.id) {
+    // --- Easter Egg Secret (only awarded if explicitly triggered, never repeatedly on automatic scan) ---
+    if (easterEggClicks >= 10 && activeUserId === member.id && !existingUnlocked['secret_easter_egg']) {
       awardBadge('secret_easter_egg');
     }
 

@@ -225,12 +225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [newlyUnlockedBadge, setNewlyUnlockedBadge] = useState<AchievementDef | null>(null);
   const clearNewlyUnlockedBadge = useCallback(() => setNewlyUnlockedBadge(null), []);
 
-  const [easterEggClickCount, setEasterEggClickCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      return Number(localStorage.getItem('household_easter_egg_clicks') || 0);
-    }
-    return 0;
-  });
+  const [easterEggClickCount, setEasterEggClickCount] = useState<number>(0);
 
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const openWhatsNew = useCallback(() => setIsWhatsNewOpen(true), []);
@@ -1782,7 +1777,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Triggered automatically on boot, data changes, and member changes
   useEffect(() => {
     if (!isAppLoaded) return;
-    const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, easterEggClickCount);
+    const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, 0);
     if (scanResult.hasChanges) {
       setData(prev => ({
         ...prev,
@@ -1805,13 +1800,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
       }
     }
-  }, [isAppLoaded, data.logs, activeUserId, easterEggClickCount]);
+  }, [isAppLoaded, data.logs, activeUserId]);
 
   const triggerEasterEggClick = useCallback(() => {
+    if (!activeUser) return;
+    // If the active member already has the easter egg badge, never trigger again
+    if (activeUser.unlocked_badges && activeUser.unlocked_badges['secret_easter_egg']) {
+      return;
+    }
     setEasterEggClickCount(prev => {
       const next = prev + 1;
-      localStorage.setItem('household_easter_egg_clicks', String(next));
-      if (next >= 10 && activeUser) {
+      if (next >= 10) {
         const def = ACHIEVEMENTS_DATA.find(b => b.id === 'secret_easter_egg');
         if (def && (!activeUser.unlocked_badges || !activeUser.unlocked_badges['secret_easter_egg'])) {
           const nextBadges = { ...(activeUser.unlocked_badges || {}), secret_easter_egg: new Date().toISOString() };
@@ -1828,6 +1827,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           saveMemberToCloud({ ...activeUser, unlocked_badges: nextBadges }).catch(console.warn);
           setNewlyUnlockedBadge(def);
         }
+        return 0; // reset click count after awarding
       }
       return next;
     });

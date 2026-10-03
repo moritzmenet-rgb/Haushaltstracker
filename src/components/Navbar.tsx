@@ -100,7 +100,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleLogoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     haptic.selection();
-    triggerEasterEggClick();
     onOpenHub();
   };
 
@@ -253,13 +252,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-black text-xs sm:text-sm tracking-tighter relative z-10">
                   {brandConfig.shortTitle}
                 </span>
-                {easterEggClickCount > 0 && easterEggClickCount < 10 && (
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute inset-0 bg-amber-500/30 flex items-center justify-center pointer-events-none"
-                  />
-                )}
               </motion.div>
 
               <div className="flex flex-col">
@@ -272,15 +264,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Compass className="w-2.5 h-2.5" />
                     <span className="hidden sm:inline">Wechseln</span>
                   </span>
-                  {easterEggClickCount > 0 && easterEggClickCount < 10 && (
-                    <motion.span 
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black"
-                    >
-                      🥚 {easterEggClickCount}/10
-                    </motion.span>
-                  )}
                 </div>
                 <span className="text-[10px] font-semibold text-[var(--m3-on-surface-variant)] leading-tight">
                   {brandConfig.subTitle}
