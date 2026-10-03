@@ -37,7 +37,10 @@ import {
   saveSettingsToCloud, 
   clearAllCloudData,
   savePinnwandNoteToCloud,
-  deletePinnwandNoteFromCloud
+  deletePinnwandNoteFromCloud,
+  saveDayMenuPlanToCloud,
+  saveMenuWishToCloud,
+  deleteMenuWishFromCloud
 } from '../services/firestoreSync';
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
@@ -824,7 +827,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Sync notice (Pinnwand):', err);
     });
 
-    // 6. Sessions (Admin only)
+    // 6. Menu planner days
+    const unsubMenus = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'menus'), (snap) => {
+      if (isCancelled) return;
+      const menusMap: Record<string, DayMenuPlan> = {};
+      snap.forEach(d => { 
+        const m = d.data() as any;
+        menusMap[m.date || d.id] = {
+          lunch: m.lunch || null,
+          dinner: m.dinner || null
+        }; 
+      });
+
+      setData(prev => {
+        const next = { ...prev, menuPlan: menusMap };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, (err) => {
+      console.warn('Sync notice (Menus):', err);
+    });
+
+    // 7. Menu Wishes
+    const unsubWishes = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'menu_wishes'), (snap) => {
+      if (isCancelled) return;
+      const wishesMap: Record<string, MenuWish> = {};
+      snap.forEach(d => { 
+        const w = d.data() as MenuWish;
+        wishesMap[w.id || d.id] = { ...w, id: w.id || d.id, upvotes: Array.isArray(w.upvotes) ? w.upvotes : [] }; 
+      });
+
+      setData(prev => {
+        const next = { ...prev, menuWishes: wishesMap };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, (err) => {
+      console.warn('Sync notice (Menu Wishes):', err);
+    });
+
+    // 8. Sessions (Admin only)
     let unsubSessions = () => {};
     if (isAdmin) {
       console.log('Firebase: Setting up sessions listener (Admin access granted)');
@@ -855,6 +897,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubTasks();
       unsubLogs();
       unsubPinnwand();
+      unsubMenus();
+      unsubWishes();
       unsubSessions();
     };
   }, [syncRetryKey, isAdmin]);
@@ -1917,9 +1961,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data.menuWishes]);
 
   const setDayMeal = useCallback(async (dateStr: string, mealType: 'lunch' | 'dinner', meal: PlannedMeal | null) => {
+    let updatedDay: DayMenuPlan = {};
     setData(prev => {
       const currentDay = prev.menuPlan?.[dateStr] || {};
-      const updatedDay: DayMenuPlan = {
+      updatedDay = {
         ...currentDay,
         [mealType]: meal
       };
@@ -1932,19 +1977,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    try {
-      if (isConfigValid && db) {
-        const mealDocRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateStr);
-        await setDoc(mealDocRef, {
-          date: dateStr,
-          [mealType]: meal || null,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      }
-    } catch (e) {
-      console.warn('Menu cloud sync notice:', e);
-    }
-  }, [persistLocal]);
+    const p = saveDayMenuPlanToCloud(dateStr, updatedDay);
+    triggerSyncFeedback('Speiseplan aktualisiert', p);
+  }, [persistLocal, triggerSyncFeedback]);
 
   const addMenuWish = useCallback(async (title: string, notes?: string): Promise<MenuWish> => {
     const id = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
@@ -1966,17 +2001,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    try {
-      if (isConfigValid && db) {
-        const wishDocRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', id);
-        await setDoc(wishDocRef, newWish);
-      }
-    } catch (e) {
-      console.warn('Wish cloud sync notice:', e);
-    }
+    const p = saveMenuWishToCloud(newWish);
+    triggerSyncFeedback('Wunsch eingetragen 💡', p);
 
     return newWish;
-  }, [activeUser, persistLocal]);
+  }, [activeUser, persistLocal, triggerSyncFeedback]);
 
   const deleteMenuWish = useCallback(async (wishId: string): Promise<boolean> => {
     setData(prev => {
@@ -1986,11 +2015,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       persistLocal(next);
       return next;
     });
+
+    const p = deleteMenuWishFromCloud(wishId);
+    triggerSyncFeedback('Wunsch gelöscht', p);
+
     return true;
-  }, [persistLocal]);
+  }, [persistLocal, triggerSyncFeedback]);
 
   const toggleWishUpvote = useCallback(async (wishId: string): Promise<boolean> => {
     if (!activeUser) return false;
+    let targetWish: MenuWish | null = null;
     setData(prev => {
       const wish = prev.menuWishes?.[wishId];
       if (!wish) return prev;
@@ -1999,6 +2033,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? wish.upvotes.filter(uid => uid !== activeUser.id)
         : [...wish.upvotes, activeUser.id];
       const updatedWish = { ...wish, upvotes: updatedUpvotes };
+      targetWish = updatedWish;
       const next = {
         ...prev,
         menuWishes: {
@@ -2009,8 +2044,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       persistLocal(next);
       return next;
     });
+
+    if (targetWish) {
+      const p = saveMenuWishToCloud(targetWish);
+      triggerSyncFeedback('Stimme gezählt 👍', p);
+    }
     return true;
-  }, [activeUser, persistLocal]);
+  }, [activeUser, persistLocal, triggerSyncFeedback]);
 
   const transferIngredientsToPinnwand = useCallback(async (mealTitle: string, ingredients: string[]): Promise<boolean> => {
     const content = `🛒 Zutaten für: ${mealTitle}\n\n` + ingredients.map(ing => `• ${ing}`).join('\n');

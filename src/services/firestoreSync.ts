@@ -189,8 +189,10 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
     const tasksToSeed = Object.values(data.tasks || {});
     const logsToSeed = (data.logs || []).slice(0, 50);
     const pinnwandToSeed = Object.values(data.pinnwand || {});
+    const menusToSeed = Object.entries(data.menuPlan || {});
+    const wishesToSeed = Object.values(data.menuWishes || {});
 
-    if (membersToSeed.length > 0 || tasksToSeed.length > 0 || logsToSeed.length > 0 || pinnwandToSeed.length > 0) {
+    if (membersToSeed.length > 0 || tasksToSeed.length > 0 || logsToSeed.length > 0 || pinnwandToSeed.length > 0 || menusToSeed.length > 0 || wishesToSeed.length > 0) {
       const batch = writeBatch(db);
 
       membersToSeed.forEach(member => {
@@ -211,6 +213,21 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
       pinnwandToSeed.forEach(note => {
         const noteRef = doc(db, 'households', HOUSEHOLD_ID, 'pinnwand', note.id);
         batch.set(noteRef, sanitizePinnwandNote(note), { merge: true });
+      });
+
+      menusToSeed.forEach(([dateKey, dayPlan]) => {
+        const menuRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateKey);
+        batch.set(menuRef, {
+          date: dateKey,
+          lunch: dayPlan?.lunch || null,
+          dinner: dayPlan?.dinner || null,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      });
+
+      wishesToSeed.forEach(wish => {
+        const wishRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wish.id);
+        batch.set(wishRef, wish, { merge: true });
       });
 
       await batch.commit();
@@ -376,6 +393,64 @@ export async function deletePinnwandNoteFromCloud(noteId: string): Promise<void>
   }
 }
 
+/**
+ * Menuplanner Cloud Sync Helpers
+ */
+export async function saveDayMenuPlanToCloud(dateStr: string, dayPlan: any): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateStr);
+    await setDoc(docRef, {
+      date: dateStr,
+      lunch: dayPlan?.lunch || null,
+      dinner: dayPlan?.dinner || null,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/menus/${dateStr}`);
+  }
+}
+
+export async function saveMenuWishToCloud(wish: any): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wish.id);
+    await setDoc(docRef, wish, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/menu_wishes/${wish.id}`);
+  }
+}
+
+export async function deleteMenuWishFromCloud(wishId: string): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wishId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/menu_wishes/${wishId}`);
+  }
+}
+
+export async function saveRecipeToCloud(recipe: any): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'recipes', recipe.id);
+    await setDoc(docRef, recipe, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/recipes/${recipe.id}`);
+  }
+}
+
+export async function deleteRecipeFromCloud(recipeId: string): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'recipes', recipeId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/recipes/${recipeId}`);
+  }
+}
+
 export async function clearAllCloudData(): Promise<void> {
   if (!isConfigValid) return;
   try {
@@ -392,6 +467,15 @@ export async function clearAllCloudData(): Promise<void> {
 
     const pinnwandSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'pinnwand'));
     pinnwandSnap.forEach(d => batch.delete(d.ref));
+
+    const menusSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'menus'));
+    menusSnap.forEach(d => batch.delete(d.ref));
+
+    const wishesSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'menu_wishes'));
+    wishesSnap.forEach(d => batch.delete(d.ref));
+
+    const recipesSnap = await getDocs(collection(db, 'households', HOUSEHOLD_ID, 'recipes'));
+    recipesSnap.forEach(d => batch.delete(d.ref));
 
     const householdRef = doc(db, 'households', HOUSEHOLD_ID);
     batch.delete(householdRef);
