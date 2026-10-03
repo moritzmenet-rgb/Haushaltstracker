@@ -406,6 +406,36 @@ export function scanAndAwardHistoricalAchievements(
   // --- 2. Dynamic Wanderpokale (Trophy Owners) Calculation ---
   const trophyOwners = computeLiveTrophyOwners(allLogs, updatedMembers, data.trophyOwners || {});
 
+  // Clean up active_badge_id and showroom_badges for any members who lost trophy ownership
+  Object.values(updatedMembers).forEach(member => {
+    let memberNeedsClean = false;
+    let cleanedActiveBadge = member.active_badge_id;
+    let cleanedShowroom = member.showroom_badges;
+
+    // 1. If active_badge_id is a trophy and member is not the current owner -> remove title
+    if (cleanedActiveBadge && cleanedActiveBadge.startsWith('trophy_')) {
+      if (trophyOwners[cleanedActiveBadge] !== member.id) {
+        cleanedActiveBadge = undefined;
+        memberNeedsClean = true;
+      }
+    }
+
+    // 2. If showroom_badges contains a trophy and member is not the current owner -> remove from showroom
+    if (Array.isArray(cleanedShowroom) && cleanedShowroom.some(b => b.startsWith('trophy_') && trophyOwners[b] !== member.id)) {
+      cleanedShowroom = cleanedShowroom.filter(b => !b.startsWith('trophy_') || trophyOwners[b] === member.id);
+      memberNeedsClean = true;
+    }
+
+    if (memberNeedsClean) {
+      hasChanges = true;
+      updatedMembers[member.id] = {
+        ...member,
+        active_badge_id: cleanedActiveBadge,
+        showroom_badges: cleanedShowroom
+      };
+    }
+  });
+
   // Track if any trophy owner changed
   const oldTrophyOwners = data.trophyOwners || {};
   const allTrophyKeys = new Set([...Object.keys(trophyOwners), ...Object.keys(oldTrophyOwners)]);

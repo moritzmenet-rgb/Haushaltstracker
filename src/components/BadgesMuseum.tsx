@@ -77,13 +77,29 @@ export const BadgesMuseum: React.FC<BadgesMuseumProps> = ({ onInspectBadge }) =>
     return data.members[ownerId] || null;
   };
 
-  const userShowroom = (activeUser && data.members[activeUser.id]?.showroom_badges) || [];
-  const activeBadgeId = activeUser && data.members[activeUser.id]?.active_badge_id;
+  const userShowroom = React.useMemo(() => {
+    if (!activeUser) return [];
+    const list = data.members[activeUser.id]?.showroom_badges || [];
+    return list.filter(bId => !bId.startsWith('trophy_') || trophyOwners[bId] === activeUser.id);
+  }, [activeUser, data.members, trophyOwners]);
+
+  const activeBadgeId = React.useMemo(() => {
+    if (!activeUser) return undefined;
+    const bId = data.members[activeUser.id]?.active_badge_id;
+    if (bId && bId.startsWith('trophy_') && trophyOwners[bId] !== activeUser.id) {
+      return undefined;
+    }
+    return bId;
+  }, [activeUser, data.members, trophyOwners]);
 
   const handleToggleShowroom = (e: React.MouseEvent, badgeId: string) => {
     e.stopPropagation();
     e.preventDefault();
     if (!activeUser) return;
+    // Disallow adding a trophy that the active member does not currently own
+    if (badgeId.startsWith('trophy_') && trophyOwners[badgeId] !== activeUser.id) {
+      return;
+    }
     let newShowroom = [...userShowroom];
     if (newShowroom.includes(badgeId)) {
       haptic.light();
@@ -105,6 +121,10 @@ export const BadgesMuseum: React.FC<BadgesMuseumProps> = ({ onInspectBadge }) =>
     e.stopPropagation();
     e.preventDefault();
     if (!activeUser) return;
+    // Disallow setting a trophy as active title if the member does not own it
+    if (badgeId.startsWith('trophy_') && trophyOwners[badgeId] !== activeUser.id) {
+      return;
+    }
     haptic.success();
     rewardAudio.playSuccessChord();
     updateMemberActiveBadge(activeUser.id, activeId => (activeId === badgeId ? undefined : badgeId));

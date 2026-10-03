@@ -395,15 +395,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Compute live trophy owners dynamically from all current logs & members!
     const liveTrophyOwners = computeLiveTrophyOwners(logs, computedMembers, data.trophyOwners);
 
-    // If any member's active_badge_id is a trophy they no longer hold, disallow it
+    // If any member's active_badge_id or showroom_badges contains a trophy they no longer hold, strip it
     for (const [id, member] of Object.entries(computedMembers)) {
-      if (member.active_badge_id && member.active_badge_id.startsWith('trophy_')) {
-        if (liveTrophyOwners[member.active_badge_id] !== id) {
-          computedMembers[id] = {
-            ...member,
-            active_badge_id: undefined
-          };
+      let needsUpdate = false;
+      let nextActiveBadge = member.active_badge_id;
+      let nextShowroom = member.showroom_badges;
+
+      // 1. Remove lost trophy from title
+      if (nextActiveBadge && nextActiveBadge.startsWith('trophy_')) {
+        if (liveTrophyOwners[nextActiveBadge] !== id) {
+          nextActiveBadge = undefined;
+          needsUpdate = true;
         }
+      }
+
+      // 2. Remove lost trophy from showroom vitrine
+      if (Array.isArray(nextShowroom) && nextShowroom.some(b => b.startsWith('trophy_') && liveTrophyOwners[b] !== id)) {
+        nextShowroom = nextShowroom.filter(b => !b.startsWith('trophy_') || liveTrophyOwners[b] === id);
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        computedMembers[id] = {
+          ...member,
+          active_badge_id: nextActiveBadge,
+          showroom_badges: nextShowroom
+        };
       }
     }
 
@@ -2018,7 +2035,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isTutorialOpen, openTutorial: () => setIsTutorialOpen(true),
       closeTutorial: () => {
         setIsTutorialOpen(false);
-        if (activeUserId && activeUser && !activeUser.has_seen_tutorial) {
+        if (activeUserId) {
           updateMember(activeUserId, { 
             has_seen_tutorial: true,
             last_seen_version: CURRENT_VERSION

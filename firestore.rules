@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // -------------------------------------------------------------------------
-    // GLOBAL HELPERS
+    // GLOBAL HELPERS & AUTHENTICATION GATES
     // -------------------------------------------------------------------------
     
     function isSignedIn() {
@@ -11,7 +11,9 @@ service cloud.firestore {
     }
     
     function authEmail() {
-      return isSignedIn() && ('email' in request.auth.token) ? request.auth.token.email.lower() : '';
+      return isSignedIn() && ('email' in request.auth.token) && request.auth.token.email != null 
+        ? request.auth.token.email.lower() 
+        : '';
     }
     
     function isMoritz() {
@@ -42,29 +44,16 @@ service cloud.firestore {
              request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
 
-    function isGuest() {
-      return !isSignedIn();
-    }
-
     function isBlocked() {
       return !isMoritz() &&
+             authEmail() != "" &&
              exists(/databases/$(database)/documents/households/main_household) &&
-             authEmail() != "" && 
-             "blocked_emails" in get(/databases/$(database)/documents/households/main_household).data && 
+             ("blocked_emails" in get(/databases/$(database)/documents/households/main_household).data) && 
              get(/databases/$(database)/documents/households/main_household).data.blocked_emails.hasAny([authEmail()]);
     }
     
     function isVerified() {
-      return isMoritz() || (
-        !isBlocked() && (
-          !isSignedIn() ||
-          isAnonymousUser() ||
-          ("email_verified" in request.auth.token && request.auth.token.email_verified == true) || 
-          isGoogleUser() ||
-          isAppleUser() ||
-          true
-        )
-      );
+      return isMoritz() || !isBlocked();
     }
     
     function isAdmin() {
@@ -91,11 +80,12 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // VALIDATION HELPERS
+    // VALIDATION HELPERS (NULL-SAFE & COMPREHENSIVE)
     // -------------------------------------------------------------------------
 
     function isValidHousehold(data) {
       return 'household_name' in data && data.household_name is string && data.household_name.size() <= 100 &&
+             (!('default_weekly_target' in data) || data.default_weekly_target is number) &&
              (!('admin_only_settings' in data) || data.admin_only_settings is bool);
     }
 
@@ -105,32 +95,52 @@ service cloud.firestore {
              data.name is string && data.name.size() <= 100 &&
              data.role in ['admin', 'member'] &&
              data.avatar_color is string &&
+             (!('total_points' in data) || data.total_points is number) &&
+             (!('weekly_target' in data) || data.weekly_target is number) &&
              (!('has_seen_tutorial' in data) || data.has_seen_tutorial is bool) &&
-             (!('last_seen_version' in data) || (data.last_seen_version is string && data.last_seen_version.size() <= 64)) &&
-             (!('preferred_theme' in data) || (data.preferred_theme is string && data.preferred_theme.size() <= 32)) &&
+             (!('last_seen_version' in data) || data.last_seen_version == null || (data.last_seen_version is string && data.last_seen_version.size() <= 64)) &&
+             (!('preferred_theme' in data) || data.preferred_theme == null || (data.preferred_theme is string && data.preferred_theme.size() <= 32)) &&
+             (!('preferred_mode' in data) || data.preferred_mode == null || (data.preferred_mode is string && data.preferred_mode.size() <= 32)) &&
              (!('unlocked_badges' in data) || data.unlocked_badges is map) &&
              (!('showroom_badges' in data) || data.showroom_badges is list) &&
-             (!('active_badge_id' in data) || (data.active_badge_id == null || data.active_badge_id is string)) &&
+             (!('active_badge_id' in data) || data.active_badge_id == null || (data.active_badge_id is string && data.active_badge_id.size() <= 128)) &&
+             (!('pin_code' in data) || data.pin_code == null || data.pin_code is string) &&
              (!('haptics_enabled' in data) || data.haptics_enabled is bool) &&
-             (!('animations_enabled' in data) || data.animations_enabled is bool);
+             (!('animations_enabled' in data) || data.animations_enabled is bool) &&
+             (!('householdId' in data) || data.householdId is string);
     }
 
     function isValidTask(data) {
-      return 'id' in data && data.id is string && data.id.size() <= 128 &&
-             'title' in data && data.title is string && data.title.size() <= 200 &&
-             'base_points' in data && data.base_points is number &&
-             data.base_points >= -500 && data.base_points <= 1000 &&
+      return data.keys().hasAll(['id', 'title', 'base_points']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.base_points is number &&
+             (!('description' in data) || data.description == null || data.description is string) &&
+             (!('category' in data) || data.category is string) &&
+             (!('estimated_duration' in data) || data.estimated_duration is number) &&
+             (!('interval_days' in data) || data.interval_days is number) &&
+             (!('frequency_per_day' in data) || data.frequency_per_day is number) &&
+             (!('preferred_time' in data) || data.preferred_time == null || data.preferred_time is string) &&
+             (!('created_by' in data) || data.created_by is string) &&
+             (!('last_done' in data) || data.last_done == null || data.last_done is string) &&
+             (!('fished_by' in data) || data.fished_by == null || data.fished_by is string) &&
+             (!('fished_until' in data) || data.fished_until == null || data.fished_until is string) &&
              (!('is_pinned' in data) || data.is_pinned is bool) &&
-             (!('pinned_bonus_points' in data) || (data.pinned_bonus_points is number && data.pinned_bonus_points >= 0 && data.pinned_bonus_points <= 5000));
+             (!('pinned_bonus_points' in data) || data.pinned_bonus_points is number) &&
+             (!('householdId' in data) || data.householdId is string);
     }
 
     function isValidLog(data) {
-      return 'log_id' in data && data.log_id is string && data.log_id.size() <= 128 &&
-             'task_id' in data && data.task_id is string && data.task_id.size() <= 128 &&
-             'user_id' in data && data.user_id is string && data.user_id.size() <= 128 &&
-             'points_awarded' in data && data.points_awarded is number &&
-             data.points_awarded >= -500 && data.points_awarded <= 1000 &&
-             'timestamp' in data && data.timestamp is string && data.timestamp.size() <= 64;
+      return data.keys().hasAll(['log_id', 'task_id', 'user_id', 'stars', 'points_awarded', 'timestamp']) &&
+             data.log_id is string && data.log_id.size() <= 128 &&
+             data.task_id is string && data.task_id.size() <= 128 &&
+             data.user_id is string && data.user_id.size() <= 128 &&
+             data.stars is number &&
+             data.points_awarded is number &&
+             data.timestamp is string && data.timestamp.size() <= 64 &&
+             (!('actual_duration' in data) || data.actual_duration is number) &&
+             (!('notes' in data) || data.notes == null || data.notes is string) &&
+             (!('householdId' in data) || data.householdId is string);
     }
 
     function isValidPinnwandNote(data) {
@@ -142,7 +152,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // SECURITY RULES
+    // SECURITY RULES (ALL COLLECTIONS & SUBCOLLECTIONS)
     // -------------------------------------------------------------------------
 
     // Households
@@ -185,7 +195,7 @@ service cloud.firestore {
         allow delete: if isVerified();
       }
 
-      // Menuplanner Subcollection (Planned Meals & Recipes)
+      // Menuplanner Subcollection (Planned Meals, Wishes & Recipes)
       match /menus/{menuId} {
         allow read: if isVerified();
         allow create, update: if isVerified();
@@ -214,7 +224,7 @@ service cloud.firestore {
 
     // Public Test Collection (for connectivity checks)
     match /test/{testId} {
-      allow read, write: if isSignedIn() || !isSignedIn();
+      allow read, write: if true;
     }
   }
 }

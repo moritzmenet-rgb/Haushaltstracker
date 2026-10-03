@@ -10,6 +10,7 @@
         "default_weekly_target": { "type": "integer", "minimum": 0, "maximum": 10000 },
         "categories": { "type": "array", "maxItems": 50 },
         "last_reset_date": { "type": "string", "format": "date-time" },
+        "last_scheduled_run": { "type": "string", "format": "date-time" },
         "color_theme": { "type": "string", "enum": ["indigo", "emerald", "rose", "amber", "daily", "cyberpunk", "sunset", "forest"] },
         "star_multiplier_1": { "type": "integer" },
         "star_multiplier_2": { "type": "integer" },
@@ -39,19 +40,20 @@
         "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "name": { "type": "string", "maxLength": 100 },
         "role": { "type": "string", "enum": ["admin", "member"] },
-        "avatar_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "avatar_color": { "type": "string" },
         "total_points": { "type": "integer" },
         "weekly_target": { "type": "integer", "minimum": 0, "maximum": 10000 },
         "householdId": { "type": "string" },
         "has_seen_tutorial": { "type": "boolean" },
-        "last_seen_version": { "type": "string", "maxLength": 50 },
+        "last_seen_version": { "type": "string", "maxLength": 64 },
         "preferred_theme": { "type": "string", "maxLength": 32 },
+        "preferred_mode": { "type": "string", "maxLength": 32 },
         "haptics_enabled": { "type": "boolean" },
         "animations_enabled": { "type": "boolean" },
-        "pin_code": { "type": "string", "maxLength": 10 },
+        "pin_code": { "type": "string", "maxLength": 32 },
         "unlocked_badges": { "type": "object" },
-        "showroom_badges": { "type": "array", "maxItems": 5 },
-        "active_badge_id": { "type": "string", "maxLength": 100 }
+        "showroom_badges": { "type": "array", "maxItems": 20 },
+        "active_badge_id": { "type": "string", "maxLength": 128 }
       },
       "required": ["id", "name", "role", "avatar_color"]
     },
@@ -64,15 +66,15 @@
         "title": { "type": "string", "maxLength": 200 },
         "description": { "type": "string", "maxLength": 2000 },
         "category": { "type": "string", "maxLength": 100 },
-        "base_points": { "type": "integer", "minimum": 0, "maximum": 5000 },
+        "base_points": { "type": "integer", "minimum": -500, "maximum": 5000 },
         "estimated_duration": { "type": "integer", "minimum": 0, "maximum": 1440 },
         "interval_days": { "type": "integer", "minimum": 0, "maximum": 365 },
         "frequency_per_day": { "type": "integer", "minimum": 1, "maximum": 10 },
-        "preferred_time": { "type": "string", "enum": ["morning", "noon", "evening"] },
+        "preferred_time": { "type": "string" },
         "created_by": { "type": "string" },
-        "last_done": { "type": "string", "format": "date-time" },
+        "last_done": { "type": "string" },
         "fished_by": { "type": "string" },
-        "fished_until": { "type": "string", "format": "date-time" },
+        "fished_until": { "type": "string" },
         "is_pinned": { "type": "boolean" },
         "pinned_bonus_points": { "type": "integer", "minimum": 0, "maximum": 5000 },
         "householdId": { "type": "string" }
@@ -90,7 +92,7 @@
         "stars": { "type": "integer", "minimum": 1, "maximum": 3 },
         "points_awarded": { "type": "integer" },
         "actual_duration": { "type": "integer" },
-        "timestamp": { "type": "string", "format": "date-time" },
+        "timestamp": { "type": "string" },
         "notes": { "type": "string", "maxLength": 2000 },
         "householdId": { "type": "string" }
       },
@@ -112,12 +114,44 @@
         "authorId": { "type": "string" },
         "authorName": { "type": "string", "maxLength": 100 },
         "authorAvatarColor": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
         "isPinned": { "type": "boolean" },
+        "reactions": { "type": "object" },
+        "poll": { "type": "object" },
+        "position": { "type": "object" },
+        "rotation": { "type": "number" },
         "householdId": { "type": "string" }
       },
       "required": ["id", "content", "color", "authorId", "authorName", "createdAt"]
+    },
+    "MenuPlan": {
+      "title": "Menu Plan",
+      "description": "Planned meals for a given day.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "lunch": { "type": "object" },
+        "dinner": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["date"]
+    },
+    "MenuWish": {
+      "title": "Menu Wish",
+      "description": "Meal idea or recipe request submitted by family members.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "requestedBy": { "type": "string" },
+        "requestedByName": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "upvotes": { "type": "array" },
+        "planned": { "type": "boolean" }
+      },
+      "required": ["id", "title", "requestedBy", "createdAt"]
     }
   },
   "firestore": {
@@ -140,6 +174,26 @@
     "/households/{householdId}/pinnwand/{noteId}": {
       "schema": "PinnwandNote",
       "description": "Sticky notes, threads, and polls on the family corkboard"
+    },
+    "/households/{householdId}/menus/{menuId}": {
+      "schema": "MenuPlan",
+      "description": "Day menu planner subcollection"
+    },
+    "/households/{householdId}/menu_wishes/{wishId}": {
+      "schema": "MenuWish",
+      "description": "Meal wishes and requests"
+    },
+    "/households/{householdId}/recipes/{recipeId}": {
+      "schema": "object",
+      "description": "Saved family recipes"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "object",
+      "description": "User login session logs"
+    },
+    "/test/{testId}": {
+      "schema": "object",
+      "description": "Connection test collection"
     }
   }
 }

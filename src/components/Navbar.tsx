@@ -255,16 +255,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </motion.div>
 
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight group-hover:text-[var(--m3-primary)] transition-colors">
-                    {brandConfig.title}
-                  </span>
-                  {/* Subtle Hub switcher indicator arrow */}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] group-hover:bg-[var(--m3-primary-container)] group-hover:text-[var(--m3-on-primary-container)] font-bold transition flex items-center gap-1">
-                    <Compass className="w-2.5 h-2.5" />
-                    <span className="hidden sm:inline">Wechseln</span>
-                  </span>
-                </div>
+                <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight group-hover:text-[var(--m3-primary)] transition-colors">
+                  {brandConfig.title}
+                </span>
                 <span className="text-[10px] font-semibold text-[var(--m3-on-surface-variant)] leading-tight">
                   {brandConfig.subTitle}
                 </span>
