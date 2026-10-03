@@ -919,12 +919,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     const cloudPromises: Promise<any>[] = [saveChoreLogToCloud(newLog, updatedTask, updatedMember)];
-    // Ensure any other members with newly unlocked badges or Wanderpokale are synced to cloud 100%
+    // Ensure any other members with newly unlocked badges or lost Wanderpokale (title/showroom stripped) are synced to cloud 100%
     Object.values(scanResult.updatedMembers).forEach(m => {
       if (m.id !== activeUser.id) {
-        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const oldMember = data.members[m.id];
+        const oldBadges = oldMember?.unlocked_badges || {};
         const newBadges = m.unlocked_badges || {};
-        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+        const oldActive = oldMember?.active_badge_id;
+        const newActive = m.active_badge_id;
+        const oldShowroom = JSON.stringify(oldMember?.showroom_badges || []);
+        const newShowroom = JSON.stringify(m.showroom_badges || []);
+        if (
+          Object.keys(newBadges).length !== Object.keys(oldBadges).length ||
+          oldActive !== newActive ||
+          oldShowroom !== newShowroom
+        ) {
           cloudPromises.push(saveMemberToCloud(m));
         }
       }
@@ -1777,9 +1786,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         trophyOwners: scanResult.trophyOwners
       });
       Object.values(scanResult.updatedMembers).forEach(m => {
-        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const oldMember = data.members[m.id];
+        const oldBadges = oldMember?.unlocked_badges || {};
         const newBadges = m.unlocked_badges || {};
-        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+        const oldActive = oldMember?.active_badge_id;
+        const newActive = m.active_badge_id;
+        const oldShowroom = JSON.stringify(oldMember?.showroom_badges || []);
+        const newShowroom = JSON.stringify(m.showroom_badges || []);
+        if (
+          Object.keys(newBadges).length !== Object.keys(oldBadges).length ||
+          oldActive !== newActive ||
+          oldShowroom !== newShowroom
+        ) {
           saveMemberToCloud(m).catch(console.warn);
         }
       });
@@ -1807,9 +1825,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         trophyOwners: scanResult.trophyOwners
       });
       Object.values(scanResult.updatedMembers).forEach(m => {
-        const oldBadges = data.members[m.id]?.unlocked_badges || {};
+        const oldMember = data.members[m.id];
+        const oldBadges = oldMember?.unlocked_badges || {};
         const newBadges = m.unlocked_badges || {};
-        if (Object.keys(newBadges).length !== Object.keys(oldBadges).length) {
+        const oldActive = oldMember?.active_badge_id;
+        const newActive = m.active_badge_id;
+        const oldShowroom = JSON.stringify(oldMember?.showroom_badges || []);
+        const newShowroom = JSON.stringify(m.showroom_badges || []);
+        if (
+          Object.keys(newBadges).length !== Object.keys(oldBadges).length ||
+          oldActive !== newActive ||
+          oldShowroom !== newShowroom
+        ) {
           saveMemberToCloud(m).catch(console.warn);
         }
       });

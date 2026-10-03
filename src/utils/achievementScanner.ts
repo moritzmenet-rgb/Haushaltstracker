@@ -42,12 +42,16 @@ export function computeLiveTrophyOwners(
   const totalPoints: Record<string, number> = {};
   const efficiencyMap: Record<string, number> = {};
   const memberWeekTotals: Record<string, Record<string, number>> = {};
+  const totalTimeMinutes: Record<string, number> = {};
+  const activeDaysSets: Record<string, Set<string>> = {};
 
   memberList.forEach(m => {
     taskCounts[m.id] = 0;
     totalPoints[m.id] = 0;
     efficiencyMap[m.id] = 0;
     memberWeekTotals[m.id] = {};
+    totalTimeMinutes[m.id] = 0;
+    activeDaysSets[m.id] = new Set<string>();
   });
 
   allLogs.forEach(l => {
@@ -56,6 +60,12 @@ export function computeLiveTrophyOwners(
     const pts = Number(l.points_awarded) || 0;
     taskCounts[uid] = (taskCounts[uid] || 0) + 1;
     totalPoints[uid] = (totalPoints[uid] || 0) + pts;
+
+    const duration = Number(l.actual_duration) || 15;
+    totalTimeMinutes[uid] = (totalTimeMinutes[uid] || 0) + duration;
+
+    const dayKey = new Date(l.timestamp).toDateString();
+    activeDaysSets[uid].add(dayKey);
 
     const weekKey = getISOWeekKey(new Date(l.timestamp));
     if (!memberWeekTotals[uid]) memberWeekTotals[uid] = {};
@@ -163,6 +173,48 @@ export function computeLiveTrophyOwners(
       trophyOwners['trophy_week'] = curWeek;
     } else {
       trophyOwners['trophy_week'] = weekCandidates[0];
+    }
+  }
+
+  // 5. trophy_time: Most total time spent on household tasks (minutes)
+  let maxTimeMinutes = 0;
+  let timeCandidates: string[] = [];
+  memberList.forEach(m => {
+    const time = totalTimeMinutes[m.id] || 0;
+    if (time > maxTimeMinutes) {
+      maxTimeMinutes = time;
+      timeCandidates = [m.id];
+    } else if (time === maxTimeMinutes && time > 0) {
+      timeCandidates.push(m.id);
+    }
+  });
+  if (maxTimeMinutes > 0) {
+    const curTime = currentOwners['trophy_time'];
+    if (curTime && timeCandidates.includes(curTime)) {
+      trophyOwners['trophy_time'] = curTime;
+    } else {
+      trophyOwners['trophy_time'] = timeCandidates[0];
+    }
+  }
+
+  // 6. trophy_streak: Most distinct active days with tasks
+  let maxActiveDays = 0;
+  let streakCandidates: string[] = [];
+  memberList.forEach(m => {
+    const cnt = activeDaysSets[m.id]?.size || 0;
+    if (cnt > maxActiveDays) {
+      maxActiveDays = cnt;
+      streakCandidates = [m.id];
+    } else if (cnt === maxActiveDays && cnt > 0) {
+      streakCandidates.push(m.id);
+    }
+  });
+  if (maxActiveDays > 0) {
+    const curStreak = currentOwners['trophy_streak'];
+    if (curStreak && streakCandidates.includes(curStreak)) {
+      trophyOwners['trophy_streak'] = curStreak;
+    } else {
+      trophyOwners['trophy_streak'] = streakCandidates[0];
     }
   }
 

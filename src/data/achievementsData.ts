@@ -52,6 +52,26 @@ export const ACHIEVEMENTS_DATA: AchievementDef[] = [
     imagenPrompt: '3D claymorphism shiny icon, fiery calendar page with number one, vibrant colors, isolated on transparent background',
     tier: 'trophy',
   },
+  {
+    id: 'trophy_time',
+    section: 'trophies',
+    title: 'Zeit-Gigant',
+    description: 'Meiste investierte Gesamtarbeitszeit im Haushalt. (Wanderpokal)',
+    iconName: 'Clock',
+    emoji: '⏳',
+    imagenPrompt: '3D claymorphism shiny icon, golden glowing hourglass with gears, vibrant colors, isolated on transparent background',
+    tier: 'trophy',
+  },
+  {
+    id: 'trophy_streak',
+    section: 'trophies',
+    title: 'Ausdauer-Titan',
+    description: 'Meiste unterschiedliche aktive Tage mit erledigten Aufgaben. (Wanderpokal)',
+    iconName: 'Award',
+    emoji: '🛡️',
+    imagenPrompt: '3D claymorphism shiny icon, golden shield with laurels and clock, vibrant colors, isolated on transparent background',
+    tier: 'trophy',
+  },
 
   // --- B. DER MEILENSTEIN-SAAL (Dauerhafte Abzeichen) ---
   // Wöchentliches Wochenziel (Reset Samstag 00:00)
