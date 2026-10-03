@@ -157,7 +157,7 @@ function sanitizeLog(log: ChoreLog): Record<string, any> {
 }
 
 /**
- * Check if the household is initialized in Cloud Firestore
+ * Check if the household is initialized in Cloud Firestore, and ensure root doc exists
  */
 export async function isHouseholdInitializedInCloud(): Promise<boolean> {
   if (!isConfigValid) return false;
@@ -168,6 +168,19 @@ export async function isHouseholdInitializedInCloud(): Promise<boolean> {
   } catch (error) {
     console.warn('Check household exists notice:', error);
     return false;
+  }
+}
+
+export async function ensureHouseholdDocExists(settings?: Partial<FamilySettings>): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const householdRef = doc(db, 'households', HOUSEHOLD_ID);
+    const snap = await getDoc(householdRef);
+    if (!snap.exists()) {
+      await setDoc(householdRef, sanitizeSettings(settings), { merge: true });
+    }
+  } catch (error) {
+    console.warn('ensureHouseholdDocExists notice:', error);
   }
 }
 
@@ -467,6 +480,7 @@ export function sanitizeNotification(notif: any): Record<string, any> {
 export async function saveDayMenuPlanToCloud(dateStr: string, dayPlan: any): Promise<void> {
   if (!isConfigValid) return;
   try {
+    await ensureHouseholdDocExists();
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateStr);
     await setDoc(docRef, sanitizeDayMenuPlan(dateStr, dayPlan), { merge: true });
   } catch (error) {
@@ -477,8 +491,11 @@ export async function saveDayMenuPlanToCloud(dateStr: string, dayPlan: any): Pro
 export async function saveMenuWishToCloud(wish: any): Promise<void> {
   if (!isConfigValid) return;
   try {
-    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wish.id);
-    await setDoc(docRef, sanitizeMenuWish(wish), { merge: true });
+    await ensureHouseholdDocExists();
+    const sanitized = sanitizeMenuWish(wish);
+    const wishId = String(sanitized.id || wish.id);
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wishId);
+    await setDoc(docRef, sanitized, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/menu_wishes/${wish.id}`);
   }
@@ -497,6 +514,7 @@ export async function deleteMenuWishFromCloud(wishId: string): Promise<void> {
 export async function saveRecipeToCloud(recipe: any): Promise<void> {
   if (!isConfigValid) return;
   try {
+    await ensureHouseholdDocExists();
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'recipes', recipe.id);
     await setDoc(docRef, sanitizeRecipe(recipe), { merge: true });
   } catch (error) {
@@ -520,6 +538,7 @@ export async function deleteRecipeFromCloud(recipeId: string): Promise<void> {
 export async function saveNotificationToCloud(notification: any): Promise<void> {
   if (!isConfigValid) return;
   try {
+    await ensureHouseholdDocExists();
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'notifications', notification.id);
     await setDoc(docRef, sanitizeNotification(notification), { merge: true });
   } catch (error) {
