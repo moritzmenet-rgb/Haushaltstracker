@@ -144,11 +144,25 @@ service cloud.firestore {
     }
 
     function isValidPinnwandNote(data) {
-      return ('id' in data && data.id is string) &&
-             ('content' in data && data.content is string && data.content.size() <= 5000) &&
-             ('color' in data && data.color in ['yellow', 'pink', 'blue', 'green', 'orange', 'purple']) &&
-             ('authorId' in data && data.authorId is string) &&
-             ('authorName' in data && data.authorName is string);
+      return data.keys().hasAll(['id', 'content', 'authorId', 'authorName']) &&
+             data.id is string &&
+             data.content is string && data.content.size() <= 5000 &&
+             data.authorId is string &&
+             data.authorName is string;
+    }
+
+    function isValidMenuWish(data) {
+      return data.keys().hasAll(['id', 'title', 'requestedBy']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 500 &&
+             data.requestedBy is string && data.requestedBy.size() <= 128;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'type', 'title']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.type is string &&
+             data.title is string;
     }
 
     // -------------------------------------------------------------------------
@@ -212,6 +226,13 @@ service cloud.firestore {
         allow read: if isVerified();
         allow create, update: if isVerified();
         allow delete: if isAdmin() || isVerified();
+      }
+
+      // Household Notifications Subcollection (Task Pinned & Trophy Stolen)
+      match /notifications/{notificationId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified();
+        allow delete: if isVerified();
       }
     }
 

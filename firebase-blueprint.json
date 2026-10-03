@@ -152,6 +152,26 @@
         "planned": { "type": "boolean" }
       },
       "required": ["id", "title", "requestedBy", "createdAt"]
+    },
+    "Notification": {
+      "title": "Household Notification",
+      "description": "Real-time notification for pinned tasks or stolen Wanderpokale.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["task_pinned", "trophy_stolen", "general"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "icon": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "targetUserId": { "type": "string" },
+        "oldOwnerName": { "type": "string" },
+        "newOwnerName": { "type": "string" },
+        "trophyTitle": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "message", "timestamp"]
     }
   },
   "firestore": {
@@ -186,6 +206,10 @@
     "/households/{householdId}/recipes/{recipeId}": {
       "schema": "object",
       "description": "Saved family recipes"
+    },
+    "/households/{householdId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Household notifications for pinned tasks and stolen trophies"
     },
     "/sessions/{sessionId}": {
       "schema": "object",

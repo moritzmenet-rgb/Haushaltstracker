@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish, AppNotification } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
 import { scanAndAwardHistoricalAchievements, computeLiveTrophyOwners } from '../utils/achievementScanner';
 import { applyColorTheme } from '../theme';
 import { CURRENT_VERSION, hasSeenCurrentVersion } from '../version';
+import { haptic } from '../utils/haptics';
+import { rewardAudio } from '../utils/rewardAudio';
 import { 
   db, 
   auth, 
@@ -40,7 +42,10 @@ import {
   deletePinnwandNoteFromCloud,
   saveDayMenuPlanToCloud,
   saveMenuWishToCloud,
-  deleteMenuWishFromCloud
+  sanitizeMenuWish,
+  deleteMenuWishFromCloud,
+  saveNotificationToCloud,
+  deleteNotificationFromCloud
 } from '../services/firestoreSync';
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
@@ -191,6 +196,13 @@ interface AppContextType {
   deleteMenuWish: (wishId: string) => Promise<boolean>;
   toggleWishUpvote: (wishId: string) => Promise<boolean>;
   transferIngredientsToPinnwand: (mealTitle: string, ingredients: string[]) => Promise<boolean>;
+
+  // Real-Time In-App Notifications
+  notifications: AppNotification[];
+  latestToastNotification: AppNotification | null;
+  clearToastNotification: () => void;
+  sendNotification: (notif: Omit<AppNotification, 'id' | 'timestamp'>) => Promise<AppNotification>;
+  dismissNotification: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -285,6 +297,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
   const clearRewardCelebration = useCallback(() => {
     setRewardCelebration(null);
+  }, []);
+
+  // Real-Time In-App Notifications State
+  const [latestToastNotification, setLatestToastNotification] = useState<AppNotification | null>(null);
+  const latestToastRef = useRef<AppNotification | null>(null);
+  const clearToastNotification = useCallback(() => setLatestToastNotification(null), []);
+
+  const notifications = useMemo<AppNotification[]>(() => {
+    const map = data.notifications || {};
+    return Object.values(map).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [data.notifications]);
+
+  const sendNotification = useCallback(async (notifData: Omit<AppNotification, 'id' | 'timestamp'>): Promise<AppNotification> => {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const fullNotif: AppNotification = {
+      ...notifData,
+      id,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+
+    latestToastRef.current = fullNotif;
+    setLatestToastNotification(fullNotif);
+
+    saveNotificationToCloud(fullNotif).catch(console.warn);
+    return fullNotif;
+  }, []);
+
+  const dismissNotification = useCallback(async (notifId: string) => {
+    setData(prev => {
+      const next = { ...(prev.notifications || {}) };
+      delete next[notifId];
+      const nextData = { ...prev, notifications: next };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+      return nextData;
+    });
+    deleteNotificationFromCloud(notifId).catch(console.warn);
   }, []);
 
   const updateMemberBadgeShowroom = useCallback(async (memberId: string, badgeIds: string[]) => {
@@ -866,6 +915,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Sync notice (Menu Wishes):', err);
     });
 
+    // 8. Notifications
+    const unsubNotifications = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'notifications'), (snap) => {
+      if (isCancelled) return;
+      const notifsMap: Record<string, AppNotification> = {};
+      const notifsList: AppNotification[] = [];
+      snap.forEach(d => { 
+        const n = d.data() as AppNotification;
+        const item = { ...n, id: n.id || d.id };
+        notifsMap[item.id] = item; 
+        notifsList.push(item);
+      });
+
+      notifsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      // If a brand new notification was created within the last 15 seconds, trigger toast
+      const newest = notifsList[0];
+      if (newest) {
+        const ageMs = Date.now() - new Date(newest.timestamp).getTime();
+        if (ageMs < 15000 && (!latestToastRef.current || latestToastRef.current.id !== newest.id)) {
+          latestToastRef.current = newest;
+          setLatestToastNotification(newest);
+          if (newest.type === 'trophy_stolen') {
+            haptic.achievement();
+            rewardAudio.playEpicAchievementFanfare();
+          } else {
+            haptic.medium();
+            rewardAudio.playCoinDing(3);
+          }
+        }
+      }
+
+      setData(prev => {
+        const next = { ...prev, notifications: notifsMap };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, (err) => {
+      console.warn('Sync notice (Notifications):', err);
+    });
+
     // 8. Sessions (Admin only)
     let unsubSessions = () => {};
     if (isAdmin) {
@@ -899,6 +988,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubPinnwand();
       unsubMenus();
       unsubWishes();
+      unsubNotifications();
       unsubSessions();
     };
   }, [syncRetryKey, isAdmin]);
@@ -963,6 +1053,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     const cloudPromises: Promise<any>[] = [saveChoreLogToCloud(newLog, updatedTask, updatedMember)];
+
+    // Check if trophy owners changed and send notification for stolen trophies
+    const oldTrophies = data.trophyOwners || {};
+    const newTrophies = scanResult.trophyOwners || {};
+
+    for (const trophyKey of Object.keys(newTrophies)) {
+      const oldOwnerId = oldTrophies[trophyKey];
+      const newOwnerId = newTrophies[trophyKey];
+      if (oldOwnerId && newOwnerId && oldOwnerId !== newOwnerId) {
+        const oldOwnerName = data.members[oldOwnerId]?.name || 'Jemand';
+        const newOwnerName = (scanResult.updatedMembers[newOwnerId] || data.members[newOwnerId])?.name || 'Jemand';
+        const trophyDef = ACHIEVEMENTS_DATA.find(b => b.id === trophyKey);
+        const trophyTitle = trophyDef?.title || 'Wanderpokal';
+        const trophyEmoji = trophyDef?.emoji || '🏆';
+
+        const stealNotif: AppNotification = {
+          id: `notif_steal_${Date.now()}_${trophyKey}`,
+          type: 'trophy_stolen',
+          title: `${trophyEmoji} Wanderpokal entwendet!`,
+          message: `${newOwnerName} hat ${oldOwnerName} den Pokal "${trophyTitle}" abgenommen! ⚔️`,
+          icon: trophyEmoji,
+          senderId: newOwnerId,
+          senderName: newOwnerName,
+          targetUserId: oldOwnerId,
+          oldOwnerName,
+          newOwnerName,
+          trophyTitle,
+          timestamp: new Date().toISOString()
+        };
+
+        cloudPromises.push(saveNotificationToCloud(stealNotif));
+      }
+    }
+
     // Ensure any other members with newly unlocked badges or lost Wanderpokale (title/showroom stripped) are synced to cloud 100%
     Object.values(scanResult.updatedMembers).forEach(m => {
       if (m.id !== activeUser.id) {
@@ -1858,6 +1982,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isAppLoaded) return;
     const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, 0);
     if (scanResult.hasChanges) {
+      // Check if trophy owners changed from previous data state
+      const oldTrophies = data.trophyOwners || {};
+      const newTrophies = scanResult.trophyOwners || {};
+
+      for (const trophyKey of Object.keys(newTrophies)) {
+        const oldOwnerId = oldTrophies[trophyKey];
+        const newOwnerId = newTrophies[trophyKey];
+        if (oldOwnerId && newOwnerId && oldOwnerId !== newOwnerId) {
+          const oldOwnerName = data.members[oldOwnerId]?.name || 'Jemand';
+          const newOwnerName = data.members[newOwnerId]?.name || 'Jemand';
+          const trophyDef = ACHIEVEMENTS_DATA.find(b => b.id === trophyKey);
+          const trophyTitle = trophyDef?.title || 'Wanderpokal';
+          const trophyEmoji = trophyDef?.emoji || '🏆';
+
+          const stealNotif: AppNotification = {
+            id: `notif_steal_${Date.now()}_${trophyKey}`,
+            type: 'trophy_stolen',
+            title: `${trophyEmoji} Wanderpokal entwendet!`,
+            message: `${newOwnerName} hat ${oldOwnerName} den Pokal "${trophyTitle}" abgenommen! ⚔️`,
+            icon: trophyEmoji,
+            senderId: newOwnerId,
+            senderName: newOwnerName,
+            targetUserId: oldOwnerId,
+            oldOwnerName,
+            newOwnerName,
+            trophyTitle,
+            timestamp: new Date().toISOString()
+          };
+
+          saveNotificationToCloud(stealNotif).catch(console.warn);
+        }
+      }
+
       setData(prev => ({
         ...prev,
         members: scanResult.updatedMembers,
@@ -1983,16 +2140,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addMenuWish = useCallback(async (title: string, notes?: string): Promise<MenuWish> => {
     const id = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    const newWish: MenuWish = {
+    const rawWish = {
       id,
       title: title.trim(),
       requestedBy: activeUser?.id || 'guest',
       requestedByName: activeUser?.name || 'Familienmitglied',
-      notes: notes?.trim() || undefined,
+      notes: notes?.trim() || null,
       createdAt: new Date().toISOString(),
       upvotes: activeUser ? [activeUser.id] : [],
       planned: false
     };
+    const newWish = sanitizeMenuWish(rawWish) as unknown as MenuWish;
 
     setData(prev => {
       const nextWishes = { ...(prev.menuWishes || {}), [id]: newWish };
@@ -2028,11 +2186,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setData(prev => {
       const wish = prev.menuWishes?.[wishId];
       if (!wish) return prev;
-      const hasUpvoted = wish.upvotes.includes(activeUser.id);
+      const currentUpvotes = Array.isArray(wish.upvotes) ? wish.upvotes : [];
+      const hasUpvoted = currentUpvotes.includes(activeUser.id);
       const updatedUpvotes = hasUpvoted
-        ? wish.upvotes.filter(uid => uid !== activeUser.id)
-        : [...wish.upvotes, activeUser.id];
-      const updatedWish = { ...wish, upvotes: updatedUpvotes };
+        ? currentUpvotes.filter(uid => uid !== activeUser.id)
+        : [...currentUpvotes, activeUser.id];
+      const updatedWish = sanitizeMenuWish({ ...wish, upvotes: updatedUpvotes }) as unknown as MenuWish;
       targetWish = updatedWish;
       const next = {
         ...prev,
@@ -2241,7 +2400,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       openWhatsNew,
       closeWhatsNew,
       markCurrentVersionAsSeen,
-      currentAppVersion
+      currentAppVersion,
+      notifications,
+      latestToastNotification,
+      clearToastNotification,
+      sendNotification,
+      dismissNotification
     }}>
       {children}
     </AppContext.Provider>

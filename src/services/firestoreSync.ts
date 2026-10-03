@@ -217,17 +217,12 @@ export async function seedAllDataToCloud(data: FamilyData): Promise<void> {
 
       menusToSeed.forEach(([dateKey, dayPlan]) => {
         const menuRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateKey);
-        batch.set(menuRef, {
-          date: dateKey,
-          lunch: dayPlan?.lunch || null,
-          dinner: dayPlan?.dinner || null,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
+        batch.set(menuRef, sanitizeDayMenuPlan(dateKey, dayPlan), { merge: true });
       });
 
       wishesToSeed.forEach(wish => {
         const wishRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wish.id);
-        batch.set(wishRef, wish, { merge: true });
+        batch.set(wishRef, sanitizeMenuWish(wish), { merge: true });
       });
 
       await batch.commit();
@@ -394,18 +389,86 @@ export async function deletePinnwandNoteFromCloud(noteId: string): Promise<void>
 }
 
 /**
- * Menuplanner Cloud Sync Helpers
+ * Menuplanner & Notifications Cloud Sync Helpers with Sanitization
  */
+export function sanitizeMenuWish(wish: any): Record<string, any> {
+  return {
+    id: String(wish.id),
+    title: String(wish.title || ''),
+    requestedBy: String(wish.requestedBy || 'guest'),
+    requestedByName: String(wish.requestedByName || 'Familienmitglied'),
+    notes: wish.notes ? String(wish.notes) : null,
+    createdAt: String(wish.createdAt || new Date().toISOString()),
+    upvotes: Array.isArray(wish.upvotes) ? wish.upvotes.map(String) : [],
+    planned: Boolean(wish.planned),
+    householdId: HOUSEHOLD_ID
+  };
+}
+
+export function sanitizePlannedMeal(meal: any): Record<string, any> | null {
+  if (!meal) return null;
+  return {
+    id: String(meal.id || `meal_${Date.now()}`),
+    title: String(meal.title || ''),
+    recipeId: meal.recipeId ? String(meal.recipeId) : null,
+    notes: meal.notes ? String(meal.notes) : null,
+    effort: String(meal.effort || 'medium'),
+    durationMinutes: Number(meal.durationMinutes || 20),
+    requiresBaking: Boolean(meal.requiresBaking),
+    cookUserId: meal.cookUserId ? String(meal.cookUserId) : null
+  };
+}
+
+export function sanitizeDayMenuPlan(dateStr: string, dayPlan: any): Record<string, any> {
+  return {
+    date: String(dateStr),
+    lunch: sanitizePlannedMeal(dayPlan?.lunch),
+    dinner: sanitizePlannedMeal(dayPlan?.dinner),
+    updatedAt: new Date().toISOString(),
+    householdId: HOUSEHOLD_ID
+  };
+}
+
+export function sanitizeRecipe(recipe: any): Record<string, any> {
+  return {
+    id: String(recipe.id),
+    title: String(recipe.title || ''),
+    category: String(recipe.category || 'Hauptgericht'),
+    durationMinutes: Number(recipe.durationMinutes || 20),
+    effort: String(recipe.effort || 'medium'),
+    requiresBaking: Boolean(recipe.requiresBaking),
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.map(String) : [],
+    instructions: Array.isArray(recipe.instructions) ? recipe.instructions.map(String) : [],
+    imageUrl: recipe.imageUrl ? String(recipe.imageUrl) : null,
+    isFavorite: Boolean(recipe.isFavorite),
+    householdId: HOUSEHOLD_ID
+  };
+}
+
+export function sanitizeNotification(notif: any): Record<string, any> {
+  return {
+    id: String(notif.id || `notif_${Date.now()}`),
+    type: String(notif.type || 'general'),
+    title: String(notif.title || ''),
+    message: String(notif.message || ''),
+    icon: notif.icon ? String(notif.icon) : null,
+    senderId: notif.senderId ? String(notif.senderId) : null,
+    senderName: notif.senderName ? String(notif.senderName) : null,
+    targetUserId: notif.targetUserId ? String(notif.targetUserId) : null,
+    oldOwnerName: notif.oldOwnerName ? String(notif.oldOwnerName) : null,
+    newOwnerName: notif.newOwnerName ? String(notif.newOwnerName) : null,
+    trophyTitle: notif.trophyTitle ? String(notif.trophyTitle) : null,
+    timestamp: String(notif.timestamp || new Date().toISOString()),
+    read: Boolean(notif.read),
+    householdId: HOUSEHOLD_ID
+  };
+}
+
 export async function saveDayMenuPlanToCloud(dateStr: string, dayPlan: any): Promise<void> {
   if (!isConfigValid) return;
   try {
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menus', dateStr);
-    await setDoc(docRef, {
-      date: dateStr,
-      lunch: dayPlan?.lunch || null,
-      dinner: dayPlan?.dinner || null,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+    await setDoc(docRef, sanitizeDayMenuPlan(dateStr, dayPlan), { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/menus/${dateStr}`);
   }
@@ -415,7 +478,7 @@ export async function saveMenuWishToCloud(wish: any): Promise<void> {
   if (!isConfigValid) return;
   try {
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'menu_wishes', wish.id);
-    await setDoc(docRef, wish, { merge: true });
+    await setDoc(docRef, sanitizeMenuWish(wish), { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/menu_wishes/${wish.id}`);
   }
@@ -435,7 +498,7 @@ export async function saveRecipeToCloud(recipe: any): Promise<void> {
   if (!isConfigValid) return;
   try {
     const docRef = doc(db, 'households', HOUSEHOLD_ID, 'recipes', recipe.id);
-    await setDoc(docRef, recipe, { merge: true });
+    await setDoc(docRef, sanitizeRecipe(recipe), { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/recipes/${recipe.id}`);
   }
@@ -448,6 +511,29 @@ export async function deleteRecipeFromCloud(recipeId: string): Promise<void> {
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/recipes/${recipeId}`);
+  }
+}
+
+/**
+ * Notifications Cloud Sync Helpers
+ */
+export async function saveNotificationToCloud(notification: any): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'notifications', notification.id);
+    await setDoc(docRef, sanitizeNotification(notification), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/notifications/${notification.id}`);
+  }
+}
+
+export async function deleteNotificationFromCloud(notificationId: string): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'notifications', notificationId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/notifications/${notificationId}`);
   }
 }
 

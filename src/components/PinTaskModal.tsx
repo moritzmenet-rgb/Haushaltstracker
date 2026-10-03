@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pin, Sparkles, X, Check, PinOff, Award, AlertCircle } from 'lucide-react';
+import { Pin, Sparkles, X, Check, PinOff, Award, AlertCircle, Bell } from 'lucide-react';
 import { TaskItem } from '../types';
 import { useApp } from '../context/AppContext';
 
@@ -15,9 +15,10 @@ export const PinTaskModal: React.FC<PinTaskModalProps> = ({
   onClose,
   task
 }) => {
-  const { togglePinTask, updateTask } = useApp();
+  const { togglePinTask, updateTask, sendNotification, activeUser } = useApp();
   const [bonusEnabled, setBonusEnabled] = useState(true);
   const [bonusPoints, setBonusPoints] = useState<number>(2);
+  const [notifyUsers, setNotifyUsers] = useState<boolean>(true);
 
   useEffect(() => {
     if (task) {
@@ -45,6 +46,18 @@ export const PinTaskModal: React.FC<PinTaskModalProps> = ({
       is_pinned: true,
       pinned_bonus_points: finalBonus
     });
+
+    if (notifyUsers) {
+      await sendNotification({
+        type: 'task_pinned',
+        title: '📌 Neue angepinnte Aufgabe!',
+        message: `${activeUser?.name || 'Jemand'} hat die Aufgabe "${task.title}" angepinnt${finalBonus > 0 ? ` (+${finalBonus} Bonus-Punkte!)` : ''}.`,
+        senderId: activeUser?.id,
+        senderName: activeUser?.name,
+        read: false
+      });
+    }
+
     onClose();
   };
 
@@ -199,6 +212,33 @@ export const PinTaskModal: React.FC<PinTaskModalProps> = ({
                   Aufgabe wird ohne Extrapunkte oben angepinnt (nur Basis-Punkte).
                 </div>
               )}
+            </div>
+
+            {/* Notification Toggle Card */}
+            <div className="p-4 rounded-2xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-[var(--m3-on-surface)] block">
+                    Familie benachrichtigen?
+                  </span>
+                  <span className="text-[11px] text-[var(--m3-on-surface-variant)]">
+                    Sendet eine Push/In-App-Meldung an alle Mitglieder
+                  </span>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={notifyUsers}
+                  onChange={(e) => setNotifyUsers(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-zinc-300 dark:bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
             </div>
 
             {/* Actions */}

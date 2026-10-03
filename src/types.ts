@@ -165,6 +165,22 @@ export interface RecipeItem {
   caloriesApprox?: number;
 }
 
+export interface AppNotification {
+  id: string;
+  type: 'task_pinned' | 'trophy_stolen' | 'general';
+  title: string;
+  message: string;
+  icon?: string;
+  senderId?: string;
+  senderName?: string;
+  targetUserId?: string;
+  oldOwnerName?: string;
+  newOwnerName?: string;
+  trophyTitle?: string;
+  timestamp: string;
+  read?: boolean;
+}
+
 export interface FamilyData {
   settings: FamilySettings;
   members: Record<string, FamilyMember>;
@@ -174,6 +190,7 @@ export interface FamilyData {
   trophyOwners?: Record<string, string>;
   menuPlan?: Record<string, DayMenuPlan>; // dateKey ("YYYY-MM-DD") -> DayMenuPlan
   menuWishes?: Record<string, MenuWish>;
+  notifications?: Record<string, AppNotification>;
 }
 
 export interface WeeklyRollOverPreview {
