@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Check, Star, Sparkles, Trophy, Award } from 'lucide-react';
 import { rewardAudio } from '../utils/rewardAudio';
+import { haptic } from '../utils/haptics';
 import { RewardCelebration } from '../types';
 
 interface ChoreCompletionCelebrationProps {
@@ -73,6 +74,7 @@ export const ChoreCompletionCelebration: React.FC<ChoreCompletionCelebrationProp
     // Start Phase 1: Triumph Crest
     setPhase('crest');
     setCoinsLanded(0);
+    haptic.success();
     rewardAudio.playSuccessChord();
 
     // Phase 2: Morph to Coins at 1.1s
@@ -94,6 +96,7 @@ export const ChoreCompletionCelebration: React.FC<ChoreCompletionCelebrationProp
       const reachedTarget =
         celebration.previousCyclePoints + celebration.points >= celebration.targetPoints;
       if (reachedTarget) {
+        haptic.celebration();
         rewardAudio.playLevelUpFanfare();
       }
     }, 3300);
@@ -121,6 +124,7 @@ export const ChoreCompletionCelebration: React.FC<ChoreCompletionCelebrationProp
   const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 300;
 
   const handleCoinLanded = (index: number) => {
+    haptic.light();
     rewardAudio.playCoinDing(index, coinCount);
     setCoinsLanded((prev) => {
       const next = prev + 1;

@@ -106,7 +106,9 @@ service cloud.firestore {
              data.avatar_color is string &&
              (!('unlocked_badges' in data) || data.unlocked_badges is map) &&
              (!('showroom_badges' in data) || data.showroom_badges is list) &&
-             (!('active_badge_id' in data) || (data.active_badge_id == null || data.active_badge_id is string));
+             (!('active_badge_id' in data) || (data.active_badge_id == null || data.active_badge_id is string)) &&
+             (!('haptics_enabled' in data) || data.haptics_enabled is bool) &&
+             (!('animations_enabled' in data) || data.animations_enabled is bool);
     }
 
     function isValidTask(data) {

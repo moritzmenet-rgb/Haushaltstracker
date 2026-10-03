@@ -25,6 +25,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { FishingModal } from './FishingModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import { PinTaskModal } from './PinTaskModal';
+import { haptic } from '../utils/haptics';
 
 interface TaskCatalogProps {
   onOpenLogModal: (taskId: string) => void;
@@ -337,9 +338,10 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        haptic.selection();
                         setPinModalTask(task);
                       }}
-                      className={`p-2 rounded-xl transition ${
+                      className={`p-2 rounded-xl transition cursor-pointer active:scale-90 ${
                         task.is_pinned 
                           ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30' 
                           : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-high)] hover:text-amber-500'
@@ -406,9 +408,10 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
+                            haptic.medium();
                             onOpenLogModal(task.id);
                           }}
-                          className="px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5"
+                          className="px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
                         >
                           <span>Gönnen</span>
                           <Check className="w-4 h-4 stroke-[3]" />

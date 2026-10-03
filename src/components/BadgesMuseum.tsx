@@ -36,6 +36,8 @@ import {
 import { useApp } from '../context/AppContext';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { getInitials } from '../utils';
+import { haptic } from '../utils/haptics';
+import { rewardAudio } from '../utils/rewardAudio';
 
 interface BadgesMuseumProps {
   onInspectBadge?: (badge: AchievementDef) => void;
@@ -84,12 +86,16 @@ export const BadgesMuseum: React.FC<BadgesMuseumProps> = ({ onInspectBadge }) =>
     if (!activeUser) return;
     let newShowroom = [...userShowroom];
     if (newShowroom.includes(badgeId)) {
+      haptic.light();
       newShowroom = newShowroom.filter((id) => id !== badgeId);
     } else {
       if (newShowroom.length >= 5) {
+        haptic.error();
         alert('Maximal 5 Lieblings-Abzeichen im Showroom erlaubt.');
         return;
       }
+      haptic.medium();
+      rewardAudio.playCoinDing(4);
       newShowroom.push(badgeId);
     }
     updateMemberBadgeShowroom(activeUser.id, newShowroom);
@@ -99,6 +105,8 @@ export const BadgesMuseum: React.FC<BadgesMuseumProps> = ({ onInspectBadge }) =>
     e.stopPropagation();
     e.preventDefault();
     if (!activeUser) return;
+    haptic.success();
+    rewardAudio.playSuccessChord();
     updateMemberActiveBadge(activeUser.id, activeId => (activeId === badgeId ? undefined : badgeId));
   };
 
@@ -214,8 +222,11 @@ export const BadgesMuseum: React.FC<BadgesMuseumProps> = ({ onInspectBadge }) =>
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-black transition-colors cursor-pointer select-none ${
+              onClick={() => {
+                haptic.selection();
+                setActiveSubTab(tab.id as any);
+              }}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-black transition-colors cursor-pointer select-none active:scale-95 ${
                 isActive
                   ? 'text-[var(--m3-on-primary)]'
                   : 'text-[var(--m3-on-surface-variant)] hover:text-[var(--m3-on-surface)]'

@@ -82,3 +82,46 @@ export function fireSideCannons() {
     console.warn('Cannons notice:', e);
   }
 }
+
+/**
+ * Fires a synchronized, multi-phase grand celebration for achievements
+ */
+export function fireEpicAchievementCelebration() {
+  try {
+    // 1. Instant golden ring explosion
+    confetti({
+      particleCount: 80,
+      spread: 100,
+      origin: { x: 0.5, y: 0.45 },
+      colors: ['#F59E0B', '#FBBF24', '#FCD34D', '#F43F5E', '#8B5CF6'],
+      ticks: 280,
+      gravity: 0.8,
+      scalar: 1.25,
+      shapes: ['star', 'circle'],
+      disableForReducedMotion: true
+    });
+
+    // 2. Delayed second wave of stars & side cannons
+    setTimeout(() => {
+      fireStarConfetti();
+      fireSideCannons();
+    }, 250);
+
+    // 3. Third wave of floating shimmer
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 120,
+        origin: { x: 0.5, y: 0.35 },
+        colors: ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#FFFFFF'],
+        ticks: 300,
+        gravity: 0.6,
+        scalar: 1.1,
+        disableForReducedMotion: true
+      });
+    }, 550);
+  } catch (e) {
+    console.warn('Epic celebration error:', e);
+  }
+}
+

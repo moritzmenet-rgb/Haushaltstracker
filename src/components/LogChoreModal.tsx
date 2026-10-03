@@ -14,10 +14,10 @@ import {
   Minus,
   Plus
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { useApp } from '../context/AppContext';
 import { calculatePoints } from '../utils';
 import { ChoreLog } from '../types';
+import { haptic } from '../utils/haptics';
 
 interface LogChoreModalProps {
   isOpen: boolean;
@@ -383,7 +383,10 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.92 }}
                   type="button"
-                  onClick={() => setStars(1)}
+                  onClick={() => {
+                    haptic.light();
+                    setStars(1);
+                  }}
                   className={`p-3.5 rounded-2xl border text-center transition-all ${
                     stars === 1
                       ? 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300 shadow-xs ring-2 ring-rose-500/30'
@@ -406,7 +409,10 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.92 }}
                   type="button"
-                  onClick={() => setStars(2)}
+                  onClick={() => {
+                    haptic.light();
+                    setStars(2);
+                  }}
                   className={`p-3.5 rounded-2xl border text-center transition-all ${
                     stars === 2
                       ? 'bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300 shadow-xs ring-2 ring-amber-500/30'
@@ -430,7 +436,10 @@ export const LogChoreModal: React.FC<LogChoreModalProps> = ({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.92 }}
                   type="button"
-                  onClick={() => setStars(3)}
+                  onClick={() => {
+                    haptic.medium();
+                    setStars(3);
+                  }}
                   className={`p-3.5 rounded-2xl border text-center transition-all ${
                     stars === 3
                       ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 shadow-xs ring-2 ring-emerald-500/30'

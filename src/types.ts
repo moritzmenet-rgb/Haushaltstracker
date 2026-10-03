@@ -19,6 +19,8 @@ export interface FamilyMember {
   showroom_badges?: string[]; // max 5 badge IDs
   active_badge_id?: string; // active badge ID displayed as icon next to name
   last_seen_version?: string;
+  haptics_enabled?: boolean;
+  animations_enabled?: boolean;
 }
 
 export interface TaskItem {

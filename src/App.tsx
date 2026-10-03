@@ -19,6 +19,7 @@ import { SyncOverlay } from './components/SyncOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ChoreCompletionCelebration } from './components/ChoreCompletionCelebration';
 import { WhatsNewModal } from './components/WhatsNewModal';
+import { GlobalInteractiveEffects } from './components/GlobalInteractiveEffects';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud, Sparkles } from 'lucide-react';
 
@@ -314,6 +315,9 @@ const MainContent: React.FC = () => {
           }
         }}
       />
+
+      {/* Global Tactile Haptics & Playful Click Micro-Interactions */}
+      <GlobalInteractiveEffects />
     </div>
   );
 };

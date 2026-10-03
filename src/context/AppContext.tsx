@@ -992,10 +992,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let updatedTask: TaskItem | undefined;
     if (task && task.last_done === log.timestamp) {
       // Find the next most recent log for this task
-      const nextRecentLog = filteredLogs.find(l => l.task_id === log.task_id);
+      const remainingLogsForTask = filteredLogs
+        .filter(l => l.task_id === log.task_id)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const nextRecentLog = remainingLogsForTask[0];
+      
+      const realTaskId = task.id || log.task_id;
       updatedTask = {
         ...task,
-        last_done: nextRecentLog ? nextRecentLog.timestamp : null
+        id: realTaskId,
+        last_done: nextRecentLog ? nextRecentLog.timestamp : null,
+        is_pinned: task.is_pinned ?? false,
+        pinned_bonus_points: task.pinned_bonus_points ?? 0
       };
     }
 
@@ -1003,11 +1011,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? { ...data.members, [log.user_id]: updatedMember } 
       : data.members;
 
+    const realTaskId = task ? (task.id || log.task_id) : log.task_id;
+    const nextTasks = { ...data.tasks };
+    if (updatedTask && task && realTaskId) {
+      nextTasks[realTaskId] = updatedTask;
+    }
+
     const nextData: FamilyData = {
       ...data,
       logs: filteredLogs,
       members: nextMembers,
-      tasks: updatedTask ? { ...data.tasks, [task.id]: updatedTask } : data.tasks
+      tasks: nextTasks
     };
 
     // Optimistic Update

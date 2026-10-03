@@ -156,6 +156,78 @@ class RewardAudioEngine {
       osc.stop(now + t + d + 0.05);
     });
   }
+
+  /**
+   * Epic, cinematic royal achievement fanfare with orchestral chords and celestial chimes
+   */
+  playEpicAchievementFanfare(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. Grand Brass / Synth Fanfare Progression (C4 -> G4 -> C5 -> E5 -> G5 -> C6)
+    const brassNotes = [
+      { f: 261.63, t: 0.00, d: 0.16, v: 0.18 }, // C4
+      { f: 392.00, t: 0.14, d: 0.16, v: 0.20 }, // G4
+      { f: 523.25, t: 0.28, d: 0.18, v: 0.22 }, // C5
+      { f: 659.25, t: 0.44, d: 0.22, v: 0.24 }, // E5
+      { f: 783.99, t: 0.64, d: 0.26, v: 0.25 }, // G5
+      { f: 1046.50, t: 0.88, d: 1.40, v: 0.28 }, // C6 (Grand Finale Hold)
+    ];
+
+    brassNotes.forEach(({ f, t, d, v }) => {
+      const osc = ctx.createOscillator();
+      const oscSub = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      oscSub.type = 'sawtooth';
+
+      osc.frequency.setValueAtTime(f, now + t);
+      oscSub.frequency.setValueAtTime(f * 0.5, now + t); // Rich bottom octave
+
+      gain.gain.setValueAtTime(0.001, now + t);
+      gain.gain.linearRampToValueAtTime(v, now + t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + t + d);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2800, now + t);
+      filter.frequency.exponentialRampToValueAtTime(800, now + t + d);
+
+      osc.connect(gain);
+      oscSub.connect(gain);
+      gain.connect(filter);
+      filter.connect(ctx.destination);
+
+      osc.start(now + t);
+      oscSub.start(now + t);
+      osc.stop(now + t + d + 0.1);
+      oscSub.stop(now + t + d + 0.1);
+    });
+
+    // 2. Sparkling Celestial Chimes (Glissando arpeggios on top)
+    const chimes = [1046.50, 1318.51, 1567.98, 2093.00, 2637.02, 3135.96];
+    chimes.forEach((freq, idx) => {
+      const chimeTime = now + 0.9 + idx * 0.06;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, chimeTime);
+
+      gain.gain.setValueAtTime(0, chimeTime);
+      gain.gain.linearRampToValueAtTime(0.08, chimeTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0005, chimeTime + 0.7);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(chimeTime);
+      osc.stop(chimeTime + 0.75);
+    });
+  }
 }
 
 export const rewardAudio = new RewardAudioEngine();

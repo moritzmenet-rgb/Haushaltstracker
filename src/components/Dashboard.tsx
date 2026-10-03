@@ -48,6 +48,7 @@ import { TaskDetailModal } from './TaskDetailModal';
 import { MemberProfileModal } from './MemberProfileModal';
 import { PinTaskModal } from './PinTaskModal';
 import { UserBadge } from './UserBadge';
+import { haptic } from '../utils/haptics';
 
 interface DashboardProps {
   onOpenLogModal: (preselectedTaskId?: string) => void;
@@ -148,16 +149,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const selectedWeekData = weeklyHistory[selectedHistoryIndex] || weeklyHistory[0];
 
-  // Time until next Saturday 00:00 reset
-  const resetCountdownText = useMemo(() => {
+  // Live ticking countdown clock until next Saturday 00:00 reset
+  const [liveCountdown, setLiveCountdown] = useState<{
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
+  }>(() => {
     const nextReset = getNextSaturdayReset();
-    const diffMs = nextReset.getTime() - Date.now();
-    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    const diffHours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-    if (diffDays > 0) {
-      return `${diffDays}d ${diffHours}h bis Reset (Sa. 00:00)`;
-    }
-    return `${diffHours}h bis Reset (Sa. 00:00)`;
+    const diff = Math.max(0, nextReset.getTime() - Date.now());
+    const d = String(Math.floor(diff / (24 * 60 * 60 * 1000))).padStart(2, '0');
+    const h = String(Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))).padStart(2, '0');
+    const m = String(Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000))).padStart(2, '0');
+    const s = String(Math.floor((diff % (60 * 1000)) / 1000)).padStart(2, '0');
+    return { days: d, hours: h, minutes: m, seconds: s };
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const nextReset = getNextSaturdayReset();
+      const diff = Math.max(0, nextReset.getTime() - Date.now());
+      const d = String(Math.floor(diff / (24 * 60 * 60 * 1000))).padStart(2, '0');
+      const h = String(Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))).padStart(2, '0');
+      const m = String(Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000))).padStart(2, '0');
+      const s = String(Math.floor((diff % (60 * 1000)) / 1000)).padStart(2, '0');
+      setLiveCountdown({ days: d, hours: h, minutes: m, seconds: s });
+    };
+
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   // Current active user progress
@@ -297,18 +317,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </p>
         </div>
-
-        {/* M3 Expressive Floating Action Button (Extended FAB) */}
-        <motion.button
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.94 }}
-          transition={{ type: 'spring', stiffness: 450, damping: 22 }}
-          onClick={() => onOpenLogModal()}
-          className="m3-fab px-6 py-3.5 flex items-center justify-center gap-2.5 font-black text-sm self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-5 h-5 stroke-[3]" />
-          <span>Arbeit erfassen</span>
-        </motion.button>
       </motion.div>
 
       {/* 2. Personal Progress Bar & Family Summary in Material 3 Expressive Card */}
@@ -547,9 +555,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        haptic.selection();
                         setPinModalTask(task);
                       }}
-                      className="text-[11px] font-bold text-[var(--m3-outline)] hover:text-amber-600 flex items-center gap-1.5 transition p-1"
+                      className="text-[11px] font-bold text-[var(--m3-outline)] hover:text-amber-600 flex items-center gap-1.5 transition p-1 cursor-pointer active:scale-95"
                       title="Bonus anpassen oder Pin lösen"
                     >
                       <Pin className="w-3.5 h-3.5 rotate-12" />
@@ -563,9 +572,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              haptic.selection();
                               setFishingTask(task);
                             }}
-                            className="px-3.5 py-1.5 rounded-xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-bold transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl bg-[var(--m3-surface-variant)] text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-variant)]/80 text-xs font-bold transition shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95"
                           >
                             <Fish className="w-3.5 h-3.5" />
                             <span>Fischen</span>
@@ -575,9 +585,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => {
                               e.stopPropagation();
+                              haptic.medium();
                               onOpenLogModal(task.id);
                             }}
-                            className="px-4 py-1.5 rounded-xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition shadow-xs flex items-center gap-1.5"
+                            className="px-4 py-1.5 rounded-xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition shadow-xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
                           >
                             <Check className="w-4 h-4 stroke-[3]" />
                             <span>Erledigen</span>
@@ -665,10 +676,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Trophy className="w-5 h-5 text-amber-500" />
               <span>Wochen-Scoreboard (Punkte)</span>
             </h2>
-            <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center gap-1.5 shadow-2xs">
-              <Clock className="w-3.5 h-3.5" />
-              <span>{resetCountdownText}</span>
-            </span>
+            {/* Live ticking countdown clock with days included */}
+            <div 
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-mono font-bold shadow-2xs"
+              title="Live-Rückwärtsuhr bis zum Reset (Tage : Std : Min : Sek - Samstag 00:00 Uhr)"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <div className="flex items-center gap-1.5">
+                <span className="tabular-nums font-black tracking-wider">
+                  {liveCountdown.days}:{liveCountdown.hours}:{liveCountdown.minutes}:{liveCountdown.seconds}
+                </span>
+                <span className="text-[10px] font-sans font-bold opacity-75 uppercase tracking-wider">Reset</span>
+              </div>
+            </div>
           </div>
 
           {membersWithProgress.length === 0 ? (

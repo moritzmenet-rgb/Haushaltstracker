@@ -108,6 +108,8 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
     unlocked_badges: member.unlocked_badges || {},
     showroom_badges: Array.isArray(member.showroom_badges) ? member.showroom_badges : [],
     active_badge_id: member.active_badge_id || null,
+    haptics_enabled: typeof member.haptics_enabled === 'boolean' ? member.haptics_enabled : true,
+    animations_enabled: typeof member.animations_enabled === 'boolean' ? member.animations_enabled : true,
     householdId: HOUSEHOLD_ID
   };
 }
@@ -116,8 +118,9 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
  * Sanitize a task object for Firestore
  */
 function sanitizeTask(task: TaskItem): Record<string, any> {
+  const taskId = task.id || `task_${Date.now()}`;
   return {
-    id: String(task.id),
+    id: String(taskId),
     title: String(task.title || 'Aufgabe'),
     description: String(task.description || ''),
     category: String(task.category || 'Allgemein'),
@@ -130,6 +133,8 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
     last_done: task.last_done || null,
     fished_by: task.fished_by || null,
     fished_until: task.fished_until || null,
+    is_pinned: Boolean(task.is_pinned),
+    pinned_bonus_points: Math.max(0, Number(task.pinned_bonus_points) || 0),
     householdId: HOUSEHOLD_ID
   };
 }
@@ -285,12 +290,12 @@ export async function deleteChoreLogFromCloud(
     const logRef = doc(db, 'households', HOUSEHOLD_ID, 'logs', logId);
     batch.delete(logRef);
 
-    if (updatedTask) {
+    if (updatedTask && updatedTask.id) {
       const taskRef = doc(db, 'households', HOUSEHOLD_ID, 'tasks', updatedTask.id);
       batch.set(taskRef, sanitizeTask(updatedTask), { merge: true });
     }
 
-    if (updatedMember) {
+    if (updatedMember && updatedMember.id) {
       const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', updatedMember.id);
       batch.set(memberRef, sanitizeMember(updatedMember), { merge: true });
     }

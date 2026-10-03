@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
 import { UserBadge } from './UserBadge';
 import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
+import { haptic } from '../utils/haptics';
 
 interface NavbarProps {
   currentTab: 'dashboard' | 'tasks' | 'pinnwand' | 'abzeichen' | 'settings';
@@ -161,7 +162,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 + idx * 0.05 }}
-                    onClick={() => onSelectTab(tab.id)}
+                    onClick={() => {
+                      haptic.selection();
+                      onSelectTab(tab.id);
+                    }}
                     className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-colors ${
                       isActive
                         ? 'text-[var(--m3-on-secondary-container)]'
@@ -233,7 +237,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              onClick={onOpenLogModal}
+              onClick={() => {
+                haptic.medium();
+                onOpenLogModal();
+              }}
               className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black shadow-md shadow-indigo-600/15 transition-all"
               title="Arbeit erfassen"
             >
@@ -309,7 +316,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + idx * 0.05 }}
                 type="button"
-                onClick={() => onSelectTab(tab.id)}
+                onClick={() => {
+                  haptic.selection();
+                  onSelectTab(tab.id);
+                }}
                 className={`relative flex-1 py-1.5 px-1 min-h-[50px] flex flex-col items-center justify-center transition-all active:scale-92 cursor-pointer ${
                   isActive 
                     ? 'text-[var(--m3-primary)] font-black' 

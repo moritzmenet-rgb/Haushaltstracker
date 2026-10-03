@@ -35,16 +35,6 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   const [selectedVersion, setSelectedVersion] = useState<string>(CURRENT_VERSION);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Trigger playful confetti burst when the modal opens
-  useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        fireConfetti({ particleCount: 70, spread: 80 });
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const currentRelease = VERSION_HISTORY.find(v => v.version === selectedVersion) || VERSION_HISTORY[0];
