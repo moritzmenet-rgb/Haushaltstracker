@@ -240,7 +240,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-6">
             <div 
               onClick={handleLogoClick}
-              className="flex items-center gap-3 cursor-pointer group select-none"
+              className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
               title="Klicke auf das Logo für die App-Zentrale (Bereich wechseln)"
             >
               <motion.div 
@@ -249,16 +249,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                 className={`w-11 h-11 rounded-2xl border border-white/20 flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden text-white ${brandConfig.bgClass}`}
               >
-                <span className="font-black text-xs sm:text-sm tracking-tighter relative z-10">
+                <span className="font-black text-xs sm:text-sm tracking-tighter relative z-10 whitespace-nowrap">
                   {brandConfig.shortTitle}
                 </span>
               </motion.div>
 
-              <div className="flex flex-col">
-                <span className="font-extrabold text-base tracking-tight text-[var(--m3-on-surface)] leading-tight group-hover:text-[var(--m3-primary)] transition-colors">
+              <div className="flex flex-col min-w-0">
+                <span className="font-black text-base sm:text-lg tracking-tight text-[var(--m3-on-surface)] leading-tight whitespace-nowrap group-hover:text-[var(--m3-primary)] transition-colors">
                   {brandConfig.title}
                 </span>
-                <span className="text-[10px] font-semibold text-[var(--m3-on-surface-variant)] leading-tight">
+                <span className="text-[10px] sm:text-[11px] font-bold text-[var(--m3-on-surface-variant)] leading-tight whitespace-nowrap">
                   {brandConfig.subTitle}
                 </span>
               </div>
