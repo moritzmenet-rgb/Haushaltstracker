@@ -270,7 +270,8 @@ export function scanAndAwardHistoricalAchievements(
     const totalTasks = memberLogs.length;
     if (totalTasks >= 1) awardBadge('tasks_1');
     if (totalTasks >= 25) awardBadge('tasks_25');
-    if (totalTasks >= 66) awardBadge('secret_devil');
+    // secret_devil: EXACTLY 66 tasks or already legitimately unlocked
+    if (totalTasks === 66 || existingUnlocked['secret_devil']) awardBadge('secret_devil');
     if (totalTasks >= 100) awardBadge('tasks_100');
     if (totalTasks >= 250) awardBadge('tasks_250');
     if (totalTasks >= 500) awardBadge('tasks_500');
@@ -279,13 +280,13 @@ export function scanAndAwardHistoricalAchievements(
     const has3Stars = memberLogs.some(l => l.stars === 3);
     if (has3Stars) awardBadge('stars_first_3');
 
-    // Notes & Justifications
-    const notesCount = memberLogs.filter(l => Boolean(l.notes && l.notes.trim().length >= 4)).length;
-    const star2or3NotesCount = memberLogs.filter(l => l.stars >= 2 && Boolean(l.notes && l.notes.trim().length >= 4)).length;
+    // Notes & Justifications (Strict length requirements)
+    const star2or3NotesCount = memberLogs.filter(l => l.stars >= 2 && Boolean(l.notes && l.notes.trim().length >= 5)).length;
+    const detailedNotesCount = memberLogs.filter(l => Boolean(l.notes && l.notes.trim().length >= 20)).length;
     if (star2or3NotesCount >= 10) awardBadge('notes_10');
-    if (notesCount >= 10) awardBadge('open_book');
+    if (detailedNotesCount >= 10) awardBadge('open_book');
 
-    // --- Category Milestones ---
+    // --- Category Milestones (Strictly evaluated against task category) ---
     let kitchenCount = 0;
     let badCount = 0;
     let stubeCount = 0;
@@ -295,25 +296,19 @@ export function scanAndAwardHistoricalAchievements(
 
     memberLogs.forEach(log => {
       const task = allTasks[log.task_id];
-      const cat = (task?.category || '').toLowerCase();
-      const title = (task?.title || '').toLowerCase();
+      const cat = (task?.category || '').toLowerCase().trim();
 
-      if (cat.includes('küch') || cat.includes('kuch') || title.includes('küch') || title.includes('geschirr') || title.includes('abwasch') || title.includes('kochen') || title.includes('backen')) {
+      if (cat.includes('küch') || cat.includes('kuch') || cat === 'küche' || cat === 'kueche') {
         kitchenCount++;
-      }
-      if (cat.includes('bad') || cat.includes('wc') || cat.includes('sanit') || cat.includes('toilet') || title.includes('bad') || title.includes('wc') || title.includes('dusche')) {
+      } else if (cat.includes('bad') || cat.includes('wc') || cat.includes('sanit') || cat === 'bad') {
         badCount++;
-      }
-      if (cat.includes('stube') || cat.includes('wohn') || cat.includes('sofa') || title.includes('stube') || title.includes('wohnzimmer') || title.includes('couch')) {
+      } else if (cat.includes('stube') || cat.includes('wohn') || cat === 'stube') {
         stubeCount++;
-      }
-      if (cat.includes('zimmer') || cat.includes('schlaf') || cat.includes('kinder') || title.includes('zimmer') || title.includes('bett') || title.includes('aufräumen')) {
+      } else if (cat.includes('zimmer') || cat.includes('schlaf') || cat.includes('kinder') || cat === 'eigenes zimmer') {
         roomCount++;
-      }
-      if (cat.includes('garten') || cat.includes('balkon') || cat.includes('pflanz') || title.includes('garten') || title.includes('balkon') || title.includes('rasen') || title.includes('blumen')) {
+      } else if (cat.includes('garten') || cat.includes('balkon') || cat === 'garten') {
         gartenCount++;
-      }
-      if (cat.includes('gang') || cat.includes('gänge') || cat.includes('flur') || cat.includes('trepp') || title.includes('flur') || title.includes('gang') || title.includes('treppe') || title.includes('eingang')) {
+      } else if (cat.includes('gang') || cat.includes('gänge') || cat.includes('flur') || cat.includes('trepp')) {
         gangCount++;
       }
     });
@@ -326,21 +321,20 @@ export function scanAndAwardHistoricalAchievements(
     if (gangCount >= 15) awardBadge('cat_gänge_15');
 
     // --- Time-of-Day Milestones ---
-    let hasNightLog = false;
-    let hasEarlyBirdLog = false;
-
-    memberLogs.forEach(l => {
-      const dt = new Date(l.timestamp);
-      const h = dt.getHours();
-      if (h >= 1 && h <= 4) hasNightLog = true;
-      if (h >= 5 && h < 7) hasEarlyBirdLog = true;
+    let hasNightLog = memberLogs.some(l => {
+      const h = new Date(l.timestamp).getHours();
+      return h >= 1 && h < 4;
+    });
+    let hasEarlyBirdLog = memberLogs.some(l => {
+      const h = new Date(l.timestamp).getHours();
+      return h >= 4 && h < 7;
     });
 
     if (hasNightLog) awardBadge('secret_night');
     if (hasEarlyBirdLog) awardBadge('early_bird');
 
-    // --- Profile Title Milestone ---
-    if (member.active_badge_id) {
+    // --- Profile Title Milestone (Active title selected) ---
+    if (member.active_badge_id && member.active_badge_id.trim().length > 0) {
       awardBadge('badge_title');
     }
 
@@ -356,12 +350,12 @@ export function scanAndAwardHistoricalAchievements(
     const hasMultitaskerDay = Object.values(dayCategoryMap).some(catSet => catSet.size >= 3);
     if (hasMultitaskerDay) awardBadge('secret_multitasker');
 
-    // --- Secret: Wordsmith (detailed notes with >= 40 chars) ---
-    const hasWordsmithNote = memberLogs.some(l => l.notes && l.notes.trim().length >= 40);
+    // --- Secret: Wordsmith (detailed notes with >= 50 chars) ---
+    const hasWordsmithNote = memberLogs.some(l => Boolean(l.notes && l.notes.trim().length >= 50));
     if (hasWordsmithNote) awardBadge('secret_wordsmith');
 
-    // --- Easter Egg Secret (only awarded if explicitly triggered, never repeatedly on automatic scan) ---
-    if (easterEggClicks >= 10 && activeUserId === member.id && !existingUnlocked['secret_easter_egg']) {
+    // --- Easter Egg Secret (only awarded if explicitly triggered 10+ times) ---
+    if (easterEggClicks >= 10 && activeUserId === member.id) {
       awardBadge('secret_easter_egg');
     }
 
@@ -374,7 +368,7 @@ export function scanAndAwardHistoricalAchievements(
       weekMap[weekKey].push(log);
     });
 
-    const targetPoints = member.weekly_target || settings.default_weekly_target || 30;
+    const targetPoints = Number(member.weekly_target) || Number(settings.default_weekly_target) || 30;
     let weeksWithGoalAchieved = 0;
     let hasExact30 = false;
     let hasOver50 = false;
@@ -385,7 +379,7 @@ export function scanAndAwardHistoricalAchievements(
     let hasStreak3Days = false;
 
     Object.entries(weekMap).forEach(([_, weekLogs]) => {
-      const weekPoints = weekLogs.reduce((sum, l) => sum + (l.points_awarded || 0), 0);
+      const weekPoints = weekLogs.reduce((sum, l) => sum + (Number(l.points_awarded) || 0), 0);
       const star3Count = weekLogs.filter(l => l.stars === 3).length;
       const all1Stars = weekLogs.length > 0 && weekLogs.every(l => l.stars === 1);
 
@@ -395,41 +389,45 @@ export function scanAndAwardHistoricalAchievements(
 
       if (star3Count >= 5) has5StarsInAnyWeek = true;
 
-      if (weekPoints >= targetPoints || weekPoints >= 30) {
+      // Strictly achieved target: must reach targetPoints
+      if (targetPoints > 0 && weekPoints >= targetPoints && weekLogs.length > 0) {
         weeksWithGoalAchieved++;
 
-        if (all1Stars) hasAntsWeek = true;
+        if (all1Stars && weekLogs.length >= 2) hasAntsWeek = true;
 
-        // Check if achieved on day 1 (Saturday or Monday)
+        // Check if achieved on day 1 of cycle (Saturday or Monday)
         const firstDayLogs = weekLogs.filter(l => {
           const day = new Date(l.timestamp).getDay();
           return day === 6 || day === 1;
         });
-        const firstDayPoints = firstDayLogs.reduce((s, l) => s + (l.points_awarded || 0), 0);
-        if (firstDayPoints >= targetPoints || firstDayPoints >= 30) {
+        const firstDayPoints = firstDayLogs.reduce((s, l) => s + (Number(l.points_awarded) || 0), 0);
+        if (firstDayPoints >= targetPoints && firstDayLogs.length > 0) {
           hasSpeedMonday = true;
         }
 
-        // Check if finished on Friday before Saturday reset (after 18:00) or Sunday late
+        // Check if finished on Friday before Saturday reset (after 18:00)
         const hasLastMinuteLate = weekLogs.some(l => {
           const d = new Date(l.timestamp);
           const day = d.getDay();
           const hr = d.getHours();
-          return (day === 5 && hr >= 18) || (day === 0 && hr >= 20);
+          return day === 5 && hr >= 18;
         });
         if (hasLastMinuteLate) hasSundayLastMinute = true;
       }
 
-      if (Math.abs(weekPoints - 30) < 0.15) hasExact30 = true;
+      if (Math.abs(weekPoints - 30.0) < 0.05 && weekPoints >= 29.95) hasExact30 = true;
       if (weekPoints > 50) hasOver50 = true;
     });
 
     // Also factor in current weekly cycle points
     const currentCyclePoints = getMemberCyclePoints(member.id, allLogs, settings.last_reset_date);
-    if (currentCyclePoints >= targetPoints || currentCyclePoints >= 30) {
-      if (weeksWithGoalAchieved === 0) weeksWithGoalAchieved = 1;
+    if (targetPoints > 0 && currentCyclePoints >= targetPoints) {
+      const currentCycleWeekKey = getISOWeekKey(new Date());
+      if (!weekMap[currentCycleWeekKey]) {
+        weeksWithGoalAchieved++;
+      }
     }
-    if (Math.abs(currentCyclePoints - 30) < 0.15) hasExact30 = true;
+    if (Math.abs(currentCyclePoints - 30.0) < 0.05 && currentCyclePoints >= 29.95) hasExact30 = true;
     if (currentCyclePoints > 50) hasOver50 = true;
 
     // Award Weekly Milestones

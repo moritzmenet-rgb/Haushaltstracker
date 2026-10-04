@@ -933,6 +933,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     // 8. Notifications
+    let isInitialNotifsSnapshot = true;
     const unsubNotifications = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'notifications'), (snap) => {
       if (isCancelled) return;
       const notifsMap: Record<string, AppNotification> = {};
@@ -946,20 +947,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       notifsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      // If a brand new notification was created within the last 15 seconds, trigger toast
+      // Only trigger toast banner for notifications arriving LIVE during the active session
       const newest = notifsList[0];
-      if (newest) {
+      if (isInitialNotifsSnapshot) {
+        isInitialNotifsSnapshot = false;
+        latestToastRef.current = newest || null;
+      } else if (newest) {
         const ageMs = Date.now() - new Date(newest.timestamp).getTime();
-        if (ageMs < 15000 && (!latestToastRef.current || latestToastRef.current.id !== newest.id)) {
+        if (ageMs < 10000 && (!latestToastRef.current || latestToastRef.current.id !== newest.id)) {
           latestToastRef.current = newest;
           setLatestToastNotification(newest);
-          if (newest.type === 'trophy_stolen') {
-            haptic.achievement();
-            rewardAudio.playEpicAchievementFanfare();
-          } else {
-            haptic.medium();
-            rewardAudio.playCoinDing(3);
-          }
+          // Never play unsolicited fanfare audio out of nowhere; provide subtle haptics only
+          haptic.medium();
         }
       }
 
@@ -2006,44 +2005,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newBadgesCount;
   }, [data, activeUserId, easterEggClickCount, firebaseUser, persistLocal]);
 
-  // Triggered automatically on boot, data changes, and member changes
+  // Triggered automatically on boot, data changes, and member changes for data integrity
   useEffect(() => {
     if (!isAppLoaded) return;
     const scanResult = scanAndAwardHistoricalAchievements(data, activeUserId, 0);
     if (scanResult.hasChanges) {
-      // Check if trophy owners changed from previous data state
-      const oldTrophies = data.trophyOwners || {};
-      const newTrophies = scanResult.trophyOwners || {};
-
-      for (const trophyKey of Object.keys(newTrophies)) {
-        const oldOwnerId = oldTrophies[trophyKey];
-        const newOwnerId = newTrophies[trophyKey];
-        if (oldOwnerId && newOwnerId && oldOwnerId !== newOwnerId) {
-          const oldOwnerName = data.members[oldOwnerId]?.name || 'Jemand';
-          const newOwnerName = data.members[newOwnerId]?.name || 'Jemand';
-          const trophyDef = ACHIEVEMENTS_DATA.find(b => b.id === trophyKey);
-          const trophyTitle = trophyDef?.title || 'Wanderpokal';
-          const trophyEmoji = trophyDef?.emoji || '🏆';
-
-          const stealNotif: AppNotification = {
-            id: `notif_steal_${Date.now()}_${trophyKey}`,
-            type: 'trophy_stolen',
-            title: `${trophyEmoji} Wanderpokal entwendet!`,
-            message: `${newOwnerName} hat ${oldOwnerName} den Pokal "${trophyTitle}" abgenommen! ⚔️`,
-            icon: trophyEmoji,
-            senderId: newOwnerId,
-            senderName: newOwnerName,
-            targetUserId: oldOwnerId,
-            oldOwnerName,
-            newOwnerName,
-            trophyTitle,
-            timestamp: new Date().toISOString()
-          };
-
-          saveNotificationToCloud(stealNotif).catch(console.warn);
-        }
-      }
-
       setData(prev => ({
         ...prev,
         members: scanResult.updatedMembers,
@@ -2070,9 +2036,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           saveMemberToCloud(m).catch(console.warn);
         }
       });
-      if (scanResult.newlyUnlockedForActiveUser.length > 0 && !newlyUnlockedBadge) {
-        setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
-      }
+      // Note: Do NOT trigger newlyUnlockedBadge modal or steal notifications here in background!
+      // Modals and celebrations are strictly user-initiated (e.g. logChore or easter egg).
     }
   }, [isAppLoaded, data.logs, activeUserId]);
 
