@@ -28,7 +28,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).catch(() => {
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('./index.html') || caches.match('index.html') || caches.match('./');
         }
       });
     })
