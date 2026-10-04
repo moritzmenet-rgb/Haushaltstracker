@@ -4,9 +4,9 @@
  * receives the "Was ist neu?" announcement upon their first visit!
  */
 
-export const CURRENT_VERSION = '2.6.0';
+export const CURRENT_VERSION = '2.7.0';
 export const RELEASE_DATE = 'Oktober 2026';
-export const RELEASE_NAME = 'Großes Familien-Update: Pinnwand, Menüplaner & Zentrale';
+export const RELEASE_NAME = 'Das Katzen-Zimmer: Virtuelles Haustier, Styling & Familienbesuche';
 
 export interface ReleaseFeature {
   title: string;
@@ -28,11 +28,47 @@ export interface ReleaseLog {
 
 export const VERSION_HISTORY: ReleaseLog[] = [
   {
+    version: '2.7.0',
+    title: 'Was ist neu in Version 2.7.0?',
+    subtitle: 'Das brandneue Katzen-Zimmer: Dein persönlicher Begleiter im Haushalt! 🐱✨',
+    date: '4. Oktober 2026',
+    isLatest: true,
+    highlights: [
+      '🐱 Eigenes Katzen-Haustier für jedes Familienmitglied im Familien-Center',
+      '🥣 Pflegesystem: Füttern, Waschen, Kraulen mit Schnurr- und Toneffekten',
+      '🛍️ Katzen-Boutique: Kleidung, Hüte, Frisuren & Fellfarben mit Chips freischalten',
+      '👥 Besuchs-Modus: Besuche die Katzen der anderen & hilf beim Füttern!'
+    ],
+    features: [
+      {
+        title: '🐱 Das persönliche Katzen-Zimmer',
+        description: 'Erreichbar über das Familien-Center: Jedes Familienmitglied hat nun eine eigene Katze, die man liebevoll pflegen und jederzeit umbenennen kann.',
+        iconName: 'sparkles',
+        badge: 'Neu',
+        category: 'Neu'
+      },
+      {
+        title: '🛍️ Katzen-Boutique & Friseursalon',
+        description: 'Kaufe Hoodies, Fliegen, Superhelden-Capes, Kronen, Locken und Fellfarben mit verdienten Aufgaben-Chips und style deine Katze individuell.',
+        iconName: 'tag',
+        badge: 'Neu',
+        category: 'Neu'
+      },
+      {
+        title: '👥 Besuchs- & Fütter-Modus',
+        description: 'Schau in den Zimmern deiner Familienmitglieder vorbei, sieh wie es ihren Katzen geht und spende Futter gegen eine kleine Chip-Geste!',
+        iconName: 'award',
+        badge: 'Neu',
+        category: 'Neu'
+      }
+    ]
+  },
+  {
     version: '2.6.0',
     title: 'Was ist neu in Version 2.6.0?',
     subtitle: 'Familien-Pinnwand, Menüplanung, neue Zentrale & automatisches Tutorial! 🎉',
     date: '3. Oktober 2026',
-    isLatest: true,
+    isLatest: false,
     highlights: [
       '📌 Interaktive Pinnwand mit Notizen, bunten Fäden & Abstimmungen',
       '🍽️ Neuer Menüplaner mit Wochen-Speiseplan & Einkaufslisten-Export',

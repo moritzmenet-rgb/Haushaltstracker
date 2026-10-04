@@ -28,6 +28,7 @@ import { WhatsNewModal } from './components/WhatsNewModal';
 import { GlobalInteractiveEffects } from './components/GlobalInteractiveEffects';
 import { AppHubModal } from './components/hub/AppHubModal';
 import { MenuplannerView } from './components/menu/MenuplannerView';
+import { CatRoomView } from './components/pet/CatRoomView';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud, Sparkles } from 'lucide-react';
 
@@ -225,6 +226,11 @@ const MainContent: React.FC = () => {
               setCurrentFishTab('dashboard');
             }}
           />
+        )}
+
+        {/* 4. KATZEN-ZIMMER APP VIEW */}
+        {currentApp === 'catroom' && (
+          <CatRoomView />
         )}
       </main>
 

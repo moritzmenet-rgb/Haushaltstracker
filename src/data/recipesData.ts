@@ -1,459 +1,443 @@
 import { RecipeItem } from '../types';
 
-// Curated comprehensive recipes catalogue with 500+ distinct family and international menus
+// Curated comprehensive recipes catalogue reflecting family wishes:
+// - Amaranthauflauf, Selbstgemachte Pizza, Aufbackpizza, Älplermacaronen, Pasta diverse,
+//   Cinque Pi, Carbonara, Pasta mit Pesto, Ofenguck, Flammkuchen, Kartoffelgratin, Kartoffelstock,
+//   Mini Crêpes, Fajitas, Burger, Kürbissuppe, Café Complet, Wähen diverse (Käse & Birnen),
+//   Lasagne, Spaghetti Bolognese, Linsen-Bolognese, Gnocchi mit Salbeibutter, One-Pot Pasta,
+//   Reis & Dahl, Cordon Bleu mit Pommes, Fischstäbchen, Thai Curry
+// - Keine Hähnchenbrust!
+// - Umfassende Berücksichtigung vegetarischer Haushaltsmitglieder mit Kennzeichnung & Alternativen!
+
 export const RAW_BASE_RECIPES: RecipeItem[] = [
-  // --- PASTA & NUDELN ---
+  // 1. AMARANTHAUFLAUF
+  {
+    id: 'rec_amaranth_auflauf',
+    title: 'Amaranth-Gemüseauflauf mit Bergkäse',
+    category: 'auflauf',
+    effort: 'medium',
+    durationMinutes: 40,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Amaranth', 'Zucchini', 'Karotten', 'Kirschtomaten', 'Eier', 'Rahm (Sahne)', 'Schweizer Bergkäse', 'Frische Kräuter'],
+    description: 'Nährstoffreicher, goldbraun überbackener Amaranth-Auflauf mit marktfrischem Gemüse und würzigem Bergkäse.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch – reich an pflanzlichen Proteinen & Mineralstoffen.'
+  },
+
+  // 2. SELBSTGEMACHTE PIZZA
+  {
+    id: 'rec_pizza_homemade',
+    title: 'Selbstgemachte Steinofen-Pizza nach Wunsch',
+    category: 'auflauf',
+    effort: 'medium',
+    durationMinutes: 35,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Hausgemachter Pizzateig', 'San-Marzano-Tomatensauce', 'Mozzarella (Fior di Latte)', 'Frisches Basilikum', 'Oregano', 'Olivenöl', 'Gemüse nach Wahl'],
+    description: 'Frischer Hefeteig, heiss und knusprig gebacken. Perfekt für die Familie: Jeder belegt seine eigene Hälfte individuell vegetarisch oder nach Belieben!',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch: Mit Mozzarella, Champignons, Peperoni, Artischocken und Rucola belegen.'
+  },
+
+  // 3. AUFBACK-PIZZA
+  {
+    id: 'rec_pizza_aufback',
+    title: 'Aufback-Pizza (Schnell & mit extra Käse verfeinert)',
+    category: 'schnell',
+    effort: 'easy',
+    durationMinutes: 15,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Aufbackpizza (Margherita oder Formaggi)', 'Extra Reibkäse / Mozzarella', 'Kirschtomaten', 'Oregano', 'Olivenöl'],
+    description: 'Wenn es blitzschnell gehen muss: Lieblings-Aufbackpizza im Ofen mit extra Käse und frischen Kräutern knusprig aufbacken.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch bei Wahl einer Margherita- oder Quattro-Formaggi-Pizza.'
+  },
+
+  // 4. ÄLPLERMACARONEN
+  {
+    id: 'rec_aelplermacaronen',
+    title: 'Schweizer Älplermacaronen mit Apfelmus',
+    category: 'klassiker',
+    effort: 'easy',
+    durationMinutes: 25,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Magronen (Hörnli)', 'Kartoffelwürfel', 'Schweizer Bergkäse / Gruyère', 'Rahm (Sahne)', 'Goldene Röstzwiebeln', 'Feines Apfelmus'],
+    description: 'Der urchige Schweizer Berghütten-Klassiker: Cremig gekochte Magronen und Kartoffeln im Alpkäse-Rahm mit Röstzwiebeln und süss-säuerlichem Apfelmus.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch – traditionell ohne Fleisch zubereitet, purer Schweizer Käsegenuss.'
+  },
+
+  // 5. PASTA CINQUE PI
+  {
+    id: 'rec_pasta_cinque_pi',
+    title: 'Penne Cinque Pi (Der Schweizer Pastahit)',
+    category: 'pasta',
+    effort: 'easy',
+    durationMinutes: 18,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Penne Rigate', 'Panna (Rahm)', 'Pomodoro (Tomatenpüree)', 'Parmigiano (Parmesan)', 'Prezzemolo (Petersilie)', 'Pepe (Schwarzer Pfeffer)', 'Prise Muskat'],
+    description: 'Der legendäre 5-Pi-Klassiker: Samtige Tomaten-Rahmsauce mit reichlich frisch geriebenem Parmesan, Petersilie und Muskatnuss.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch – herrlich cremig und ein absoluter Favorit bei Gross & Klein.'
+  },
+
+  // 6. SPAGHETTI CARBONARA
   {
     id: 'rec_pasta_carbonara',
-    title: 'Spaghetti Carbonara (Original)',
+    title: 'Spaghetti Carbonara (mit Vegi-Option)',
     category: 'pasta',
     effort: 'medium',
     durationMinutes: 20,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Spaghetti', 'Guanciale oder Pancetta', 'Eigelb', 'Pecorino Romano', 'Schwarzer Pfeffer'],
-    description: 'Der italienische Klassiker ohne Sahne, cremig gerührt mit frischem Ei und würzigem Pecorino.'
+    ingredients: ['Spaghetti', 'Frische Eigelb & Vollei', 'Pecorino Romano & Parmesan', 'Schwarzer Pfeffer aus der Mühle', 'Knuspriger Räuchertofu oder Guanciale'],
+    description: 'Italienisches Original ohne Sahne! Cremig emulgiert mit Ei und würzigem Käse. Für die vegetarische Portion wird Räuchertofu kross angebraten.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 Vegi-Option: Statt Speck knusprig in Olivenöl gewürfelter Räuchertofu verwenden – schmeckt fantastisch!'
   },
+
+  // 7. PASTA MIT PESTO
   {
-    id: 'rec_pasta_bolognese',
-    title: 'Klassische Spaghetti Bolognese',
-    category: 'pasta',
-    effort: 'medium',
-    durationMinutes: 45,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Spaghetti', 'Rinderhackfleisch', 'Zwiebeln', 'Karotten', 'Staudensellerie', 'Passierte Tomaten', 'Rotwein', 'Olivenöl'],
-    description: 'Herzhafte Fleischsauce langsam geschmort mit frischem Wurzelgemüse und italienischen Kräutern.'
-  },
-  {
-    id: 'rec_pasta_aglio_olio',
-    title: 'Spaghetti Aglio e Olio',
-    category: 'pasta',
-    effort: 'easy',
-    durationMinutes: 15,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Spaghetti', 'Knoblauch', 'Chili', 'Gutes Olivenöl', 'Petersilie', 'Parmesan'],
-    description: 'Blitzschnell in 15 Minuten zubereitet, aromatisch und herrlich pikant.'
-  },
-  {
-    id: 'rec_pasta_lasagne',
-    title: 'Hausgemachte Lasagne al Forno',
-    category: 'auflauf',
-    effort: 'hard',
-    durationMinutes: 60,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Lasagneblätter', 'Hackfleisch', 'Béchamelsauce', 'Mozzarella', 'Parmesan', 'Tomatensauce'],
-    description: 'Goldbraun überbacken im Ofen mit feinen Schichten aus Ragù und samtiger Béchamelsauce.'
-  },
-  {
-    id: 'rec_pasta_pesto_genovese',
-    title: 'Penne mit grünem Basilikumpesto',
+    id: 'rec_pasta_pesto',
+    title: 'Pasta mit Basilikumpesto & gerösteten Pinienkernen',
     category: 'pasta',
     effort: 'easy',
     durationMinutes: 12,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Penne Rigate', 'Basilikum', 'Pinienkerne', 'Parmesan', 'Olivenöl', 'Knoblauch'],
-    description: 'Frisch, nussig und aromatisch. Perfekt für das schnelle Mittagessen.'
+    ingredients: ['Pasta (Trofie oder Spaghetti)', 'Frisches Basilikumpesto', 'Pinienkerne', 'Parmesan', 'Gutes Olivenöl', 'Kirschtomaten'],
+    description: 'In 12 Minuten auf dem Tisch: Frisches Basilikum, nussige Pinienkerne und aromatischer Parmesan.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch.'
   },
+
+  // 8. OFENGUCK
   {
-    id: 'rec_pasta_arrabbiata',
-    title: 'Penne all’Arrabbiata',
-    category: 'pasta',
+    id: 'rec_schweiz_ofenguck',
+    title: 'Schweizer Ofenguck (Kartoffelstock-Auflauf mit Ei)',
+    category: 'klassiker',
+    effort: 'medium',
+    durationMinutes: 35,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Luftiger Kartoffelstock (Püree)', 'Frische Freilandeier', 'Pilz-Gemüseragout oder Bratensauce', 'Geriebener Käse', 'Schnittlauch'],
+    description: 'Schweizer Traditionsgericht: Samtiger Kartoffelstock im Ofen mit eingedrückten Mulden, in die Eier geschlagen und gratiniert werden.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch mit würzigem Champignon-Kräuter-Ragout in den Mulden.'
+  },
+
+  // 9. FLAMMKUCHEN
+  {
+    id: 'rec_ofen_flammkuchen',
+    title: 'Knuspriger Flammkuchen (Elsässer Art & Vegetarisch)',
+    category: 'auflauf',
     effort: 'easy',
     durationMinutes: 15,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Hauchdünner Flammkuchenteig', 'Crème fraîche / Schmand', 'Rote Zwiebeln', 'Lauchstreifen & Champignons oder Speck', 'Muskat', 'Pfeffer'],
+    description: 'Hauchdünn und ultra-knusprig gebacken: Die Hälfte klassisch oder komplett vegetarisch mit Lauch, Pilzen und Feta.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 Vegi-Variante: Mit zartem Lauch, dünnen Champignonscheiben und Fetakrümeln belegen.'
+  },
+
+  // 10. KARTOFFELGRATIN
+  {
+    id: 'rec_kartoffelgratin',
+    title: 'Klassisches Kartoffelgratin Dauphinois',
+    category: 'auflauf',
+    effort: 'medium',
+    durationMinutes: 50,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Festkochende Kartoffeln', 'Rahm (Sahne)', 'Milch', 'Knoblauch', 'Muskatnuss', 'Gruyère zum Überbacken'],
+    description: 'Fein gehobelte Kartoffelscheiben, samtig geschmort in Knoblauchrahm und goldgelb mit Schweizer Käse überbacken.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch.'
+  },
+
+  // 11. KARTOFFELSTOCK
+  {
+    id: 'rec_kartoffelstock',
+    title: 'Samtiger Kartoffelstock mit Buttersee & Gemüsesauce',
+    category: 'klassiker',
+    effort: 'easy',
+    durationMinutes: 25,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Penne', 'Chili', 'Knoblauch', 'Tomaten', 'Olivenöl', 'Basilikum'],
-    description: 'Feurig-scharfe Tomatensauce mit Knoblauch und frischen Peperoni.'
+    ingredients: ['Mehligkochende Kartoffeln', 'Gute Butter', 'Warme Milch', 'Frisch geriebene Muskatnuss', 'Aromatische Gemüserahmsauce'],
+    description: 'Echter Seelenwärmer: Handgestampfter, luftiger Kartoffelstock mit einem Buttersee in der Mitte und feiner Sauce.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch mit sämiger Kräuter-Gemüsesauce.'
   },
+
+  // 12. MINI CRÊPES
   {
-    id: 'rec_pasta_tortellini_schinken',
-    title: 'Tortellini in Schinken-Sahnesauce',
-    category: 'pasta',
+    id: 'rec_mini_crepes',
+    title: 'Mini Crêpes Buffet (Süss & Pikant zum Selberbelegen)',
+    category: 'schnell',
     effort: 'easy',
     durationMinutes: 20,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Frische Tortellini', 'Kochschinken', 'Sahne', 'Erbsen', 'Muskatnuss', 'Parmesan'],
-    description: 'Cremig und geliebt von der ganzen Familie, fertig in nur 20 Minuten.'
+    ingredients: ['Crêpeteig (Mehl, Eier, Milch)', 'Geriebener Käse, Spinat, Pilze (herzhaft)', 'Zimt-Zucker, Beeren, Nutella (süss)', 'Butter'],
+    description: 'Gemütliches Pfannkuchen-Essen am Tisch: Jeder backt und belegt seine Mini-Crêpes nach eigenem Geschmack.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch – riesige Auswahl an herzhaften und süssen Toppings.'
   },
+
+  // 13. FAJITAS
   {
-    id: 'rec_pasta_gnocchi_salbei',
-    title: 'Gnocchi in Salbeibutter',
-    category: 'vegetarisch',
+    id: 'rec_fajitas_fiesta',
+    title: 'Fajita-Abend mit Guacamole, Paprika & Vegi-Option',
+    category: 'schnell',
+    effort: 'easy',
+    durationMinutes: 25,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Weizentortillas', 'Bunte Paprika & Zwiebeln', 'Rindfleischstreifen oder Marinierter Tofu/Bohnen', 'Frische Guacamole', 'Salsa', 'Sauerrahm', 'Cheddar'],
+    description: 'Brutzelnde Pfanne mit Paprikastreifen und mexikanischen Gewürzen. Am Tisch rollt sich jeder seinen Lieblings-Wrap.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 Perfekt für Vegetarier: Eine separate Pfanne mit Tofustreifen, schwarzen Bohnen und Mais servieren!'
+  },
+
+  // 14. BURGER
+  {
+    id: 'rec_homemade_burger',
+    title: 'Gourmet Burger mit Pommes (Beef & Veggie-Patty)',
+    category: 'schnell',
+    effort: 'medium',
+    durationMinutes: 25,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Brioche Buns', 'Rinderhack-Patty oder Veggie/Halloumi-Patty', 'Cheddarkäse', 'Gewürzgurken', 'Tomate & Salat', 'Burgersauce', 'Pommes Frites'],
+    description: 'Saftiger Burger im gebutterten Brioche-Brötchen mit geschmolzenem Cheddar, frischen Zutaten und knusprigen Pommes.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 Vegi-Option: Knuspriges Veggie-Patty oder goldbraun gegrillter Halloumi-Käse.'
+  },
+
+  // 15. KÜRBISSUPPE
+  {
+    id: 'rec_kuerbissuppe',
+    title: 'Cremige Kürbis-Ingwer-Suppe mit gerösteten Kernen',
+    category: 'suppe',
+    effort: 'easy',
+    durationMinutes: 25,
+    requiresBaking: false,
+    cookingMethod: 'one-pot',
+    ingredients: ['Hokkaido-Kürbis', 'Kokosmilch', 'Frischer Ingwer', 'Gemüsebrühe', 'Kürbiskernöl', 'Geröstete Kürbiskerne', 'Knuspriges Baguette'],
+    description: 'Samtig pürierte, wärmende Kürbissuppe mit feiner Ingwernote und nussigem Kernöl.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch & Vegan.'
+  },
+
+  // 16. CAFÉ COMPLET
+  {
+    id: 'rec_cafe_complet',
+    title: 'Café Complet (Schweizer Brot-, Käse- & Znacht-Platte)',
+    category: 'klassiker',
+    effort: 'easy',
+    durationMinutes: 10,
+    requiresBaking: false,
+    cookingMethod: 'kalt',
+    ingredients: ['Frisches Holzofenbrot & Zopf', 'Schweizer Käseauswahl (Gruyère, Appenzeller, Tilsiter)', 'Gute Butter', 'Essiggurken & Silberzwiebeln', 'Tomaten & Gurkenscheiben', 'Confiture / Honig', 'Tee oder Kaffee'],
+    description: 'Das gemütlichste Schweizer Wohlfühl-Znacht: Frisches Knusperbrot, feine Käseauswahl, Butter und Beilagen – herrlich unkompliziert.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch – ideal für den ganzen Haushalt.'
+  },
+
+  // 17. WÄHEN DIVERSE (KÄSE & BIRNEN)
+  {
+    id: 'rec_waehen_diverse',
+    title: 'Schweizer Wähen (Würzige Käsewähe / Süsse Birnenwähe)',
+    category: 'klassiker',
+    effort: 'medium',
+    durationMinutes: 40,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Wähenteig / Mürbeteig', 'Käseguss: Geriebener Gruyère, Zwiebeln, Eier, Rahm', 'Birnenguss: Reife Birnen, Mandelblättchen, Zimt', 'Muskatnuss'],
+    description: 'Traditioneller Schweizer Blechkuchen: Herzhaft-würzige Käsewähe zum Hauptgang oder fruchtig-süsse Birnenwähe mit Mandelblättchen.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch.'
+  },
+
+  // 18. HAUSGEMACHTE LASAGNE
+  {
+    id: 'rec_lasagne_homemade',
+    title: 'Hausgemachte Lasagne al Forno (mit Vegi-Gemüseragù)',
+    category: 'auflauf',
+    effort: 'hard',
+    durationMinutes: 55,
+    requiresBaking: true,
+    cookingMethod: 'backofen',
+    ingredients: ['Lasagneblätter', 'Bolognese-Ragù oder Linsen-Gemüseragù', 'Samtige Béchamelsauce', 'Mozzarella', 'Parmesan', 'Frisches Basilikum'],
+    description: 'Köstlich geschichtete Nudelblätter mit reichhaltiger Sauce, cremiger Béchamel und zartschmelzendem Mozzarella überbacken.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 Vegi-Variante: Mit aromatischem Linsen-Karotten-Sugo oder Spinat-Ricotta geschichtet.'
+  },
+
+  // 19. SPAGHETTI BOLOGNESE
+  {
+    id: 'rec_spaghetti_bolognese',
+    title: 'Klassische Spaghetti Bolognese',
+    category: 'pasta',
+    effort: 'medium',
+    durationMinutes: 40,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Spaghetti', 'Rinderhackfleisch', 'Karotten & Staudensellerie', 'Zwiebeln & Knoblauch', 'Passierte Tomaten', 'Rotwein oder Gemüsebrühe', 'Parmesan'],
+    description: 'Herzhafte Fleischsauce langsam geschmort mit frischem Wurzelgemüse und italienischen Kräutern.',
+    isVegetarian: false,
+    vegetarianOption: '💡 Tipp: Für das vegetarische Haushaltsmitglied parallel die Linsen-Bolognese servieren.'
+  },
+
+  // 20. LINSEN-BOLOGNESE
+  {
+    id: 'rec_linsen_bolognese',
+    title: 'Aromatische Linsen-Bolognese mit Spaghetti',
+    category: 'pasta',
+    effort: 'easy',
+    durationMinutes: 30,
+    requiresBaking: false,
+    cookingMethod: 'herd',
+    ingredients: ['Spaghetti', 'Braune oder Rote Linsen', 'Karotten & Staudensellerie', 'Zwiebeln & Knoblauch', 'Gehackte Tomaten', 'Kräuter der Provence', 'Parmesan'],
+    description: 'Herzhaft, sämig und proteinreich: Eine vollwertige pflanzliche Bolognese, die der klassischen Variante in nichts nachsteht.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch & Vegan.'
+  },
+
+  // 21. GNOCCHI MIT SALBEIBUTTER
+  {
+    id: 'rec_gnocchi_salbeibutter',
+    title: 'Gnocchi in nussiger Salbeibutter & Parmesan',
+    category: 'pasta',
     effort: 'easy',
     durationMinutes: 15,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Kartoffel-Gnocchi', 'Frischer Salbei', 'Butter', 'Parmesan', 'Meersalz'],
-    description: 'Knusprig geschwenkte Kartoffelgnocchi in nussiger gebräunter Salbeibutter.'
+    ingredients: ['Kartoffel-Gnocchi', 'Frische Salbeiblätter', 'Gute Butter (gebräunt)', 'Gehobelter Parmesan', 'Meersalzflocken', 'Kirschtomaten'],
+    description: 'Zarte Kartoffelgnocchi kross geschwenkt in schäumender, nussiger Salbeibutter und mit Parmesan bestreut.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch.'
   },
+
+  // 22. ONE-POT PASTA
   {
-    id: 'rec_pasta_one_pot',
-    title: 'One-Pot Pasta Primavera',
+    id: 'rec_one_pot_pasta',
+    title: 'Bunte One-Pot Pasta mit Kirschtomaten & Frischkäse',
     category: 'schnell',
     effort: 'easy',
     durationMinutes: 18,
     requiresBaking: false,
     cookingMethod: 'one-pot',
-    ingredients: ['Spaghetti', 'Kirschtomaten', 'Zucchini', 'Paprika', 'Frischkäse', 'Gemüsebrühe'],
-    description: 'Alles in einem einzigen Topf gegart – minimaler Abwasch, maximaler Geschmack.'
+    ingredients: ['Pasta (Penne oder Fussili)', 'Kirschtomaten', 'Zucchini', 'Babyspinat', 'Frischkäse / Mascarpone', 'Gemüsebrühe', 'Knoblauch'],
+    description: 'Alles in einem einzigen Topf gegart: Cremige Pasta mit marktfrischem Gemüse und minimalem Abwasch.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch.'
   },
 
-  // --- SCHWEIZER & DEUTSCHE KLASSIKER ---
+  // 23. REIS UND DAHL
   {
-    id: 'rec_schweiz_aelpler',
-    title: 'Schweizer Älplermagronen mit Apfelmus',
-    category: 'klassiker',
-    effort: 'medium',
-    durationMinutes: 30,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Magronen (Hörnli)', 'Kartoffeln', 'Bergkäse / Gruyère', 'Rahm (Sahne)', 'Röstzwiebeln', 'Apfelmus'],
-    description: 'Urchiger Berghütten-Klassiker mit zartschmelzendem Alpkäse und süß-saurem Apfelmus.'
-  },
-  {
-    id: 'rec_schweiz_roesti_spiegelei',
-    title: 'Goldene Berner Rösti mit Spiegelei & Speck',
-    category: 'klassiker',
-    effort: 'medium',
-    durationMinutes: 35,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Gschwellti Kartoffeln', 'Butter / Bratbutter', 'Speckwürfel', 'Freilandeier', 'Schnittlauch'],
-    description: 'Aussen herrlich knusprig, innen saftig mit goldgelbem Spiegelei serviert.'
-  },
-  {
-    id: 'rec_schweiz_geschnetzeltes',
-    title: 'Zürcher Geschnetzeltes mit Rösti',
-    category: 'fleisch',
-    effort: 'hard',
-    durationMinutes: 40,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Kalbfleisch geschnetzelt', 'Champignons', 'Schalotten', 'Weisswein', 'Rahm', 'Zitronenabrieb'],
-    description: 'Feines Kalbfleisch in cremiger Champignon-Rahmsauce, traditionell mit knuspriger Rösti.'
-  },
-  {
-    id: 'rec_schweiz_capuns',
-    title: 'Bündner Capuns in Rahmsauce',
-    category: 'klassiker',
-    effort: 'hard',
-    durationMinutes: 50,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Mangoldblätter', 'Spätzleteig', 'Bündnerfleisch', 'Landjäger', 'Milchwasser', 'Bergkäse'],
-    description: 'In Mangold gewickelte Köstlichkeit aus Graubünden, pochiert in herzhafter Brühe mit Alpkäse.'
-  },
-  {
-    id: 'rec_spaetzle_kaese',
-    title: 'Allgäuer Kässpätzle mit Schmelzzwiebeln',
-    category: 'klassiker',
-    effort: 'medium',
-    durationMinutes: 30,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Spätzlemehl', 'Eier', 'Bergkäse', 'Emmentaler', 'Zwiebeln', 'Butter'],
-    description: 'Frisch geschabte Spätzle mit reichlich Fäden ziehendem Käse und karamellisierten Zwiebeln.'
-  },
-  {
-    id: 'rec_currywurst_pommes',
-    title: 'Currywurst mit hausgemachter Spezialsauce & Pommes',
-    category: 'schnell',
-    effort: 'easy',
-    durationMinutes: 25,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Bratwürste', 'Currypulver', 'Tomatenketchup', 'Pflaumenmus', 'Pommes frites'],
-    description: 'Kult-Essen für den gemütlichen Feierabend mit aromatischer fruchtiger Currysauce.'
-  },
-
-  // --- FLEISCH & GEFLÜGEL ---
-  {
-    id: 'rec_fleisch_schnitzel_wien',
-    title: 'Wiener Schnitzel mit Kartoffelsalat',
-    category: 'fleisch',
-    effort: 'medium',
-    durationMinutes: 35,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Kalbfleisch oder Schweineschnitzel', 'Semmelbrösel', 'Eier', 'Mehl', 'Butterschmalz', 'Zitrone'],
-    description: 'Klassisch soufflierend herausgebacken in Butterschmalz mit goldener Knusperpanade.'
-  },
-  {
-    id: 'rec_fleisch_chicken_curry',
-    title: 'Cremiges Butter Chicken mit Basmatireis',
-    category: 'fleisch',
-    effort: 'medium',
-    durationMinutes: 35,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Hähnchenbrust', 'Tomatenpassata', 'Kokosmilch oder Sahne', 'Garam Masala', 'Ingwer', 'Knoblauch', 'Basmatireis'],
-    description: 'Zart mariniertes Hühnchen in einer aromatisch-samtigen indischen Currysauce.'
-  },
-  {
-    id: 'rec_fleisch_burger_homemade',
-    title: 'Gourmet Cheeseburger mit Süsskartoffel-Pommes',
-    category: 'fleisch',
-    effort: 'medium',
-    durationMinutes: 30,
-    requiresBaking: true,
-    cookingMethod: 'herd',
-    ingredients: ['Rinderhackfleisch', 'Brioche-Buns', 'Cheddarkäse', 'Gewürzgurken', 'Tomate', 'Rote Zwiebel', 'Burgersauce'],
-    description: 'Saftiges Patty scharf angebraten mit geschmolzenem Cheddar im weichen Brioche-Brötchen.'
-  },
-  {
-    id: 'rec_fleisch_chili_con_carne',
-    title: 'Feuriges Chili con Carne mit Sauerrahm',
-    category: 'fleisch',
-    effort: 'medium',
-    durationMinutes: 45,
-    requiresBaking: false,
-    cookingMethod: 'one-pot',
-    ingredients: ['Rinderhackfleisch', 'Kidneybohnen', 'Mais', 'Gehackte Tomaten', 'Chili', 'Kreuzkümmel', 'Zartbitterschokolade'],
-    description: 'Kräftig eingekochter Eintopf mit Mais, Bohnen und einem Stück dunkler Schokolade als Geheimzutat.'
-  },
-  {
-    id: 'rec_fleisch_chicken_fajitas',
-    title: 'Mexikanische Chicken Fajitas mit Guacamole',
-    category: 'fleisch',
-    effort: 'medium',
-    durationMinutes: 25,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Hähnchenbruststreifen', 'Bunte Paprika', 'Zwiebeln', 'Weizentortillas', 'Avocado', 'Limette'],
-    description: 'Bunt gebratenes Geflügel mit Paprikastreifen, warm serviert im weichen Tortilla-Wrap.'
-  },
-  {
-    id: 'rec_fleisch_hackbraten',
-    title: 'Klassischer Hackbraten mit Kartoffelstock',
-    category: 'auflauf',
-    effort: 'medium',
-    durationMinutes: 50,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Gemischtes Hackfleisch', 'Altes Brötchen', 'Zwiebel', 'Ei', 'Senf', 'Kartoffeln', 'Milch'],
-    description: 'Saftig im Ofen gebacken mit würziger Kruste und samtigem Kartoffelpüree.'
-  },
-
-  // --- VEGETARISCH & VEGAN ---
-  {
-    id: 'rec_veg_shakshuka',
-    title: 'Würzige Shakshuka mit Feta & Fladenbrot',
+    id: 'rec_reis_und_dahl',
+    title: 'Indisches Rotes Linsen-Dal mit Basmatireis & Naan',
     category: 'vegetarisch',
-    effort: 'easy',
-    durationMinutes: 25,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Eier', 'Tomaten', 'Rote Paprika', 'Kreuzkümmel', 'Fetakäse', 'Koriander / Petersilie', 'Fladenbrot'],
-    description: 'Orientalische Pfanne mit pochierten Eiern in pikant eingekochter Tomaten-Paprika-Sauce.'
-  },
-  {
-    id: 'rec_veg_linsen_dahl',
-    title: 'Rotes Linsen-Dal mit Kokosmilch & Naan',
-    category: 'vegan',
     effort: 'easy',
     durationMinutes: 25,
     requiresBaking: false,
     cookingMethod: 'one-pot',
-    ingredients: ['Rote Linsen', 'Kokosmilch', 'Kurkuma', 'Kreuzkümmel', 'Ingwer', 'Knoblauch', 'Spinat'],
-    description: 'Wohltuendes, cremiges indisches Linsengericht mit wärmenden Gewürzen und frischem Spinat.'
+    ingredients: ['Rote Linsen', 'Duftender Basmatireis', 'Kokosmilch', 'Kurkuma, Kreuzkümmel & Garam Masala', 'Ingwer & Knoblauch', 'Frischer Spinat', 'Warmes Naanbrot'],
+    description: 'Wohltuend und cremig: Indisches Linsengericht mit wärmenden Gewürzen, frischem Spinat und feinem Duftreis.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch & Vegan.'
   },
+
+  // 24. CORDON BLEU MIT POMMES
   {
-    id: 'rec_veg_gemuese_curry',
-    title: 'Buntes Thai-Gemüse-Curry mit Tofu',
-    category: 'vegan',
-    effort: 'easy',
-    durationMinutes: 20,
-    requiresBaking: false,
-    cookingMethod: 'one-pot',
-    ingredients: ['Tofu', 'Brokkoli', 'Karotten', 'Zuckerschoten', 'Rote Currypaste', 'Kokosmilch', 'Duftreis'],
-    description: 'Knackiges Gemüse und krosser Tofu in cremiger Kokos-Curry-Sauce.'
-  },
-  {
-    id: 'rec_veg_falafel_bowl',
-    title: 'Mediterrane Falafel-Bowl mit Hummus & Couscous',
-    category: 'vegetarisch',
+    id: 'rec_cordon_bleu',
+    title: 'Knuspriges Cordon Bleu mit Pommes & Zitrone',
+    category: 'fleisch',
     effort: 'medium',
-    durationMinutes: 25,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Kichererbsen-Falafel', 'Couscous', 'Hummus', 'Gurke', 'Tomate', 'Granatapfelkerne', 'Tahini-Dressing'],
-    description: 'Farbenfrohe Power-Bowl mit warmen Falafel-Bällchen, cremigem Hummus und frischem Gemüse.'
-  },
-  {
-    id: 'rec_veg_kuerbis_risotto',
-    title: 'Cremiges Kürbis-Risotto mit gerösteten Kernen',
-    category: 'vegetarisch',
-    effort: 'medium',
-    durationMinutes: 35,
+    durationMinutes: 30,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Risottoreis (Carnaroli)', 'Hokkaido-Kürbis', 'Gemüsebrühe', 'Weisswein', 'Parmesan', 'Kürbiskerne'],
-    description: 'Samtig gerührtes Risotto mit feiner Kürbisnote und gerösteten knackigen Kernen.'
+    ingredients: ['Schnitzel (oder Sellerie/Aubergine für Vegi)', 'Schweizer Bergkäse (Appenzeller/Gruyère)', 'Schinken (oder Räuchertofu/Pilze)', 'Knusperpanade', 'Pommes Frites', 'Zitronenspalten'],
+    description: 'Goldbraun herausgebackenes Cordon Bleu mit zartschmelzendem Käsekern und heissen Pommes Frites.',
+    isVegetarian: false,
+    vegetarianOption: '🌱 Vegi-Alternative: Köstliches Sellerie- oder Auberginen-Cordon-Bleu mit zartschmelzendem Alpkäse.'
   },
 
-  // --- AUFLÄUFE & OFENGERICHTE ---
+  // 25. FISCHSTÄBCHEN
   {
-    id: 'rec_ofen_kartoffelgratin',
-    title: 'Klassisches Kartoffelgratin Dauphinois',
-    category: 'auflauf',
-    effort: 'medium',
-    durationMinutes: 55,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Festkochende Kartoffeln', 'Sahne', 'Milch', 'Knoblauch', 'Muskatnuss', 'Gruyère'],
-    description: 'Hauchdünn gehobelte Kartoffelscheiben, zart geschmort in Knoblauchrahm und gratiniert.'
-  },
-  {
-    id: 'rec_ofen_pizza_margherita',
-    title: 'Knusprige Steinofen-Pizza Margherita',
-    category: 'auflauf',
-    effort: 'medium',
-    durationMinutes: 25,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Pizzateig', 'San-Marzano-Tomaten', 'Fior di Latte Mozzarella', 'Frisches Basilikum', 'Olivenöl'],
-    description: 'Heiß und knusprig direkt vom Blech mit aromatischem Mozzarella und Basilikum.'
-  },
-  {
-    id: 'rec_ofen_quiche_lorraine',
-    title: 'Französische Quiche Lorraine mit Lauch & Speck',
-    category: 'auflauf',
-    effort: 'medium',
-    durationMinutes: 45,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Mürbeteig', 'Räucherspeck', 'Lauch', 'Eier', 'Crème fraîche', 'Gruyère'],
-    description: 'Herzhafter Kuchen aus Lothringen, warm oder kalt ein Hochgenuss für die ganze Familie.'
-  },
-  {
-    id: 'rec_ofen_ofengemuese_feta',
-    title: 'Griechisches Ofengemüse mit gebackenem Feta',
-    category: 'vegetarisch',
-    effort: 'easy',
-    durationMinutes: 30,
-    requiresBaking: true,
-    cookingMethod: 'backofen',
-    ingredients: ['Fetakäse', 'Zucchini', 'Paprika', 'Rote Zwiebeln', 'Kirschtomaten', 'Oregano', 'Olivenöl'],
-    description: 'Auf dem Blech geröstetes buntes Gemüse mit karamellisiertem warmem Fetakäse.'
-  },
-
-  // --- FISCH & MEERESFRÜCHTE ---
-  {
-    id: 'rec_fisch_lachs_teriyaki',
-    title: 'Lachsfilet in Teriyaki-Glasur mit Brokkoli & Reis',
+    id: 'rec_fischstaebchen',
+    title: 'Goldene Fischstäbchen mit Kartoffelstock & Erbsen',
     category: 'fisch',
     effort: 'easy',
     durationMinutes: 20,
     requiresBaking: false,
     cookingMethod: 'herd',
-    ingredients: ['Lachsfilet', 'Sojasauce', 'Honig', 'Ingwer', 'Knoblauch', 'Brokkoli', 'Sesam', 'Jasminreis'],
-    description: 'Glasierter zarter Lachs mit süß-würziger Teriyakisauce und gedämpftem grünem Brokkoli.'
-  },
-  {
-    id: 'rec_fisch_forelle_muellerin',
-    title: 'Forelle nach Müllerin Art mit Petersilienkartoffeln',
-    category: 'fisch',
-    effort: 'medium',
-    durationMinutes: 25,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Frische Forelle', 'Mehl', 'Mandelblättchen', 'Butter', 'Zitrone', 'Kartoffeln'],
-    description: 'Klassisch in Butter gebratene Forelle mit gerösteten Mandelblättchen und Zitronensaft.'
-  },
-  {
-    id: 'rec_fisch_garnelen_nudeln',
-    title: 'Tagliatelle mit Riesengarnelen in Knoblauch-Tomatensauce',
-    category: 'fisch',
-    effort: 'medium',
-    durationMinutes: 20,
-    requiresBaking: false,
-    cookingMethod: 'herd',
-    ingredients: ['Tagliatelle', 'Riesengarnelen', 'Kirschtomaten', 'Knoblauch', 'Weisswein', 'Petersilie'],
-    description: 'Mediterraner Pastateller mit knackig angebratenen Garnelen und frischen Kräutern.'
+    ingredients: ['Knusprige Fischstäbchen', 'Kartoffelstock (Püree)', 'Buttererbsen oder Rahmspinat', 'Zitronenspalten', 'Remoulade'],
+    description: 'Der beliebte Familien-Klassiker: Goldgelbe Knusper-Fischstäbchen mit cremigem Kartoffelpüree und zarten Erbsen.',
+    isVegetarian: false,
+    vegetarianOption: '🌱 Vegi-Option: Für Vegetarier vegane Knusperstäbchen oder Grillkäse parallel braten.'
   },
 
-  // --- SUPPEN & EINTÖPFE ---
+  // 26. THAI CURRY
   {
-    id: 'rec_suppe_kuerbis',
-    title: 'Cremige Kürbis-Kokossuppe mit Ingwer',
-    category: 'suppe',
+    id: 'rec_thai_curry',
+    title: 'Cremiges Thai-Gemüse-Curry mit Kokosmilch & Duftreis',
+    category: 'vegetarisch',
     effort: 'easy',
-    durationMinutes: 25,
+    durationMinutes: 22,
     requiresBaking: false,
     cookingMethod: 'one-pot',
-    ingredients: ['Hokkaido-Kürbis', 'Kokosmilch', 'Ingwer', 'Gemüsebrühe', 'Kürbiskernöl', 'Baguette'],
-    description: 'Wärmende Suppe mit samtiger Textur, leichter Ingwerschärfe und nussigem Kernöl.'
-  },
-  {
-    id: 'rec_suppe_kartoffel',
-    title: 'Deftige Kartoffelsuppe mit Wiener Würstchen',
-    category: 'suppe',
-    effort: 'easy',
-    durationMinutes: 30,
-    requiresBaking: false,
-    cookingMethod: 'one-pot',
-    ingredients: ['Kartoffeln', 'Möhren', 'Lauch', 'Sellerie', 'Wiener Würstchen', 'Majoran'],
-    description: 'Der wärmende Seelenwärmer für kühle Tage, cremig püriert mit Würstchenscheiben.'
-  },
-  {
-    id: 'rec_suppe_minestrone',
-    title: 'Italienische Minestrone mit Parmesanrinde',
-    category: 'suppe',
-    effort: 'medium',
-    durationMinutes: 35,
-    requiresBaking: false,
-    cookingMethod: 'one-pot',
-    ingredients: ['Bohnen', 'Wirsing oder Grünkohl', 'Karotten', 'Zucchini', 'Nudeln', 'Parmesan'],
-    description: 'Kräftige toskanische Gemüsesuppe mit Hülsenfrüchten, Pasta und Parmesan.'
+    ingredients: ['Knackiges Wokgemüse (Brokkoli, Karotten, Zuckerschoten)', 'Rote Thai-Currypaste', 'Kokosmilch', 'Knusper-Tofu oder Kichererbsen', 'Kaffir-Limettenblätter', 'Jasmin-Duftreis'],
+    description: 'Aromatisch, bunt und sämig eingekocht in Kokosmilch – mit nussigem Tofu und duftendem Reis.',
+    isVegetarian: true,
+    vegetarianOption: '🌱 100% Vegetarisch & Vegan.'
   }
 ];
 
-// Helper to systematically expand recipes to reach 500+ diverse, realistic meals
+// Variation generator (strictly NO chicken breast!)
+// Focuses heavily on vegetarian proteins and options for diverse meal planning:
 const PROTEIN_OPTIONS = [
-  { name: 'Hähnchenbrust', cat: 'fleisch', time: 20, eff: 'easy' as const, bake: false },
-  { name: 'Rindfleischstreifen', cat: 'fleisch', time: 25, eff: 'medium' as const, bake: false },
-  { name: 'Schweinefilet', cat: 'fleisch', time: 30, eff: 'medium' as const, bake: false },
-  { name: 'Knusper-Tofu', cat: 'vegan', time: 20, eff: 'easy' as const, bake: false },
-  { name: 'Lachsfilet', cat: 'fisch', time: 20, eff: 'easy' as const, bake: false },
-  { name: 'Garnelen', cat: 'fisch', time: 15, eff: 'easy' as const, bake: false },
-  { name: 'Halloumi / Grillkäse', cat: 'vegetarisch', time: 15, eff: 'easy' as const, bake: false },
-  { name: 'Kichererbsen', cat: 'vegan', time: 15, eff: 'easy' as const, bake: false },
-  { name: 'Rinderhackfleisch', cat: 'fleisch', time: 25, eff: 'easy' as const, bake: false },
-  { name: 'Bratwurst', cat: 'fleisch', time: 20, eff: 'easy' as const, bake: false }
+  { name: 'Knusper-Tofu', cat: 'vegan', time: 20, eff: 'easy' as const, isVeg: true, note: '🌱 100% Pflanzlich & proteinreich' },
+  { name: 'Schweizer Bergkäse / Halloumi', cat: 'vegetarisch', time: 15, eff: 'easy' as const, isVeg: true, note: '🌱 Vegetarisch' },
+  { name: 'Rote Linsen & Kichererbsen', cat: 'vegan', time: 20, eff: 'easy' as const, isVeg: true, note: '🌱 100% Vegan & ballaststoffreich' },
+  { name: 'Frische Champignons & Waldpilze', cat: 'vegetarisch', time: 15, eff: 'easy' as const, isVeg: true, note: '🌱 Vegetarisch' },
+  { name: 'Lachsfilet', cat: 'fisch', time: 20, eff: 'easy' as const, isVeg: false, note: '🐟 Fisch (Für Vegi: Tofu oder Grillkäse)' },
+  { name: 'Riesengarnelen', cat: 'fisch', time: 15, eff: 'easy' as const, isVeg: false, note: '🐟 Meeresfrüchte' },
+  { name: 'Rindfleischstreifen', cat: 'fleisch', time: 25, eff: 'medium' as const, isVeg: false, note: '🥩 Fleisch (Für Vegi: Marinierter Tofu)' },
+  { name: 'Rinderhackfleisch', cat: 'fleisch', time: 25, eff: 'easy' as const, isVeg: false, note: '🥩 Fleisch (Für Vegi: Linsenhack)' }
 ];
 
 const PREPARATION_STYLES = [
   { style: 'in cremiger Champignonrahmsauce', method: 'herd' as const, timeMod: 5, bake: false },
   { style: 'in würziger Tomaten-Basilikum-Sauce', method: 'herd' as const, timeMod: 0, bake: false },
-  { style: 'überbacken mit Mozzarella & Kräutern', method: 'backofen' as const, timeMod: 15, bake: true },
-  { style: 'aus der Wok-Pfanne mit knackigem Gemüse', method: 'herd' as const, timeMod: 0, bake: false },
-  { style: 'im Kokos-Curry mit Limettenblättern', method: 'one-pot' as const, timeMod: 5, bake: false },
-  { style: 'mit Kräuterbutter aus der Grillpfanne', method: 'herd' as const, timeMod: 0, bake: false },
+  { style: 'überbacken mit Schweizer Bergkäse', method: 'backofen' as const, timeMod: 15, bake: true },
+  { style: 'aus der Wok-Pfanne mit buntem Gemüse', method: 'herd' as const, timeMod: 0, bake: false },
+  { style: 'im Kokos-Curry mit Koriander & Limette', method: 'one-pot' as const, timeMod: 5, bake: false },
+  { style: 'mit gebräunter Kräuterbutter', method: 'herd' as const, timeMod: 0, bake: false },
   { style: 'mit knuspriger Knoblauchkruste aus dem Ofen', method: 'backofen' as const, timeMod: 10, bake: true },
-  { style: 'in pikanter Erdnusssauce', method: 'herd' as const, timeMod: 0, bake: false },
-  { style: 'mit Honig-Senf-Glasur', method: 'backofen' as const, timeMod: 10, bake: true },
-  { style: 'mit mediterranem Ofengemüse', method: 'backofen' as const, timeMod: 15, bake: true }
+  { style: 'in pikanter Erdnuss-Kokos-Sauce', method: 'herd' as const, timeMod: 0, bake: false },
+  { style: 'auf buntem Ofengemüse', method: 'backofen' as const, timeMod: 15, bake: true }
 ];
 
 const SIDES = [
   'Basmatireis',
   'Kartoffelstock (Püree)',
-  'Bandnudeln',
+  'Pasta / Bandnudeln',
   'Röstkartoffeln',
-  'Bratkartoffeln',
-  'Couscous mit Minze',
-  'Spätzle',
+  'Älpler Magronen',
+  'Couscous mit Kräutern',
   'Knuspriges Baguette',
-  'Quinoa & Spinat',
-  'Bunter Blattsalat'
+  'Frischer Blattsalat'
 ];
 
-// Generate dynamic catalog to guarantee > 500 meals with full variety
+// Generate dynamic catalog ensuring 200+ structured, tailored meal ideas
 export const ALL_RECIPES: RecipeItem[] = (() => {
   const list: RecipeItem[] = [...RAW_BASE_RECIPES];
   const seenTitles = new Set(RAW_BASE_RECIPES.map(r => r.title.toLowerCase()));
@@ -465,9 +449,9 @@ export const ALL_RECIPES: RecipeItem[] = (() => {
         const title = `${protein.name} ${prep.style} dazu ${side}`;
         if (!seenTitles.has(title.toLowerCase())) {
           seenTitles.add(title.toLowerCase());
-          const totalDuration = Math.min(60, protein.time + prep.timeMod + (prep.bake ? 10 : 0));
+          const totalDuration = Math.min(55, protein.time + prep.timeMod + (prep.bake ? 10 : 0));
           const effortLevel: 'easy' | 'medium' | 'hard' = totalDuration > 40 ? 'hard' : totalDuration > 25 ? 'medium' : 'easy';
-          
+
           list.push({
             id: `rec_gen_${idCounter++}`,
             title,
@@ -476,8 +460,10 @@ export const ALL_RECIPES: RecipeItem[] = (() => {
             durationMinutes: totalDuration,
             requiresBaking: prep.bake,
             cookingMethod: prep.method,
-            ingredients: [protein.name, side, 'Zwiebeln', 'Knoblauch', 'Gewürze', prep.bake ? 'Käse zum Überbacken' : 'Kräuter'],
-            description: `Köstlich zubereitete ${protein.name} ${prep.style}, serviert mit frischem ${side}.`
+            ingredients: [protein.name, side, 'Zwiebeln', 'Knoblauch', 'Gewürze', prep.bake ? 'Käse zum Überbacken' : 'Frische Kräuter'],
+            description: `Köstlich zubereitete ${protein.name} ${prep.style}, serviert mit ${side}.`,
+            isVegetarian: protein.isVeg,
+            vegetarianOption: protein.note
           });
         }
       }
@@ -489,13 +475,12 @@ export const ALL_RECIPES: RecipeItem[] = (() => {
 
 export const RECIPE_CATEGORIES = [
   { id: 'all', label: 'Alle Gerichte' },
-  { id: 'schnell', label: '⚡ Blitzgerichte (< 25 min)' },
+  { id: 'vegetarisch', label: '🌱 Vegetarisch / Vegan' },
+  { id: 'schnell', label: '⚡ Schnell (< 25 min)' },
   { id: 'pasta', label: '🍝 Pasta & Nudeln' },
-  { id: 'vegetarisch', label: '🥗 Vegetarisch' },
-  { id: 'vegan', label: '🌱 Vegan' },
-  { id: 'fleisch', label: '🥩 Fleisch & Geflügel' },
-  { id: 'fisch', label: '🐟 Fisch & Meeresfrüchte' },
+  { id: 'klassiker', label: '🇨🇭 Schweizer Klassiker' },
   { id: 'auflauf', label: '🥧 Aufläufe & Ofen' },
-  { id: 'suppe', label: '🍲 Suppen & Eintöpfe' },
-  { id: 'klassiker', label: '🇨🇭 Klassiker' }
+  { id: 'suppe', label: '🍲 Suppen' },
+  { id: 'fisch', label: '🐟 Fisch' },
+  { id: 'fleisch', label: '🥩 Fleisch' }
 ] as const;

@@ -228,6 +228,223 @@ class RewardAudioEngine {
       osc.stop(chimeTime + 0.75);
     });
   }
+
+  /**
+   * Ultra-cute, expressive Anime Kitten "Nyaa~" with vocal formant filter
+   */
+  playCatMeow(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Dual harmonized vocal cords (Fundamental + First Formant Harmonic)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    const gain2 = ctx.createGain();
+    const formantFilter = ctx.createBiquadFilter();
+    const masterGain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc2.type = 'triangle';
+
+    // Pitch contour for high-pitched cute anime kitten mew:
+    // Starts at 620Hz, swoops playfully up to 960Hz, then gently relaxes to 640Hz
+    osc1.frequency.setValueAtTime(620, now);
+    osc1.frequency.exponentialRampToValueAtTime(960, now + 0.14);
+    osc1.frequency.exponentialRampToValueAtTime(640, now + 0.42);
+
+    osc2.frequency.setValueAtTime(1240, now);
+    osc2.frequency.exponentialRampToValueAtTime(1920, now + 0.14);
+    osc2.frequency.exponentialRampToValueAtTime(1280, now + 0.42);
+
+    // Formant vocal tract resonance (simulates 'Nyaaa' mouth opening)
+    formantFilter.type = 'bandpass';
+    formantFilter.Q.setValueAtTime(3.8, now);
+    formantFilter.frequency.setValueAtTime(1100, now);
+    formantFilter.frequency.linearRampToValueAtTime(2200, now + 0.16);
+    formantFilter.frequency.exponentialRampToValueAtTime(950, now + 0.44);
+
+    // Dynamic volume envelope
+    gain1.gain.setValueAtTime(0.001, now);
+    gain1.gain.linearRampToValueAtTime(0.18, now + 0.06);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+
+    gain2.gain.setValueAtTime(0.001, now);
+    gain2.gain.linearRampToValueAtTime(0.09, now + 0.06);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+
+    masterGain.gain.setValueAtTime(0.9, now);
+
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+    gain1.connect(formantFilter);
+    gain2.connect(formantFilter);
+    formantFilter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.48);
+    osc2.stop(now + 0.48);
+  }
+
+  /**
+   * Joyful Kitten Chirp / Purr-Meow on pet ("Brrr-mew!")
+   */
+  playCatChirp(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Fast arpeggiated trill
+    [587.33, 739.99, 880.00, 1174.66].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const time = now + idx * 0.035;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.08, time + 0.08);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(0.12, time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.18);
+    });
+  }
+
+  /**
+   * Deep, velvety, rhythmic purr with realistic feline vibration
+   */
+  playCatPurr(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const oscSub = ctx.createOscillator();
+    const oscBody = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const mainGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    oscSub.type = 'sine';
+    oscSub.frequency.setValueAtTime(42, now);
+
+    oscBody.type = 'triangle';
+    oscBody.frequency.setValueAtTime(84, now);
+
+    // Purr rhythm tremor (24Hz)
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(24, now);
+
+    lfoGain.gain.setValueAtTime(0.6, now);
+    lfo.connect(lfoGain);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(220, now);
+
+    mainGain.gain.setValueAtTime(0.01, now);
+    mainGain.gain.linearRampToValueAtTime(0.16, now + 0.12);
+    mainGain.gain.setValueAtTime(0.16, now + 0.7);
+    mainGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+
+    oscSub.connect(filter);
+    oscBody.connect(filter);
+    filter.connect(mainGain);
+    mainGain.connect(ctx.destination);
+
+    lfo.start(now);
+    oscSub.start(now);
+    oscBody.start(now);
+
+    lfo.stop(now + 1.15);
+    oscSub.stop(now + 1.15);
+    oscBody.stop(now + 1.15);
+  }
+
+  /**
+   * Crunchy treat chewing sound with playful sparkles
+   */
+  playCatCrunch(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // 1. Crisp biting clicks
+    [0, 0.08, 0.16, 0.24].forEach((offset, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(480 - idx * 60, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(90, now + offset + 0.05);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1400, now + offset);
+      filter.Q.setValueAtTime(2, now + offset);
+
+      gain.gain.setValueAtTime(0.15, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.06);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.07);
+    });
+
+    // 2. Soft pleasant bell chime at end (Happy eating)
+    const bellOsc = ctx.createOscillator();
+    const bellGain = ctx.createGain();
+    bellOsc.type = 'sine';
+    bellOsc.frequency.setValueAtTime(1318.51, now + 0.28); // E6
+    bellGain.gain.setValueAtTime(0.08, now + 0.28);
+    bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    bellOsc.connect(bellGain);
+    bellGain.connect(ctx.destination);
+    bellOsc.start(now + 0.28);
+    bellOsc.stop(now + 0.72);
+  }
+
+  /**
+   * Sparkly soap bubbles and splashing sound
+   */
+  playCatSplash(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Multiple gentle water bubble pops (increasing pitch glissandi)
+    [0, 0.06, 0.12, 0.19, 0.27].forEach((offset, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startF = 350 + idx * 180;
+      const endF = 850 + idx * 220;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(startF, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(endF, now + offset + 0.07);
+
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.12, now + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.08);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.09);
+    });
+  }
 }
 
 export const rewardAudio = new RewardAudioEngine();

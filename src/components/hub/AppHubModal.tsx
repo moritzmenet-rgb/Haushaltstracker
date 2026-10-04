@@ -16,8 +16,8 @@ import { haptic } from '../../utils/haptics';
 interface AppHubModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentApp: 'fish_and_wish' | 'pinnwand' | 'menuplanner';
-  onSelectHubItem: (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner') => void;
+  currentApp: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'catroom';
+  onSelectHubItem: (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'catroom') => void;
 }
 
 export const AppHubModal: React.FC<AppHubModalProps> = ({
@@ -26,7 +26,7 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
   currentApp,
   onSelectHubItem
 }) => {
-  const { data, pinnwandNotes, menuWishes } = useApp();
+  const { data, pinnwandNotes, menuWishes, activeUser } = useApp();
   const householdName = data.settings?.household_name || 'Haushalt';
 
   // Handle escape key
@@ -45,8 +45,9 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
   const isFwActive = currentApp === 'fish_and_wish';
   const isPinnwandActive = currentApp === 'pinnwand';
   const isMenuActive = currentApp === 'menuplanner';
+  const isCatActive = currentApp === 'catroom';
 
-  const handleSelect = (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner') => {
+  const handleSelect = (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'catroom') => {
     haptic.medium();
     onSelectHubItem(target);
     onClose();
@@ -124,12 +125,12 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
               {householdName}
             </h2>
             <p className="text-xs sm:text-sm text-[var(--m3-on-surface-variant)] max-w-sm mx-auto mt-0.5 font-medium">
-              Wähle deinen Bereich: Aufgaben, gemeinsame Pinnwand oder Menüplanung.
+              Wähle deinen Bereich: Aufgaben, Pinnwand, Menüplanung oder dein Katzen-Zimmer.
             </p>
           </div>
 
-          {/* The Three Hub Logos / Module Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5 mb-5">
+          {/* The Four Hub Logos / Module Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5 mb-5">
             {/* 1. Fish & Wish Card */}
             <motion.button
               type="button"
@@ -223,6 +224,42 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
                 Wochen-Speisepläne, Rezepte & Mahlzeiten
               </p>
               <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Öffnen</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </motion.button>
+
+            {/* 4. Katzen-Zimmer Card */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => handleSelect('catroom')}
+              className={`relative flex flex-col items-center p-4 sm:p-5 rounded-xl border text-center transition-all cursor-pointer group shadow-xs ${
+                isCatActive
+                  ? 'bg-amber-500/15 border-amber-500 shadow-md shadow-amber-500/15 ring-2 ring-amber-500/30'
+                  : 'bg-[var(--m3-surface-container-low)] hover:bg-[var(--m3-surface-container-high)] border-[var(--m3-outline-variant)]/60'
+              }`}
+            >
+              {isCatActive ? (
+                <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                  Aktiv
+                </span>
+              ) : (
+                <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                  NEU 🐱
+                </span>
+              )}
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center font-black text-2xl mb-2.5 shadow-xs group-hover:scale-110 transition-transform">
+                <span>🐱</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-[var(--m3-on-surface)] tracking-tight">
+                Katzen-Zimmer
+              </h3>
+              <p className="text-[11px] text-[var(--m3-on-surface-variant)] mt-0.5 font-medium leading-snug">
+                Pflege, Styling, Garderobe & Besuch
+              </p>
+              <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity">
                 <span>Öffnen</span>
                 <ArrowRight className="w-3 h-3" />
               </div>

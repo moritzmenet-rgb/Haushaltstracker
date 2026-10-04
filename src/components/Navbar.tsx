@@ -30,7 +30,7 @@ import { UserBadge } from './UserBadge';
 import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 import { haptic } from '../utils/haptics';
 
-export type MainAppType = 'fish_and_wish' | 'pinnwand' | 'menuplanner';
+export type MainAppType = 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'catroom';
 export type FishAndWishTab = 'dashboard' | 'tasks' | 'abzeichen' | 'settings';
 export type PinnwandTab = 'canvas' | 'stream' | 'polls' | 'mine';
 export type MenuplannerTab = 'week' | 'ideas' | 'recipes';
@@ -214,6 +214,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           quickActionLabel: 'Wunsch / Plan',
           quickActionBg: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25',
           icon: <Utensils className="w-5 h-5" />
+        };
+      case 'catroom':
+        return {
+          title: 'Katzen-Zimmer',
+          shortTitle: 'KATZE',
+          subTitle: 'Pflege, Styling & Besuch',
+          bgClass: 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-orange-500/25',
+          accentColor: 'text-amber-500',
+          quickActionLabel: 'Kraulen',
+          quickActionBg: 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-600/25',
+          icon: <span className="text-xl">🐱</span>
         };
       case 'fish_and_wish':
       default:

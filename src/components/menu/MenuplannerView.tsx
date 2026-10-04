@@ -127,6 +127,7 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
   const [selectedEffort, setSelectedEffort] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [selectedTimeMax, setSelectedTimeMax] = useState<number>(0); // 0 = all, 20, 30, 45
   const [bakeFilter, setBakeFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [onlyVegetarian, setOnlyVegetarian] = useState<boolean>(false);
 
   // Quick Plan Modal from Recipe Library or Ideas
   const [quickAssignModal, setQuickAssignModal] = useState<{
@@ -135,20 +136,30 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
     wishTitle?: string;
   } | null>(null);
 
-  // Filtered Recipes (500+ items filtered client-side with high performance)
+  // Filtered Recipes (Tailored items filtered client-side with high performance)
   const filteredRecipes = useMemo(() => {
     return ALL_RECIPES.filter(recipe => {
+      // Vegetarian Only toggle
+      if (onlyVegetarian && !recipe.isVegetarian && recipe.category !== 'vegetarisch' && recipe.category !== 'vegan') {
+        return false;
+      }
       // Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesTitle = recipe.title.toLowerCase().includes(query);
         const matchesIng = recipe.ingredients.some(ing => ing.toLowerCase().includes(query));
-        if (!matchesTitle && !matchesIng) return false;
+        const matchesDesc = recipe.description?.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesIng && !matchesDesc) return false;
       }
       // Category
-      if (selectedCategory !== 'all' && recipe.category !== selectedCategory) {
-        if (selectedCategory === 'schnell' && recipe.durationMinutes > 25) return false;
-        else if (selectedCategory !== 'schnell') return false;
+      if (selectedCategory !== 'all') {
+        if (selectedCategory === 'vegetarisch') {
+          if (!recipe.isVegetarian && recipe.category !== 'vegetarisch' && recipe.category !== 'vegan') return false;
+        } else if (selectedCategory === 'schnell') {
+          if (recipe.durationMinutes > 25) return false;
+        } else if (recipe.category !== selectedCategory) {
+          return false;
+        }
       }
       // Effort
       if (selectedEffort !== 'all' && recipe.effort !== selectedEffort) return false;
@@ -160,7 +171,7 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
 
       return true;
     });
-  }, [searchQuery, selectedCategory, selectedEffort, selectedTimeMax, bakeFilter]);
+  }, [searchQuery, selectedCategory, selectedEffort, selectedTimeMax, bakeFilter, onlyVegetarian]);
 
   // Open modal to assign meal
   const handleOpenEditModal = (dateKey: string, dayName: string, mealType: 'lunch' | 'dinner') => {
@@ -655,7 +666,7 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
             </div>
 
             {/* Filter Rows */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
               {/* Category Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                 {RECIPE_CATEGORIES.map(cat => (
@@ -676,6 +687,24 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Vegetarian Only quick toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  setOnlyVegetarian(prev => !prev);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer border shrink-0 ${
+                  onlyVegetarian
+                    ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                    : 'bg-[var(--m3-surface)] text-[var(--m3-on-surface)] border-[var(--m3-outline-variant)] hover:bg-[var(--m3-surface-container-high)]'
+                }`}
+                title="Nur Gerichte anzeigen, die vegetarisch oder vegan sind"
+              >
+                <span>🌱</span>
+                <span>Nur Vegetarisch</span>
+              </button>
             </div>
 
             {/* Sub-Filters: Aufwand, Zubereitungszeit, Backen */}
@@ -764,6 +793,12 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
 
                   {/* Badges / Meta */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                    {recipe.isVegetarian && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-black">
+                        🌱 Vegetarisch
+                      </span>
+                    )}
+
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)] text-[10px] font-bold text-[var(--m3-on-surface)]">
                       <Clock className="w-3 h-3 text-[var(--m3-primary)]" />
                       {recipe.durationMinutes} min
@@ -783,6 +818,13 @@ export const MenuplannerView: React.FC<MenuplannerViewProps> = ({
                       {recipe.requiresBaking ? '🥧 Ofen' : '🍳 Herd'}
                     </span>
                   </div>
+
+                  {/* Vegetarian Note / Alternative for household */}
+                  {recipe.vegetarianOption && (
+                    <div className="mt-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-900 dark:text-emerald-200 font-semibold leading-relaxed">
+                      {recipe.vegetarianOption}
+                    </div>
+                  )}
 
                   {/* Ingredients Preview */}
                   <div className="mt-2.5 pt-2 border-t border-[var(--m3-outline-variant)]/50">

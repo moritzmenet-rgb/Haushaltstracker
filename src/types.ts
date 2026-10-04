@@ -168,6 +168,8 @@ export interface RecipeItem {
   ingredients: string[];
   description?: string;
   caloriesApprox?: number;
+  isVegetarian?: boolean;
+  vegetarianOption?: string; // Information & alternative for vegetarian household members
 }
 
 export interface AppNotification {

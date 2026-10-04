@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish, AppNotification } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish, AppNotification, PetState } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
@@ -197,6 +197,10 @@ interface AppContextType {
   toggleWishUpvote: (wishId: string) => Promise<boolean>;
   transferIngredientsToPinnwand: (mealTitle: string, ingredients: string[]) => Promise<boolean>;
 
+  // Pet (Katzen-Zimmer)
+  updateMemberPet: (memberId: string, pet: PetState, chipCost?: number) => Promise<void>;
+  feedOtherMemberPet: (targetMemberId: string, feederMemberId: string, feederName: string, chipCost: number) => Promise<void>;
+
   // Real-Time In-App Notifications
   notifications: AppNotification[];
   latestToastNotification: AppNotification | null;
@@ -369,6 +373,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
     saveMemberToCloud(updated).catch(console.warn);
+  }, [data.members]);
+
+  const updateMemberPet = useCallback(async (memberId: string, pet: PetState, chipCost?: number) => {
+    const member = data.members[memberId];
+    if (!member) return;
+
+    const currentPoints = member.total_points || 0;
+    const newPoints = chipCost && chipCost > 0 ? Math.max(0, currentPoints - chipCost) : currentPoints;
+    const updated: FamilyMember = {
+      ...member,
+      total_points: Math.round(newPoints * 100) / 100,
+      pet
+    };
+
+    setData(prev => {
+      const nextMembers = { ...prev.members, [memberId]: updated };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+
+    saveMemberToCloud(updated).catch(console.warn);
+  }, [data.members]);
+
+  const feedOtherMemberPet = useCallback(async (targetMemberId: string, feederMemberId: string, feederName: string, chipCost: number) => {
+    const feeder = data.members[feederMemberId];
+    const target = data.members[targetMemberId];
+    if (!feeder || !target || !target.pet) return;
+
+    // Deduct chips from feeder
+    const nextFeederPoints = Math.max(0, (feeder.total_points || 0) - chipCost);
+    const updatedFeeder: FamilyMember = {
+      ...feeder,
+      total_points: Math.round(nextFeederPoints * 100) / 100
+    };
+
+    // Update target pet hunger and feedHistory
+    const targetPet = target.pet;
+    const nextFeedHistory = [
+      ...(targetPet.feedHistory || []).slice(-9),
+      {
+        fedByMemberId: feederMemberId,
+        fedByName: feederName,
+        timestamp: new Date().toISOString()
+      }
+    ];
+
+    const updatedTargetPet: PetState = {
+      ...targetPet,
+      hunger: Math.min(100, (targetPet.hunger || 0) + 30),
+      happiness: Math.min(100, (targetPet.happiness || 0) + 15),
+      lastFedTimestamp: new Date().toISOString(),
+      feedHistory: nextFeedHistory
+    };
+
+    const updatedTarget: FamilyMember = {
+      ...target,
+      pet: updatedTargetPet
+    };
+
+    setData(prev => {
+      const nextMembers = {
+        ...prev.members,
+        [feederMemberId]: updatedFeeder,
+        [targetMemberId]: updatedTarget
+      };
+      const next = { ...prev, members: nextMembers };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+
+    Promise.all([
+      saveMemberToCloud(updatedFeeder),
+      saveMemberToCloud(updatedTarget)
+    ]).catch(console.warn);
   }, [data.members]);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
@@ -1060,6 +1139,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Full historical scan across all day-1 logs + the new log for all 30 achievements
     const scanResult = scanAndAwardHistoricalAchievements(nextDataState, activeUser.id, easterEggClickCount);
     const updatedMember = scanResult.updatedMembers[activeUser.id] || tempMember;
+
+    // Award +25 XP & Happiness to member's pet on chore completion!
+    if (updatedMember.pet) {
+      const p = updatedMember.pet;
+      const nextXp = (p.xp || 0) + 25;
+      const nextLevel = nextXp >= (p.level || 1) * 100 ? (p.level || 1) + 1 : (p.level || 1);
+      const nextHappy = Math.min(100, (p.happiness || 80) + 8);
+      updatedMember.pet = {
+        ...p,
+        xp: nextXp,
+        level: nextLevel,
+        happiness: nextHappy
+      };
+    }
 
     if (scanResult.newlyUnlockedForActiveUser.length > 0) {
       setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
@@ -2390,6 +2483,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       triggerEasterEggClick,
       updateMemberBadgeShowroom,
       updateMemberActiveBadge,
+      updateMemberPet,
+      feedOtherMemberPet,
       isWhatsNewOpen,
       openWhatsNew,
       closeWhatsNew,
