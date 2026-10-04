@@ -172,6 +172,26 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "type", "title", "message", "timestamp"]
+    },
+    "SessionLog": {
+      "title": "Session Log",
+      "description": "Admin access and login security audit log.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "member_id": { "type": "string" },
+        "member_name": { "type": "string" },
+        "ip_address": { "type": "string" },
+        "user_agent": { "type": "string" },
+        "device_type": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "action": { "type": "string" }
+      },
+      "required": ["id", "user_id", "timestamp"]
     }
   },
   "firestore": {
@@ -212,8 +232,8 @@
       "description": "Household notifications for pinned tasks and stolen trophies"
     },
     "/sessions/{sessionId}": {
-      "schema": "object",
-      "description": "User login session logs"
+      "schema": "SessionLog",
+      "description": "User login session logs and admin access audit"
     },
     "/test/{testId}": {
       "schema": "object",

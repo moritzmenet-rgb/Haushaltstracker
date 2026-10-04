@@ -30,7 +30,7 @@ interface AdminSettingsProps {
 }
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelector }) => {
-  const { data, isAdmin, firebaseUser } = useApp();
+  const { data, isAdmin, activeUser, firebaseUser, loginWithGoogle, recordSession } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('profile');
 
@@ -96,18 +96,43 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-300">
             <Lock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>
-              Du bist als <strong>Familienmitglied</strong> angemeldet. Erweiterte Haushalts-, Mitglieder- und Regeleinstellungen sind ausschließlich Administratoren vorbehalten.
+              {activeUser?.role === 'admin' ? (
+                <>
+                  Dein Profil <strong>{activeUser.name}</strong> ist als Administrator eingetragen. Zur Freischaltung der Admin-Rechte ist eine <strong>Google-Anmeldung</strong> erforderlich (wird im Hintergrund protokolliert).
+                </>
+              ) : (
+                <>
+                  Du bist als <strong>Familienmitglied</strong> angemeldet. Erweiterte Haushalts-, Mitglieder- und Regeleinstellungen sind ausschließlich Administratoren vorbehalten.
+                </>
+              )}
             </span>
           </div>
-          {onOpenProfileSelector && (
-            <button
-              type="button"
-              onClick={onOpenProfileSelector}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition shrink-0 self-start sm:self-auto cursor-pointer shadow-xs"
-            >
-              Zu Admin wechseln
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            {activeUser?.role === 'admin' ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const user = await loginWithGoogle();
+                  if (user && activeUser) {
+                    await recordSession(user, activeUser, 'admin_unlock');
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <span>Mit Google freischalten</span>
+              </button>
+            ) : (
+              onOpenProfileSelector && (
+                <button
+                  type="button"
+                  onClick={onOpenProfileSelector}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition shrink-0 self-start sm:self-auto cursor-pointer shadow-xs"
+                >
+                  Zu Admin wechseln
+                </button>
+              )
+            )}
+          </div>
         </div>
       )}
 

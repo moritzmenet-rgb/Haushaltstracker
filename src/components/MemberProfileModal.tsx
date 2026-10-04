@@ -94,17 +94,18 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   return (
     <AnimatePresence>
       <div 
-        className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          initial={{ scale: 0.92, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="w-full max-w-2xl m3-dialog overflow-hidden my-8 relative"
+          exit={{ scale: 0.92, opacity: 0, y: 20 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          className="w-full max-w-2xl m3-dialog overflow-hidden my-auto max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl relative"
         >
           {/* Enhanced Header Section with Wave Decor */}
-          <div className="relative h-48 bg-gradient-to-br from-[var(--m3-primary)] to-[var(--m3-primary-container)] overflow-hidden">
+          <div className="relative h-36 sm:h-44 bg-gradient-to-br from-[var(--m3-primary)] to-[var(--m3-primary-container)] overflow-hidden shrink-0">
             {/* Subtle Pattern Overlay */}
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
             
@@ -116,39 +117,42 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             />
 
             <button
+              type="button"
               onClick={onClose}
-              className="absolute top-6 right-6 w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-all backdrop-blur-xl border border-white/20 z-20 group"
+              className="absolute top-3 sm:top-5 right-3 sm:right-5 w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-black/20 hover:bg-black/35 text-white flex items-center justify-center transition-all backdrop-blur-xl border border-white/20 z-20 group cursor-pointer"
+              title="Schließen"
+              aria-label="Schließen"
             >
-              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
             </button>
             
-            {/* Bottom Wave/Curve to soften the "hard edge" */}
+            {/* Bottom Wave/Curve */}
             <div className="absolute bottom-0 left-0 w-full leading-none overflow-hidden translate-y-[1px]">
-              <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-[calc(100%+1.3px)] h-[60px] fill-[var(--m3-surface-container-high)]">
+              <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-[calc(100%+1.3px)] h-[45px] sm:h-[60px] fill-[var(--m3-surface-container-high)]">
                 <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C57.23,103.52,114.36,110,172,110c70.24,0,140.43-11.39,209.19-27.18Z"></path>
               </svg>
             </div>
 
-            <div className="absolute bottom-6 left-10 flex items-end gap-6 z-10">
+            <div className="absolute bottom-2.5 sm:bottom-4 left-3.5 sm:left-7 right-14 sm:right-20 flex items-end gap-3 sm:gap-5 z-10 min-w-0">
               <motion.div 
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 style={{ backgroundColor: member.avatar_color }}
-                className="w-28 h-28 rounded-[32px] border-[6px] border-[var(--m3-surface-container-high)] shadow-2xl flex items-center justify-center text-white text-4xl font-black"
+                className="w-16 h-16 sm:w-22 sm:h-22 rounded-[20px] sm:rounded-[26px] border-4 sm:border-[5px] border-[var(--m3-surface-container-high)] shadow-2xl flex items-center justify-center text-white text-2xl sm:text-3xl font-black shrink-0"
               >
                 {getInitials(member.name)}
               </motion.div>
-              <div className="pb-4">
-                <h2 className="text-3xl font-black text-white drop-shadow-sm leading-none mb-2 flex items-center gap-2.5">
-                  <span>{member.name}</span>
+              <div className="pb-1 sm:pb-2 min-w-0 flex-1">
+                <h2 className="text-xl sm:text-3xl font-black text-white drop-shadow-sm leading-tight mb-0.5 sm:mb-1 flex items-center gap-2 truncate">
+                  <span className="truncate">{member.name}</span>
                   {activeBadgeDef && (
-                    <span title={`Titel: ${activeBadgeDef.title}`} className="text-2xl drop-shadow-md">
+                    <span title={`Titel: ${activeBadgeDef.title}`} className="text-xl sm:text-2xl drop-shadow-md shrink-0">
                       {activeBadgeDef.emoji}
                     </span>
                   )}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-xl bg-white/20 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10">
+                  <span className="px-2.5 py-0.5 sm:py-1 rounded-xl bg-white/20 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10 inline-block">
                     {member.role === 'admin' ? 'Administrator' : 'Mitglied'}
                   </span>
                 </div>
@@ -156,36 +160,37 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
           </div>
 
-          <div className="p-10 space-y-10">
+          {/* Scrollable Content Body */}
+          <div className="p-4 sm:p-7 space-y-6 sm:space-y-8 overflow-y-auto flex-1">
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
-                <Coins className="w-5 h-5 text-amber-500 mb-2" />
-                <div className="text-xl font-black text-[var(--m3-on-surface)] flex items-center gap-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
+                <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 mb-1.5 sm:mb-2" />
+                <div className="text-lg sm:text-xl font-black text-[var(--m3-on-surface)] flex items-center gap-1">
                   <span>{stats?.totalPoints || 0}</span>
                   <span className="text-xs text-amber-500 font-bold">🪙</span>
                 </div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Chips (Tag 1)</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Chips (Tag 1)</div>
               </div>
-              <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
-                <Zap className="w-5 h-5 text-[var(--m3-primary)] mb-2" />
-                <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.currentCyclePoints || 0}</div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Wochenpunkte</div>
+              <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--m3-primary)] mb-1.5 sm:mb-2" />
+                <div className="text-lg sm:text-xl font-black text-[var(--m3-on-surface)]">{stats?.currentCyclePoints || 0}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Wochenpunkte</div>
               </div>
-              <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
-                <Star className="w-5 h-5 text-emerald-500 mb-2" />
-                <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.avgStars || '0.0'}</div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">∅ Sterne</div>
+              <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 mb-1.5 sm:mb-2" />
+                <div className="text-lg sm:text-xl font-black text-[var(--m3-on-surface)]">{stats?.avgStars || '0.0'}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">∅ Sterne</div>
               </div>
-              <div className="p-4 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
-                <Clock className="w-5 h-5 text-indigo-500 mb-2" />
-                <div className="text-xl font-black text-[var(--m3-on-surface)]">{stats?.totalDurationHours || '0.0'}h</div>
-                <div className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Investiert</div>
+              <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500 mb-1.5 sm:mb-2" />
+                <div className="text-lg sm:text-xl font-black text-[var(--m3-on-surface)]">{stats?.totalDurationHours || '0.0'}h</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">Investiert</div>
               </div>
             </div>
 
             {/* Showroom Badges in Profile Modal */}
-            <div className="p-5 rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs space-y-3">
+            <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)] shadow-2xs space-y-3">
               <h3 className="text-xs font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
                 <Award className="w-4 h-4 text-amber-500" />
                 Abzeichen-Showroom ({member.showroom_badges?.length || 0}/5)
@@ -198,10 +203,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                     return (
                       <div 
                         key={bId}
-                        className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] shadow-2xs"
+                        className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] shadow-2xs"
                         title={bDef.description}
                       >
-                        <span className="text-xl">{bDef.emoji}</span>
+                        <span className="text-lg sm:text-xl">{bDef.emoji}</span>
                         <span className="text-xs font-black text-[var(--m3-on-surface)]">{bDef.title}</span>
                       </div>
                     );
@@ -212,19 +217,19 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {/* Favorites & Insights */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
+              <div className="space-y-4 sm:space-y-6">
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
                   <PieChart className="w-4 h-4" />
                   Insights & Vorlieben
                 </h3>
                 
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                        <Target className="w-4 h-4 text-indigo-600" />
+                <div className="space-y-2.5 sm:space-y-3">
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                        <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
                       </div>
                       <span className="text-xs font-bold text-[var(--m3-on-surface)]">Wochenziel</span>
                     </div>
@@ -233,10 +238,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                        <Star className="w-4 h-4 text-emerald-600" />
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
                       </div>
                       <span className="text-xs font-bold text-[var(--m3-on-surface)]">Lieblingskategorie</span>
                     </div>
@@ -245,14 +250,14 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-amber-600" />
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
                       </div>
                       <span className="text-xs font-bold text-[var(--m3-on-surface)]">Häufigste Aufgabe</span>
                     </div>
-                    <span className="text-[10px] font-black text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-lg truncate max-w-[120px]">
+                    <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg truncate max-w-[120px]">
                       {stats?.favoriteTask}
                     </span>
                   </div>
@@ -260,22 +265,22 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               </div>
 
               {/* Recent Activity */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
+              <div className="space-y-4 sm:space-y-6">
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--m3-on-surface-variant)] flex items-center gap-2">
                   <History className="w-4 h-4" />
                   Letzte Aktivitäten
                 </h3>
 
                 <div className="space-y-2">
                   {stats?.recentLogs.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-[var(--m3-on-surface-variant)] font-bold italic">
+                    <div className="text-center py-6 sm:py-8 text-xs text-[var(--m3-on-surface-variant)] font-bold italic">
                       Noch keine Aktivitäten erfasst.
                     </div>
                   ) : (
                     stats?.recentLogs.map(log => {
                       const task = data.tasks[log.task_id];
                       return (
-                        <div key={log.log_id} className="p-3 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] transition-colors flex items-center justify-between gap-3">
+                        <div key={log.log_id} className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] hover:border-[var(--m3-primary)] transition-colors flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-[11px] font-black text-[var(--m3-on-surface)] truncate">
                               {task?.title || 'Gelöschte Aufgabe'}
@@ -297,10 +302,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
           </div>
 
-          <div className="p-6 bg-[var(--m3-surface-container)] border-t border-[var(--m3-outline-variant)]/60 flex items-center justify-center">
-             <div className="text-[11px] font-bold text-[var(--m3-on-surface-variant)] flex items-center gap-2">
-                <PieChart className="w-3.5 h-3.5" />
-                Detaillierte Statistiken helfen dir, deinen Beitrag zum Haushalt zu verstehen.
+          <div className="p-3.5 sm:p-4 bg-[var(--m3-surface-container)] border-t border-[var(--m3-outline-variant)]/60 flex items-center justify-center shrink-0">
+             <div className="text-[10px] sm:text-[11px] font-bold text-[var(--m3-on-surface-variant)] flex items-center gap-2 text-center">
+                <PieChart className="w-3.5 h-3.5 shrink-0" />
+                <span>Detaillierte Statistiken über erledigte Aufgaben und Punkte im Haushalt.</span>
              </div>
           </div>
         </motion.div>

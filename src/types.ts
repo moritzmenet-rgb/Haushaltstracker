@@ -80,10 +80,15 @@ export interface SessionLog {
   id: string;
   user_id: string;
   email: string;
+  displayName?: string;
+  photoURL?: string;
+  member_id?: string;
+  member_name?: string;
   ip_address: string;
   user_agent: string;
   device_type: string;
   timestamp: string;
+  action?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat';
   is_blocked?: boolean;
 }
 

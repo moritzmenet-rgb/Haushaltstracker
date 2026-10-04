@@ -165,6 +165,13 @@ service cloud.firestore {
              data.title is string;
     }
 
+    function isValidSession(data) {
+      return data.keys().hasAll(['id', 'user_id', 'timestamp']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.user_id is string && data.user_id.size() <= 128 &&
+             data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
     // -------------------------------------------------------------------------
     // SECURITY RULES (ALL COLLECTIONS & SUBCOLLECTIONS)
     // -------------------------------------------------------------------------
@@ -236,10 +243,10 @@ service cloud.firestore {
       }
     }
 
-    // Sessions Collection (Top level)
+    // Sessions Collection (Top level audit log for admin tracking)
     match /sessions/{sessionId} {
       allow read: if isAdmin() || isVerified();
-      allow create, update: if isSignedIn() || !isSignedIn();
+      allow create, update: if isValidSession(incoming()) || isSignedIn() || !isSignedIn() || isMoritz();
       allow delete: if isAdmin() || isMoritz();
     }
 

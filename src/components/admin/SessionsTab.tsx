@@ -69,6 +69,16 @@ export const SessionsTab: React.FC = () => {
                       <span className="text-sm font-black text-[var(--m3-on-surface)] truncate">
                         {session.email}
                       </span>
+                      {session.member_name && (
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 text-[10px] font-black tracking-wider border border-indigo-500/25">
+                          Admin: {session.member_name}
+                        </span>
+                      )}
+                      {session.action && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)] text-[10px] font-bold">
+                          {session.action === 'admin_login' ? '🔑 Google-Login' : session.action === 'admin_switch' ? '🔄 Admin-Wechsel' : session.action === 'admin_unlock' ? '🔓 Entsperrt' : 'Login'}
+                        </span>
+                      )}
                       {isBlocked && (
                         <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider">
                           Gesperrt

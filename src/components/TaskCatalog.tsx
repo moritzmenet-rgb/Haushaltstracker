@@ -417,20 +417,37 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                           <Check className="w-4 h-4 stroke-[3]" />
                         </motion.button>
                       </>
+                    ) : isFishedByMe ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unfishTask(task.id);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all cursor-pointer"
+                          title="Reservierung wieder aufheben"
+                        >
+                          Freigeben
+                        </button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            haptic.medium();
+                            onOpenLogModal(task.id);
+                          }}
+                          className="px-4 py-2 rounded-2xl bg-[var(--m3-primary-container)] hover:bg-[var(--m3-primary-container)]/90 text-[var(--m3-on-primary-container)] text-xs font-black transition-all shadow-xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                          title="Aufgabe jetzt direkt erledigen & Punkte sichern"
+                        >
+                          <span>Gönnen</span>
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </motion.button>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        {isFishedByMe && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              unfishTask(task.id);
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-[10px] font-black transition-all"
-                          >
-                            Freigeben
-                          </button>
-                        )}
                         <span className="text-xs font-black text-[var(--m3-outline)] italic px-2">
                           Bereits gefischt
                         </span>

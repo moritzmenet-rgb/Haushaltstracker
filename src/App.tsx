@@ -307,13 +307,19 @@ const MainContent: React.FC = () => {
       {/* Screen 1: Netflix-Style Profile Selector */}
       <ProfileSelector
         isOpen={(showProfileSelector || !activeUser) && !isCloudConnecting}
-        onClose={() => setShowProfileSelector(false)}
-        onOpenSettings={() => {
-          setCurrentApp('fish_and_wish');
-          setCurrentFishTab('settings');
-          setShowProfileSelector(false);
+        onClose={() => {
+          if (activeUser) {
+            setShowProfileSelector(false);
+          }
         }}
-        canClose={!!activeUser}
+        onOpenSettings={() => {
+          if (activeUser) {
+            setCurrentApp('fish_and_wish');
+            setCurrentFishTab('settings');
+            setShowProfileSelector(false);
+          }
+        }}
+        canClose={Boolean(activeUser)}
       />
 
       {/* Work Logging Modal */}

@@ -81,7 +81,7 @@ interface AppContextType {
   syncFeedback: SyncFeedback;
   firebaseError: string | null;
   isAuthResolving: boolean;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<User | null>;
   loginWithApple: () => Promise<void>;
   logoutFirebase: () => Promise<void>;
   uploadAllToCloud: () => Promise<void>;
@@ -123,7 +123,7 @@ interface AppContextType {
 
   // Session & Security
   sessions: SessionLog[];
-  recordSession: (user: User) => Promise<void>;
+  recordSession: (user: User, member?: FamilyMember | null, actionType?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat') => Promise<void>;
   blockUserByEmail: (email: string) => Promise<void>;
   unblockUserByEmail: (email: string) => Promise<void>;
   blockedEmails: string[];
@@ -484,14 +484,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data]);
 
   const isAdmin = useMemo(() => {
-    // Strictly determine admin rights from the currently active profile!
-    // Non-admin members (e.g. children) must NEVER have admin rights.
+    // Strictly determine admin rights:
+    // 1. Must have an active profile with role === 'admin'
     if (activeUserId && dataWithCalculatedPoints.members[activeUserId]) {
-      return dataWithCalculatedPoints.members[activeUserId].role === 'admin';
+      const member = dataWithCalculatedPoints.members[activeUserId];
+      if (member.role !== 'admin') {
+        return false;
+      }
+
+      // 2. MUST be authenticated with a real (non-anonymous) Google account (or Apple if configured)
+      const isGoogleAuth = Boolean(
+        firebaseUser &&
+        !firebaseUser.isAnonymous &&
+        (firebaseUser.providerData?.some(p => p.providerId === 'google.com' || p.providerId === 'apple.com') || (firebaseUser.email && !firebaseUser.isAnonymous))
+      );
+      return isGoogleAuth;
     }
-    // Only if the household has zero members yet and the owner is signed in, allow initial setup
+
+    // Only if the household has zero members yet and the owner is signed in with Google, allow initial setup
     const totalMembers = Object.keys(dataWithCalculatedPoints.members || {}).length;
-    if (totalMembers === 0 && firebaseUser?.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
+    if (totalMembers === 0 && firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
       return true;
     }
     return false;
@@ -536,12 +548,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return colorTheme;
   }, [activeUser?.preferred_theme, data.settings.color_theme, colorTheme]);
 
-  const recordSession = useCallback(async (user: User) => {
+  const recordSession = useCallback(async (
+    user: User, 
+    member?: FamilyMember | null, 
+    actionType: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat' = 'login'
+  ) => {
     try {
       // Small delay to ensure auth token is propagated to Firestore
       await new Promise(resolve => setTimeout(resolve, 600));
       
-      console.log('Firebase: Attempting to record session for', user.email, 'UID:', user.uid);
+      console.log('Firebase: Attempting to record session for', user.email, 'Action:', actionType, 'Member:', member?.name);
       // Get IP via public API with timeout fallback
       let ip = 'unknown';
       try {
@@ -563,15 +579,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `sess_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         user_id: user.uid,
         email: user.email || 'unknown',
+        displayName: user.displayName || member?.name || undefined,
+        photoURL: user.photoURL || undefined,
+        member_id: member?.id || undefined,
+        member_name: member?.name || undefined,
         ip_address: ip,
         user_agent: userAgent,
         device_type: deviceType,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        action: actionType
       };
 
       const sessionRef = doc(db, 'sessions', session.id);
       await setDoc(sessionRef, session);
-      console.log('Firebase: Session recorded successfully:', session.id);
+      console.log('Firebase: Session recorded successfully:', session.id, session.email, session.action);
     } catch (err) {
       console.warn('Firebase: Session record notice (non-fatal):', err);
     }
@@ -773,17 +794,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return next;
         });
 
-        // Ensure activeUserId points to a valid member
+        // Ensure activeUserId points to a valid member (NO auto-select if null!)
         setActiveUserIdState(currentId => {
           if (currentId && membersMap[currentId]) return currentId;
-          const chosen = Object.keys(membersMap)[0] || null;
-          if (chosen) {
-            localStorage.setItem(ACTIVE_USER_KEY, chosen);
-            return chosen;
-          } else {
-            localStorage.removeItem(ACTIVE_USER_KEY);
-            return null;
-          }
+          // When a new visitor opens the app for the first time, do NOT auto-assign an admin account!
+          // They MUST explicitly select their profile.
+          localStorage.removeItem(ACTIVE_USER_KEY);
+          return null;
         });
       } else {
         // Empty cloud members - do not inject fake members
@@ -1018,7 +1035,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: notes?.trim() || undefined
     };
 
-    const updatedTask = { ...task, last_done: now };
+    const updatedTask = { 
+      ...task, 
+      last_done: now,
+      fished_by: null,
+      fished_until: null
+    };
     const nextLogs = [newLog, ...data.logs];
     const newTotalPoints = nextLogs
       .filter(l => l.user_id === activeUser.id)
@@ -1480,12 +1502,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [data, persistLocal, triggerSyncFeedback]);
 
   // Auth Actions
-  const loginWithGoogle = useCallback(async () => {
+  const loginWithGoogle = useCallback(async (): Promise<User | null> => {
     try {
       setSyncStatus('connecting');
       setFirebaseError(null);
-      await signInWithPopup(auth, googleProvider);
-      console.log('Firebase: Google login process completed.');
+      const res = await signInWithPopup(auth, googleProvider);
+      console.log('Firebase: Google login process completed for:', res.user.email);
+      if (res.user) {
+        setFirebaseUser(res.user);
+        await recordSession(res.user, null, 'login');
+        return res.user;
+      }
+      return null;
     } catch (err: any) {
       console.error('Google login error:', err);
       // In Google Family Link, when a parent confirms, the popup is often closed automatically
@@ -1497,24 +1525,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setSyncStatus(firebaseUser ? 'synced' : 'offline');
           }
         }, 1200);
-        return;
+        return null;
       }
       if (err.code === 'auth/popup-blocked') {
         try {
           console.log('Popup blocked, falling back to signInWithRedirect...');
           await signInWithRedirect(auth, googleProvider);
-          return;
+          return null;
         } catch (redirErr) {
           console.warn('Redirect fallback error:', redirErr);
         }
         setSyncStatus('error');
         setFirebaseError('Login-Fenster wurde blockiert. Bitte Popups im Browser erlauben oder Seite neu laden.');
-        return;
+        return null;
       }
       setSyncStatus('error');
       setFirebaseError(err.message || 'Google-Anmeldung fehlgeschlagen.');
+      return null;
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, recordSession]);
 
   const loginWithApple = useCallback(async () => {
     try {

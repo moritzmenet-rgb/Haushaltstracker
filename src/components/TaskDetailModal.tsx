@@ -205,25 +205,50 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </button>
                   )}
                 </>
-              ) : (
-                <div className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+              ) : isFishedByMe ? (
+                <div className="w-full p-4 rounded-2xl bg-[var(--m3-primary-container)]/20 border border-[var(--m3-primary)]/30 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600">
+                    <div className="w-10 h-10 rounded-full bg-[var(--m3-primary-container)] flex items-center justify-center text-[var(--m3-primary)] shrink-0">
                       <Fish className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-amber-700 dark:text-amber-200">Diese Aufgabe ist reserviert</p>
-                      <p className="text-xs text-amber-600/80">Kein Logging möglich bis die Reservierung abläuft.</p>
+                      <p className="text-sm font-black text-[var(--m3-on-surface)]">Von dir gefischt</p>
+                      <p className="text-xs text-[var(--m3-on-surface-variant)]">Du hast diese Aufgabe reserviert. Schließe sie jetzt direkt ab!</p>
                     </div>
                   </div>
-                  {isFishedByMe && (
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
+                      type="button"
                       onClick={() => unfishTask(task.id)}
-                      className="px-6 py-2 rounded-xl bg-amber-500 text-white font-black text-sm shadow-md hover:bg-amber-600 transition"
+                      className="px-4 py-2.5 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-xs hover:bg-amber-500/25 transition cursor-pointer"
+                      title="Wieder für alle freigeben"
                     >
                       Freigeben
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onLogThisTask(task.id);
+                      }}
+                      className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-[var(--m3-primary)] text-[var(--m3-on-primary)] font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Jetzt erledigen</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
+                      <Fish className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-amber-700 dark:text-amber-200">Gefischt von {fishedByMember?.name || 'einem Mitglied'}</p>
+                      <p className="text-xs text-amber-600/80">Reserviert bis {task.fished_until ? new Date(task.fished_until).toLocaleDateString('de-DE') : 'demnächst'}.</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
