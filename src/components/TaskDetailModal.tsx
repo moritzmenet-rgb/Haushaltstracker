@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Info, History, Star, Clock, Trash2, ShieldAlert, 
   Award, Calendar, Zap, Fish, Edit3, CheckCircle2,
-  Pin, PinOff, Sparkles 
+  Pin, PinOff, Sparkles, ArrowRight, FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatRelativeDate, getInitials, getCategoryStyle, getTaskDueStatus } from '../utils';
@@ -27,9 +27,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onEditTask,
   onFishTask
 }) => {
-  const { data, isAdmin, deleteLog, activeUser, unfishTask } = useApp();
+  const { data, isAdmin, deleteLog, activeUser, unfishTask, taskEdits, deleteTaskEdit } = useApp();
   const [logToDelete, setLogToDelete] = useState<{ id: string; user: string; points: number } | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'logs' | 'edits'>('logs');
 
   if (!taskId) return null;
 
@@ -39,6 +40,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   // Find all logs for this task, sorted latest first
   const taskLogs = data.logs
     .filter(l => l.task_id === taskId)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Find all edit logs for this task
+  const taskAuditLogs = taskEdits
+    .filter(e => e.task_id === taskId)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const dueStatus = getTaskDueStatus(task);
@@ -85,7 +91,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               {isAdmin && onEditTask && (
                 <button
                   onClick={() => onEditTask(task)}
-                  className="p-2 rounded-full hover:bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] transition"
+                  className="p-2 rounded-full hover:bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] transition cursor-pointer"
                   title="Aufgabe bearbeiten"
                 >
                   <Edit3 className="w-5 h-5" />
@@ -94,7 +100,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] transition"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -102,6 +108,30 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
 
           <div className="p-6 overflow-y-auto max-h-[80vh]">
+            {/* Last Edited By Admin/Member Notice Banner */}
+            {task.last_edited_by && (
+              <div className="mb-6 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold">
+                  <Edit3 className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>
+                    Zuletzt bearbeitet von <strong>{task.last_edited_by}</strong>
+                    {task.last_edited_at && ` vor ${formatRelativeDate(task.last_edited_at)}`}
+                    {task.last_edited_summary && `: ${task.last_edited_summary}`}
+                  </span>
+                </div>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveHistoryTab('edits')}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition cursor-pointer shrink-0"
+                  >
+                    Details
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Task Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
               <div className="p-4 rounded-2xl bg-[var(--m3-surface-container)] border border-[var(--m3-outline-variant)] flex flex-col items-center gap-1 text-center shadow-xs">
@@ -173,7 +203,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsPinModalOpen(true)}
-                className={`px-5 py-4 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2 border shadow-xs ${
+                className={`px-5 py-4 rounded-2xl font-black text-xs transition flex items-center justify-center gap-2 border shadow-xs cursor-pointer ${
                   task.is_pinned 
                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25' 
                     : 'bg-[var(--m3-surface-container)] border-[var(--m3-outline-variant)] text-[var(--m3-on-surface)] hover:bg-[var(--m3-surface-container-high)]'
@@ -190,7 +220,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       onClose();
                       onLogThisTask(task.id);
                     }}
-                    className="flex-1 px-6 py-4 rounded-2xl bg-[var(--m3-primary)] text-[var(--m3-on-primary)] font-black shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3"
+                    className="flex-1 px-6 py-4 rounded-2xl bg-[var(--m3-primary)] text-[var(--m3-on-primary)] font-black shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 cursor-pointer"
                   >
                     <CheckCircle2 className="w-6 h-6" />
                     <span>Jetzt erledigen</span>
@@ -198,7 +228,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   {onFishTask && (
                     <button
                       onClick={() => onFishTask(task)}
-                      className="px-6 py-4 rounded-2xl bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)] font-black hover:bg-[var(--m3-surface-container-highest)]/80 transition-all flex items-center justify-center gap-3"
+                      className="px-6 py-4 rounded-2xl bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)] font-black hover:bg-[var(--m3-surface-container-highest)]/80 transition-all flex items-center justify-center gap-3 cursor-pointer"
                     >
                       <Fish className="w-6 h-6" />
                       <span>Fischen</span>
@@ -253,85 +283,187 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               )}
             </div>
 
-            {/* History Section */}
+            {/* History Section: Switcher between Erledigungen & Änderungsprotokoll */}
             <div>
-              <div className="flex items-center justify-between mb-4 px-1">
-                <h3 className="text-sm font-black text-[var(--m3-on-surface)] flex items-center gap-2">
-                  <History className="w-5 h-5 text-[var(--m3-primary)]" />
-                  Verlauf & Zeitstempel
-                </h3>
-                <span className="text-[10px] font-bold text-[var(--m3-on-surface-variant)] uppercase tracking-wider">
-                  {taskLogs.length} Einträge
-                </span>
+              <div className="flex items-center justify-between mb-4 border-b border-[var(--m3-outline-variant)]/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveHistoryTab('logs')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                      activeHistoryTab === 'logs'
+                        ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] border-[var(--m3-primary)] shadow-xs'
+                        : 'bg-[var(--m3-surface)] text-[var(--m3-on-surface-variant)] border-[var(--m3-outline-variant)]'
+                    }`}
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span>Erledigungen ({taskLogs.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveHistoryTab('edits')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                      activeHistoryTab === 'edits'
+                        ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] border-[var(--m3-primary)] shadow-xs'
+                        : 'bg-[var(--m3-surface)] text-[var(--m3-on-surface-variant)] border-[var(--m3-outline-variant)]'
+                    }`}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Änderungsverlauf ({taskAuditLogs.length})</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {taskLogs.length === 0 ? (
-                  <div className="text-center py-10 bg-[var(--m3-surface-container-low)] rounded-3xl border border-dashed border-[var(--m3-outline-variant)]">
-                    <History className="w-8 h-8 text-[var(--m3-outline)] mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-bold text-[var(--m3-on-surface-variant)]">Bisher keine Einträge</p>
-                  </div>
-                ) : (
-                  taskLogs.map((log) => {
-                    const user = data.members[log.user_id] || {
-                      name: 'Unbekannt',
-                      avatar_color: '#4F46E5'
-                    };
-                    const initials = getInitials(user.name);
+              {/* TAB 1: ERLEDIGUNGS-VERLAUF */}
+              {activeHistoryTab === 'logs' && (
+                <div className="space-y-3">
+                  {taskLogs.length === 0 ? (
+                    <div className="text-center py-10 bg-[var(--m3-surface-container-low)] rounded-3xl border border-dashed border-[var(--m3-outline-variant)]">
+                      <History className="w-8 h-8 text-[var(--m3-outline)] mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-bold text-[var(--m3-on-surface-variant)]">Bisher keine Erledigungen eingetragen</p>
+                    </div>
+                  ) : (
+                    taskLogs.map((log) => {
+                      const user = data.members[log.user_id] || {
+                        name: 'Unbekannt',
+                        avatar_color: '#4F46E5'
+                      };
+                      const initials = getInitials(user.name);
 
-                    return (
-                      <div
-                        key={log.log_id}
-                        className="p-4 rounded-2xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]/60 flex items-start justify-between gap-3"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            style={{ backgroundColor: user.avatar_color }}
-                            className="w-9 h-9 rounded-2xl shrink-0 flex items-center justify-center text-white font-black text-xs shadow-xs"
-                          >
-                            {initials}
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-[var(--m3-on-surface)]">{user.name}</span>
-                              <UserBadge badgeId={user.active_badge_id} size="xs" />
-                              <span className="text-[10px] text-[var(--m3-outline)]">{formatRelativeDate(log.timestamp)}</span>
+                      return (
+                        <div
+                          key={log.log_id}
+                          className="p-4 rounded-2xl bg-[var(--m3-surface-container-low)] border border-[var(--m3-outline-variant)]/60 flex items-start justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              style={{ backgroundColor: user.avatar_color }}
+                              className="w-9 h-9 rounded-2xl shrink-0 flex items-center justify-center text-white font-black text-xs shadow-xs"
+                            >
+                              {initials}
                             </div>
 
-                            <div className="flex items-center gap-3 mt-1.5">
-                              <div className="flex items-center gap-0.5 text-amber-500">
-                                {Array.from({ length: log.stars }).map((_, idx) => (
-                                  <Star key={idx} className="w-3 h-3 fill-amber-500 text-amber-500" />
-                                ))}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-[var(--m3-on-surface)]">{user.name}</span>
+                                <UserBadge badgeId={user.active_badge_id} size="xs" />
+                                <span className="text-[10px] text-[var(--m3-outline)]">{formatRelativeDate(log.timestamp)}</span>
                               </div>
-                              <span className="flex items-center gap-1 text-[11px] font-black text-[var(--m3-primary)]">
-                                +{log.points_awarded} Pkt.
-                              </span>
-                              <span className="text-[11px] text-[var(--m3-on-surface-variant)] font-medium">
-                                {log.actual_duration} Min.
-                              </span>
-                            </div>
-                            {log.notes && (
-                              <p className="mt-2 text-[11px] text-[var(--m3-on-surface-variant)] italic">„{log.notes}“</p>
-                            )}
-                          </div>
-                        </div>
 
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => setLogToDelete({ id: log.log_id, user: user.name, points: log.points_awarded })}
-                            className="text-[var(--m3-outline)] hover:text-rose-500 p-2 rounded-xl hover:bg-rose-500/10 transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                              <div className="flex items-center gap-3 mt-1.5">
+                                <div className="flex items-center gap-0.5 text-amber-500">
+                                  {Array.from({ length: log.stars }).map((_, idx) => (
+                                    <Star key={idx} className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                  ))}
+                                </div>
+                                <span className="flex items-center gap-1 text-[11px] font-black text-[var(--m3-primary)]">
+                                  +{log.points_awarded} Pkt.
+                                </span>
+                                <span className="text-[11px] text-[var(--m3-on-surface-variant)] font-medium">
+                                  {log.actual_duration} Min.
+                                </span>
+                              </div>
+                              {log.notes && (
+                                <p className="mt-2 text-[11px] text-[var(--m3-on-surface-variant)] italic">„{log.notes}“</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setLogToDelete({ id: log.log_id, user: user.name, points: log.points_awarded })}
+                              className="text-[var(--m3-outline)] hover:text-rose-500 p-2 rounded-xl hover:bg-rose-500/10 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: ÄNDERUNGSPROTOKOLL (AUDIT LOG DER AUFGABE) */}
+              {activeHistoryTab === 'edits' && (
+                <div className="space-y-3">
+                  {taskAuditLogs.length === 0 ? (
+                    <div className="text-center py-10 bg-[var(--m3-surface-container-low)] rounded-3xl border border-dashed border-[var(--m3-outline-variant)]">
+                      <Edit3 className="w-8 h-8 text-[var(--m3-outline)] mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-bold text-[var(--m3-on-surface-variant)]">Keine vorherigen Änderungen erfasst</p>
+                    </div>
+                  ) : (
+                    taskAuditLogs.map((edit) => {
+                      const initials = getInitials(edit.edited_by_name);
+                      const isPoints = edit.changes.some(c => c.field === 'base_points' || c.field === 'pinned_bonus_points');
+
+                      return (
+                        <div
+                          key={edit.id}
+                          className={`p-4 rounded-2xl border flex flex-col gap-2.5 ${
+                            isPoints 
+                              ? 'bg-amber-500/5 border-amber-500/30' 
+                              : 'bg-[var(--m3-surface-container-low)] border-[var(--m3-outline-variant)]/60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                style={{ backgroundColor: edit.edited_by_avatar_color || '#4F46E5' }}
+                                className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0"
+                              >
+                                {initials}
+                              </div>
+                              <div>
+                                <span className="text-xs font-black text-[var(--m3-on-surface)]">
+                                  {edit.edited_by_name}
+                                </span>
+                                <span className="text-[10px] text-[var(--m3-outline)] block">
+                                  {new Date(edit.timestamp).toLocaleString('de-DE')} ({formatRelativeDate(edit.timestamp)})
+                                </span>
+                              </div>
+                            </div>
+
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              isPoints ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface-variant)]'
+                            }`}>
+                              {isPoints ? 'Punkte angepasst' : edit.action === 'created' ? 'Erstellt' : 'Bearbeitet'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs font-bold text-[var(--m3-on-surface)]">
+                            {edit.summary}
+                          </p>
+
+                          {edit.changes && edit.changes.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                              {edit.changes.map((change, i) => (
+                                <div
+                                  key={i}
+                                  className="px-2.5 py-1.5 rounded-lg bg-[var(--m3-surface)] border border-[var(--m3-outline-variant)]/60 text-[11px] flex items-center justify-between gap-2"
+                                >
+                                  <span className="font-bold text-[var(--m3-on-surface-variant)]">{change.field_label}:</span>
+                                  <div className="flex items-center gap-1 font-black">
+                                    {change.old_value !== null && (
+                                      <>
+                                        <span className="text-rose-600 dark:text-rose-400 line-through opacity-80">{String(change.old_value)}</span>
+                                        <ArrowRight className="w-2.5 h-2.5 text-[var(--m3-outline)]" />
+                                      </>
+                                    )}
+                                    <span className="text-emerald-600 dark:text-emerald-400">{String(change.new_value)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -339,7 +471,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {isAdmin && (
             <div className="p-3 bg-[var(--m3-surface-container-highest)]/50 border-t border-[var(--m3-outline-variant)]/60 text-[10px] text-[var(--m3-on-surface-variant)] flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest">
               <ShieldAlert className="w-3.5 h-3.5 text-[var(--m3-primary)]" />
-              <span>Administrator Modus</span>
+              <span>Administrator Modus • Audit-Protokollierung aktiv</span>
             </div>
           )}
         </motion.div>
@@ -371,3 +503,4 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     </AnimatePresence>
   );
 };
+

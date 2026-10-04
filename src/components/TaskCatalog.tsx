@@ -328,6 +328,14 @@ export const TaskCatalog: React.FC<TaskCatalogProps> = ({
                       <span>Gefischt von {fishedByMember?.name || 'Unbekannt'} bis {new Date(task.fished_until!).toLocaleDateString('de-DE')}</span>
                     </div>
                   )}
+
+                  {/* Admin Change Tracking Badge */}
+                  {isAdmin && task.last_edited_by && (
+                    <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-xl">
+                      <Edit3 className="w-3 h-3 text-indigo-600 shrink-0" />
+                      <span className="truncate">Geändert von <strong>{task.last_edited_by}</strong>: {task.last_edited_summary || 'Details angepasst'}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Actions: History & Pin & Edit & Done Button */}

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish, AppNotification, PetState } from '../types';
+import { ChoreLog, ColorTheme, FamilyData, FamilyMember, FamilySettings, PinnwandNote, PinnwandPoll, PostItColor, RewardCelebration, SessionLog, TaskItem, TaskEditLog, TaskEditChange, UserRole, WeeklyRollOverPreview, DayMenuPlan, PlannedMeal, MenuWish, AppNotification } from '../types';
 import { INITIAL_FAMILY_DATA, DEMO_FAMILY_DATA, DEFAULT_HOUSEHOLD_TASKS, DEFAULT_PINNWAND_NOTES } from '../data/initialData';
 import { ACHIEVEMENTS_DATA, AchievementDef } from '../data/achievementsData';
 import { calculatePoints, calculateRollOverTarget, getMemberCyclePoints } from '../utils';
@@ -45,7 +45,9 @@ import {
   sanitizeMenuWish,
   deleteMenuWishFromCloud,
   saveNotificationToCloud,
-  deleteNotificationFromCloud
+  deleteNotificationFromCloud,
+  saveTaskEditToCloud,
+  deleteTaskEditFromCloud
 } from '../services/firestoreSync';
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
@@ -197,16 +199,16 @@ interface AppContextType {
   toggleWishUpvote: (wishId: string) => Promise<boolean>;
   transferIngredientsToPinnwand: (mealTitle: string, ingredients: string[]) => Promise<boolean>;
 
-  // Pet (Katzen-Zimmer)
-  updateMemberPet: (memberId: string, pet: PetState, chipCost?: number) => Promise<void>;
-  feedOtherMemberPet: (targetMemberId: string, feederMemberId: string, feederName: string, chipCost: number) => Promise<void>;
-
   // Real-Time In-App Notifications
   notifications: AppNotification[];
   latestToastNotification: AppNotification | null;
   clearToastNotification: () => void;
   sendNotification: (notif: Omit<AppNotification, 'id' | 'timestamp'>) => Promise<AppNotification>;
   dismissNotification: (id: string) => Promise<void>;
+
+  // Task Edit Audit & History Logs
+  taskEdits: TaskEditLog[];
+  deleteTaskEdit: (editId: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -373,81 +375,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
     saveMemberToCloud(updated).catch(console.warn);
-  }, [data.members]);
-
-  const updateMemberPet = useCallback(async (memberId: string, pet: PetState, chipCost?: number) => {
-    const member = data.members[memberId];
-    if (!member) return;
-
-    const currentPoints = member.total_points || 0;
-    const newPoints = chipCost && chipCost > 0 ? Math.max(0, currentPoints - chipCost) : currentPoints;
-    const updated: FamilyMember = {
-      ...member,
-      total_points: Math.round(newPoints * 100) / 100,
-      pet
-    };
-
-    setData(prev => {
-      const nextMembers = { ...prev.members, [memberId]: updated };
-      const next = { ...prev, members: nextMembers };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-
-    saveMemberToCloud(updated).catch(console.warn);
-  }, [data.members]);
-
-  const feedOtherMemberPet = useCallback(async (targetMemberId: string, feederMemberId: string, feederName: string, chipCost: number) => {
-    const feeder = data.members[feederMemberId];
-    const target = data.members[targetMemberId];
-    if (!feeder || !target || !target.pet) return;
-
-    // Deduct chips from feeder
-    const nextFeederPoints = Math.max(0, (feeder.total_points || 0) - chipCost);
-    const updatedFeeder: FamilyMember = {
-      ...feeder,
-      total_points: Math.round(nextFeederPoints * 100) / 100
-    };
-
-    // Update target pet hunger and feedHistory
-    const targetPet = target.pet;
-    const nextFeedHistory = [
-      ...(targetPet.feedHistory || []).slice(-9),
-      {
-        fedByMemberId: feederMemberId,
-        fedByName: feederName,
-        timestamp: new Date().toISOString()
-      }
-    ];
-
-    const updatedTargetPet: PetState = {
-      ...targetPet,
-      hunger: Math.min(100, (targetPet.hunger || 0) + 30),
-      happiness: Math.min(100, (targetPet.happiness || 0) + 15),
-      lastFedTimestamp: new Date().toISOString(),
-      feedHistory: nextFeedHistory
-    };
-
-    const updatedTarget: FamilyMember = {
-      ...target,
-      pet: updatedTargetPet
-    };
-
-    setData(prev => {
-      const nextMembers = {
-        ...prev.members,
-        [feederMemberId]: updatedFeeder,
-        [targetMemberId]: updatedTarget
-      };
-      const next = { ...prev, members: nextMembers };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-
-    Promise.all([
-      saveMemberToCloud(updatedFeeder),
-      saveMemberToCloud(updatedTarget)
-    ]).catch(console.warn);
   }, [data.members]);
 
   const triggerSyncFeedback = useCallback((actionName: string, cloudPromise?: Promise<any>) => {
@@ -1050,6 +977,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Sync notice (Notifications):', err);
     });
 
+    // 9. Task Edits Audit Log
+    const unsubTaskEdits = onSnapshot(collection(db, 'households', HOUSEHOLD_ID, 'task_edits'), (snap) => {
+      if (isCancelled) return;
+      const editsMap: Record<string, TaskEditLog> = {};
+      snap.forEach(d => {
+        const e = d.data() as TaskEditLog;
+        editsMap[e.id || d.id] = { ...e, id: e.id || d.id };
+      });
+
+      setData(prev => {
+        const next = { ...prev, taskEdits: editsMap };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, (err) => {
+      console.warn('Sync notice (Task Edits):', err);
+    });
+
     // 8. Sessions (Admin only)
     let unsubSessions = () => {};
     if (isAdmin) {
@@ -1139,20 +1084,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Full historical scan across all day-1 logs + the new log for all 30 achievements
     const scanResult = scanAndAwardHistoricalAchievements(nextDataState, activeUser.id, easterEggClickCount);
     const updatedMember = scanResult.updatedMembers[activeUser.id] || tempMember;
-
-    // Award +25 XP & Happiness to member's pet on chore completion!
-    if (updatedMember.pet) {
-      const p = updatedMember.pet;
-      const nextXp = (p.xp || 0) + 25;
-      const nextLevel = nextXp >= (p.level || 1) * 100 ? (p.level || 1) + 1 : (p.level || 1);
-      const nextHappy = Math.min(100, (p.happiness || 80) + 8);
-      updatedMember.pet = {
-        ...p,
-        xp: nextXp,
-        level: nextLevel,
-        happiness: nextHappy
-      };
-    }
 
     if (scanResult.newlyUnlockedForActiveUser.length > 0) {
       setNewlyUnlockedBadge(scanResult.newlyUnlockedForActiveUser[0]);
@@ -1419,42 +1350,235 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createTask = useCallback(async (task: any) => {
     const id = `task_${Date.now()}`;
-    const newTask = { ...task, id, created_by: activeUser?.name || 'Familie', last_done: null };
+    const now = new Date().toISOString();
+    const authorName = activeUser?.name || 'Familie';
+    const authorId = activeUser?.id || 'unknown';
+
+    const newTask: TaskItem = { 
+      ...task, 
+      id, 
+      created_by: authorName, 
+      last_done: null,
+      last_edited_by: authorName,
+      last_edited_by_id: authorId,
+      last_edited_at: now,
+      last_edited_summary: `Neu erstellt (${task.base_points || 20} Pkt.)`
+    };
+
+    const editLog: TaskEditLog = {
+      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      task_id: id,
+      task_title: newTask.title,
+      edited_by_id: authorId,
+      edited_by_name: authorName,
+      edited_by_avatar_color: activeUser?.avatar_color || '#4F46E5',
+      timestamp: now,
+      action: 'created',
+      changes: [
+        { field: 'base_points', field_label: 'Start-Punkte', old_value: null, new_value: `${newTask.base_points} Pkt.` },
+        { field: 'interval_days', field_label: 'Intervall', old_value: null, new_value: `${newTask.interval_days} Tage` },
+        { field: 'category', field_label: 'Kategorie', old_value: null, new_value: newTask.category }
+      ],
+      summary: `Aufgabe neu angelegt mit ${newTask.base_points} Punkten`
+    };
+
     setData(prev => {
       const nextTasks = { ...prev.tasks, [id]: newTask };
-      const next = { ...prev, tasks: nextTasks };
+      const nextEdits = { ...(prev.taskEdits || {}), [editLog.id]: editLog };
+      const next = { ...prev, tasks: nextTasks, taskEdits: nextEdits };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    const p = saveTaskToCloud(newTask);
+
+    const p = Promise.all([
+      saveTaskToCloud(newTask),
+      saveTaskEditToCloud(editLog)
+    ]);
     await triggerSyncFeedback('Aufgabe erstellt', p);
   }, [activeUser, triggerSyncFeedback]);
 
-  const updateTask = useCallback(async (id: string, updates: any): Promise<boolean> => {
+  const updateTask = useCallback(async (id: string, updates: Partial<TaskItem>): Promise<boolean> => {
     const currentTask = data.tasks[id];
     if (!currentTask) return false;
-    const updated = { ...currentTask, ...updates };
+
+    const now = new Date().toISOString();
+    const editorName = activeUser?.name || 'Admin';
+    const editorId = activeUser?.id || 'unknown';
+
+    // Compute field-by-field diff
+    const changes: TaskEditChange[] = [];
+    const summaryParts: string[] = [];
+
+    if (updates.base_points !== undefined && Number(updates.base_points) !== Number(currentTask.base_points)) {
+      changes.push({
+        field: 'base_points',
+        field_label: 'Basis-Punkte',
+        old_value: `${currentTask.base_points} Pkt.`,
+        new_value: `${updates.base_points} Pkt.`
+      });
+      summaryParts.push(`Punkte: ${currentTask.base_points} ➔ ${updates.base_points} Pkt.`);
+    }
+
+    if (updates.title !== undefined && updates.title.trim() !== currentTask.title) {
+      changes.push({
+        field: 'title',
+        field_label: 'Titel',
+        old_value: currentTask.title,
+        new_value: updates.title.trim()
+      });
+      summaryParts.push(`Titel geändert`);
+    }
+
+    if (updates.category !== undefined && updates.category !== currentTask.category) {
+      changes.push({
+        field: 'category',
+        field_label: 'Kategorie',
+        old_value: currentTask.category,
+        new_value: updates.category
+      });
+      summaryParts.push(`Kategorie: ${currentTask.category} ➔ ${updates.category}`);
+    }
+
+    if (updates.estimated_duration !== undefined && Number(updates.estimated_duration) !== Number(currentTask.estimated_duration)) {
+      changes.push({
+        field: 'estimated_duration',
+        field_label: 'Geschätzte Dauer',
+        old_value: `${currentTask.estimated_duration}m`,
+        new_value: `${updates.estimated_duration}m`
+      });
+      summaryParts.push(`Dauer: ${currentTask.estimated_duration}m ➔ ${updates.estimated_duration}m`);
+    }
+
+    if (updates.interval_days !== undefined && Number(updates.interval_days) !== Number(currentTask.interval_days)) {
+      changes.push({
+        field: 'interval_days',
+        field_label: 'Intervall',
+        old_value: `${currentTask.interval_days} Tage`,
+        new_value: `${updates.interval_days} Tage`
+      });
+      summaryParts.push(`Intervall: ${currentTask.interval_days} ➔ ${updates.interval_days} Tage`);
+    }
+
+    if (updates.frequency_per_day !== undefined && Number(updates.frequency_per_day) !== Number(currentTask.frequency_per_day || 1)) {
+      changes.push({
+        field: 'frequency_per_day',
+        field_label: 'Frequenz pro Tag',
+        old_value: `${currentTask.frequency_per_day || 1}x`,
+        new_value: `${updates.frequency_per_day}x`
+      });
+      summaryParts.push(`Frequenz: ${currentTask.frequency_per_day || 1}x ➔ ${updates.frequency_per_day}x`);
+    }
+
+    if (updates.is_pinned !== undefined && Boolean(updates.is_pinned) !== Boolean(currentTask.is_pinned)) {
+      changes.push({
+        field: 'is_pinned',
+        field_label: 'Dringend angepinnt',
+        old_value: currentTask.is_pinned ? 'Ja' : 'Nein',
+        new_value: updates.is_pinned ? 'Ja' : 'Nein'
+      });
+      summaryParts.push(updates.is_pinned ? 'Dringend angepinnt 📌' : 'Dringend abgepinnt');
+    }
+
+    if (updates.pinned_bonus_points !== undefined && Number(updates.pinned_bonus_points) !== Number(currentTask.pinned_bonus_points || 0)) {
+      changes.push({
+        field: 'pinned_bonus_points',
+        field_label: 'Pin-Bonus',
+        old_value: `+${currentTask.pinned_bonus_points || 0} Pkt.`,
+        new_value: `+${updates.pinned_bonus_points} Pkt.`
+      });
+      summaryParts.push(`Pin-Bonus: +${currentTask.pinned_bonus_points || 0} ➔ +${updates.pinned_bonus_points} Pkt.`);
+    }
+
+    const editSummary = summaryParts.length > 0 ? summaryParts.join(', ') : 'Details bearbeitet';
+
+    const updatedTask: TaskItem = { 
+      ...currentTask, 
+      ...updates,
+      last_edited_by: editorName,
+      last_edited_by_id: editorId,
+      last_edited_at: now,
+      last_edited_summary: editSummary
+    };
+
+    const editLog: TaskEditLog = {
+      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      task_id: id,
+      task_title: updatedTask.title,
+      edited_by_id: editorId,
+      edited_by_name: editorName,
+      edited_by_avatar_color: activeUser?.avatar_color || '#4F46E5',
+      timestamp: now,
+      action: 'updated',
+      changes,
+      summary: editSummary
+    };
+
     setData(prev => {
-      const nextTasks = { ...prev.tasks, [id]: updated };
-      const next = { ...prev, tasks: nextTasks };
+      const nextTasks = { ...prev.tasks, [id]: updatedTask };
+      const nextEdits = { ...(prev.taskEdits || {}), [editLog.id]: editLog };
+      const next = { ...prev, tasks: nextTasks, taskEdits: nextEdits };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-    const p = saveTaskToCloud(updated);
+
+    const p = Promise.all([
+      saveTaskToCloud(updatedTask),
+      saveTaskEditToCloud(editLog)
+    ]);
     await triggerSyncFeedback('Aufgabe geändert', p);
     return true;
-  }, [data.tasks, triggerSyncFeedback]);
+  }, [data.tasks, activeUser, triggerSyncFeedback]);
 
   const deleteTask = useCallback(async (id: string) => {
+    const taskToDelete = data.tasks[id];
     const { [id]: _, ...remaining } = data.tasks;
-    const nextData = { ...data, tasks: remaining };
+    const now = new Date().toISOString();
+    const editorName = activeUser?.name || 'Admin';
+    const editorId = activeUser?.id || 'unknown';
+
+    const editLog: TaskEditLog = {
+      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      task_id: id,
+      task_title: taskToDelete?.title || 'Gelöschte Aufgabe',
+      edited_by_id: editorId,
+      edited_by_name: editorName,
+      edited_by_avatar_color: activeUser?.avatar_color || '#4F46E5',
+      timestamp: now,
+      action: 'deleted',
+      changes: [
+        { field: 'deleted', field_label: 'Status', old_value: 'Aktiv', new_value: 'Gelöscht' }
+      ],
+      summary: `Aufgabe "${taskToDelete?.title || id}" aus dem Katalog gelöscht`
+    };
+
+    const nextData = { 
+      ...data, 
+      tasks: remaining,
+      taskEdits: { ...(data.taskEdits || {}), [editLog.id]: editLog }
+    };
     
     // Optimistic Update
     persistLocal(nextData);
 
-    const p = deleteTaskFromCloud(id);
+    const p = Promise.all([
+      deleteTaskFromCloud(id),
+      saveTaskEditToCloud(editLog)
+    ]);
     await triggerSyncFeedback('Aufgabe gelöscht', p);
-  }, [data, persistLocal, triggerSyncFeedback]);
+  }, [data, activeUser, persistLocal, triggerSyncFeedback]);
+
+  const deleteTaskEdit = useCallback(async (editId: string): Promise<boolean> => {
+    setData(prev => {
+      if (!prev.taskEdits) return prev;
+      const { [editId]: _, ...remainingEdits } = prev.taskEdits;
+      const next = { ...prev, taskEdits: remainingEdits };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    const p = deleteTaskEditFromCloud(editId);
+    await triggerSyncFeedback('Protokolleintrag entfernt', p);
+    return true;
+  }, [triggerSyncFeedback]);
 
   const fishTask = useCallback(async (taskId: string, untilDate: string) => {
     if (!activeUser) return;
@@ -2483,8 +2607,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       triggerEasterEggClick,
       updateMemberBadgeShowroom,
       updateMemberActiveBadge,
-      updateMemberPet,
-      feedOtherMemberPet,
       isWhatsNewOpen,
       openWhatsNew,
       closeWhatsNew,
@@ -2494,7 +2616,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       latestToastNotification,
       clearToastNotification,
       sendNotification,
-      dismissNotification
+      dismissNotification,
+      taskEdits: Object.values(data.taskEdits || {}).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+      deleteTaskEdit
     }}>
       {children}
     </AppContext.Provider>

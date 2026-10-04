@@ -21,9 +21,10 @@ import { CategoryManagementTab } from './admin/CategoryManagementTab';
 import { SyncSettingsTab } from './admin/SyncSettingsTab';
 import { DataManagementTab } from './admin/DataManagementTab';
 import { SessionsTab } from './admin/SessionsTab';
-import { Lock } from 'lucide-react';
+import { TaskAuditTab } from './admin/TaskAuditTab';
+import { Lock, History } from 'lucide-react';
 
-type SubTabId = 'profile' | 'theme' | 'general' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions';
+type SubTabId = 'profile' | 'theme' | 'general' | 'task_audit' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions';
 
 interface AdminSettingsProps {
   onOpenProfileSelector?: () => void;
@@ -42,6 +43,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
   }> = [
     { id: 'profile', label: 'Mein Profil', icon: <User className="w-4 h-4" /> },
     { id: 'theme', label: 'Farben & Design', icon: <Palette className="w-4 h-4" /> },
+    { id: 'task_audit', label: 'Aufgaben-Änderungen', icon: <History className="w-4 h-4" />, adminOnly: true },
     { id: 'general', label: 'Haushalt & Basis', icon: <Building2 className="w-4 h-4" />, adminOnly: true },
     { id: 'users', label: 'Mitglieder & Rollen', icon: <Users className="w-4 h-4" />, adminOnly: true },
     { id: 'sessions', label: 'Sicherheit & Sitzungen', icon: <ShieldCheck className="w-4 h-4" />, adminOnly: true },
@@ -192,6 +194,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
           {activeSubTab === 'theme' && <ThemeSettingsTab />}
           {isAdmin && (
             <>
+              {activeSubTab === 'task_audit' && <TaskAuditTab />}
               {activeSubTab === 'general' && <GeneralSettingsTab />}
               {activeSubTab === 'users' && <UserManagementTab />}
               {activeSubTab === 'rules' && <RuleSettingsTab />}

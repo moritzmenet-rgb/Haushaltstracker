@@ -8,7 +8,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, auth, isConfigValid, handleFirestoreError, OperationType } from '../firebase';
-import { ChoreLog, FamilyData, FamilyMember, FamilySettings, PinnwandNote, TaskItem } from '../types';
+import { ChoreLog, FamilyData, FamilyMember, FamilySettings, PinnwandNote, TaskItem, TaskEditLog } from '../types';
 
 export const HOUSEHOLD_ID = 'main_household';
 
@@ -135,6 +135,10 @@ function sanitizeTask(task: TaskItem): Record<string, any> {
     fished_until: task.fished_until || null,
     is_pinned: Boolean(task.is_pinned),
     pinned_bonus_points: Math.max(0, Number(task.pinned_bonus_points) || 0),
+    last_edited_by: task.last_edited_by ? String(task.last_edited_by) : null,
+    last_edited_by_id: task.last_edited_by_id ? String(task.last_edited_by_id) : null,
+    last_edited_at: task.last_edited_at ? String(task.last_edited_at) : null,
+    last_edited_summary: task.last_edited_summary ? String(task.last_edited_summary) : null,
     householdId: HOUSEHOLD_ID
   };
 }
@@ -553,6 +557,50 @@ export async function deleteNotificationFromCloud(notificationId: string): Promi
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/notifications/${notificationId}`);
+  }
+}
+
+/**
+ * Sanitize and save a Task Edit Audit Log entry
+ */
+export function sanitizeTaskEdit(edit: TaskEditLog): Record<string, any> {
+  return {
+    id: String(edit.id),
+    task_id: String(edit.task_id),
+    task_title: String(edit.task_title || 'Aufgabe'),
+    edited_by_id: String(edit.edited_by_id),
+    edited_by_name: String(edit.edited_by_name || 'Admin'),
+    edited_by_avatar_color: String(edit.edited_by_avatar_color || '#4F46E5'),
+    timestamp: String(edit.timestamp || new Date().toISOString()),
+    action: edit.action || 'updated',
+    changes: Array.isArray(edit.changes) ? edit.changes.map(c => ({
+      field: String(c.field),
+      field_label: String(c.field_label),
+      old_value: c.old_value,
+      new_value: c.new_value
+    })) : [],
+    summary: String(edit.summary || ''),
+    householdId: HOUSEHOLD_ID
+  };
+}
+
+export async function saveTaskEditToCloud(edit: TaskEditLog): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'task_edits', edit.id);
+    await setDoc(docRef, sanitizeTaskEdit(edit));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/task_edits/${edit.id}`);
+  }
+}
+
+export async function deleteTaskEditFromCloud(editId: string): Promise<void> {
+  if (!isConfigValid) return;
+  try {
+    const docRef = doc(db, 'households', HOUSEHOLD_ID, 'task_edits', editId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `households/${HOUSEHOLD_ID}/task_edits/${editId}`);
   }
 }
 

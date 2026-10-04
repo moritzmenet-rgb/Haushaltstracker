@@ -192,6 +192,24 @@
       },
       "required": ["id", "type", "title", "message", "timestamp"]
     },
+    "TaskEditLog": {
+      "title": "Task Edit Audit Log",
+      "description": "Audit record capturing task modifications, point adjustments, and interval edits.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "task_id": { "type": "string" },
+        "task_title": { "type": "string" },
+        "edited_by_id": { "type": "string" },
+        "edited_by_name": { "type": "string" },
+        "edited_by_avatar_color": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "action": { "type": "string", "enum": ["created", "updated", "deleted", "pinned", "unpinned"] },
+        "changes": { "type": "array" },
+        "summary": { "type": "string" }
+      },
+      "required": ["id", "task_id", "edited_by_id", "edited_by_name", "timestamp"]
+    },
     "SessionLog": {
       "title": "Session Log",
       "description": "Admin access and login security audit log.",
@@ -249,6 +267,10 @@
     "/households/{householdId}/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Household notifications for pinned tasks and stolen trophies"
+    },
+    "/households/{householdId}/task_edits/{editId}": {
+      "schema": "TaskEditLog",
+      "description": "Audit log for chore creations, point modifications, and task updates"
     },
     "/sessions/{sessionId}": {
       "schema": "SessionLog",

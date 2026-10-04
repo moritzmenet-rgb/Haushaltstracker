@@ -173,6 +173,17 @@ service cloud.firestore {
              (!('vegetarianOption' in data) || data.vegetarianOption is string);
     }
 
+    function isValidTaskEdit(data) {
+      return data.keys().hasAll(['id', 'task_id', 'edited_by_id', 'edited_by_name', 'timestamp']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.task_id is string && data.task_id.size() <= 128 &&
+             data.edited_by_id is string && data.edited_by_id.size() <= 128 &&
+             data.edited_by_name is string && data.edited_by_name.size() <= 100 &&
+             data.timestamp is string && data.timestamp.size() <= 64 &&
+             (!('summary' in data) || data.summary is string) &&
+             (!('changes' in data) || data.changes is list);
+    }
+
     function isValidNotification(data) {
       return data.keys().hasAll(['id', 'type', 'title']) &&
              data.id is string && data.id.size() <= 128 &&
@@ -255,6 +266,13 @@ service cloud.firestore {
         allow read: if isVerified();
         allow create, update: if isVerified();
         allow delete: if isVerified();
+      }
+
+      // Task Edits & Point Modifications Audit Log
+      match /task_edits/{editId} {
+        allow read: if isVerified();
+        allow create, update: if isVerified() && (isMoritz() || isValidTaskEdit(incoming()));
+        allow delete: if isAdmin() || isMoritz();
       }
     }
 

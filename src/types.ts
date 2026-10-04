@@ -39,6 +39,30 @@ export interface TaskItem {
   fished_until?: string | null; // ISO string
   is_pinned?: boolean; // Pinned as urgent at the top of overview
   pinned_bonus_points?: number; // Flat bonus points awarded on completion without star multiplier
+  last_edited_by?: string; // Name of member who last modified this task
+  last_edited_by_id?: string; // Member ID
+  last_edited_at?: string; // ISO timestamp
+  last_edited_summary?: string; // e.g. "Punkte: 30 ➔ 50 Pkt."
+}
+
+export interface TaskEditChange {
+  field: string;
+  field_label: string;
+  old_value: any;
+  new_value: any;
+}
+
+export interface TaskEditLog {
+  id: string;
+  task_id: string;
+  task_title: string;
+  edited_by_id: string;
+  edited_by_name: string;
+  edited_by_avatar_color?: string;
+  timestamp: string; // ISO string
+  action: 'created' | 'updated' | 'deleted' | 'pinned' | 'unpinned';
+  changes: TaskEditChange[];
+  summary: string;
 }
 
 export interface ChoreLog {
@@ -198,6 +222,7 @@ export interface FamilyData {
   menuPlan?: Record<string, DayMenuPlan>; // dateKey ("YYYY-MM-DD") -> DayMenuPlan
   menuWishes?: Record<string, MenuWish>;
   notifications?: Record<string, AppNotification>;
+  taskEdits?: Record<string, TaskEditLog>; // Audit log for task creations, point modifications, and edits
 }
 
 export interface WeeklyRollOverPreview {
