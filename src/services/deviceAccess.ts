@@ -70,13 +70,43 @@ export function detectDeviceType(): string {
   return 'Desktop';
 }
 
-/** Is this device (anonymous uid) unlocked? Missing permission counts as "no". */
-export async function isDeviceUnlocked(uid: string): Promise<boolean> {
+/** Rejects after `ms` so a hanging request never blocks the app. */
+function withTimeout<T>(p: Promise<T>, ms = 8000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(Object.assign(new Error('timeout'), { code: 'timeout' })), ms);
+    p.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+
+export type RegistrationCheck = 'yes' | 'no' | 'error';
+
+/**
+ * Asks the SERVER whether this device (anonymous uid) is in the list of unlocked devices.
+ * 'error' = no answer (offline, timeout) – never treated as "locked".
+ */
+export async function checkDeviceRegistration(uid: string): Promise<RegistrationCheck> {
   try {
-    const snap = await getDoc(deviceRef(uid));
-    return snap.exists();
-  } catch {
-    return false;
+    const snap = await withTimeout(getDoc(deviceRef(uid)));
+    return snap.exists() ? 'yes' : 'no';
+  } catch (err: any) {
+    return err?.code === 'permission-denied' ? 'no' : 'error';
+  }
+}
+
+export type HouseholdProbe = 'denied' | 'error' | { lockEnabled: boolean };
+
+/**
+ * For a device that is NOT unlocked: is the household protected right now?
+ * - 'denied'  -> database protection is on, this device has no access
+ * - { lockEnabled } -> household is readable (rollout phase); lockEnabled = code prompt switched on
+ * - 'error'   -> no answer (offline, timeout)
+ */
+export async function probeHouseholdAccess(): Promise<HouseholdProbe> {
+  try {
+    const snap = await withTimeout(getDoc(householdRef()));
+    return { lockEnabled: snap.exists() && snap.data()?.device_lock_enabled === true };
+  } catch (err: any) {
+    return err?.code === 'permission-denied' ? 'denied' : 'error';
   }
 }
 

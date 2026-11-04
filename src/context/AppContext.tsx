@@ -26,7 +26,7 @@ import {
   User
 } from '../firebase';
 import { doc, collection, onSnapshot, setDoc, writeBatch, deleteField } from 'firebase/firestore';
-import { MORITZ_EMAIL, isDeviceUnlocked, registerDevice, UnlockResult } from '../services/deviceAccess';
+import { MORITZ_EMAIL, checkDeviceRegistration, probeHouseholdAccess, registerDevice, UnlockResult } from '../services/deviceAccess';
 import { hashPin, isValidPinFormat } from '../utils/pin';
 import { 
   HOUSEHOLD_ID, 
@@ -55,12 +55,20 @@ import {
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
 const ACTIVE_USER_KEY = 'household_chore_active_user_id';
+// Remembers the anonymous uid of this device after a successful unlock (fast start, no re-entry)
+const UNLOCK_FLAG_KEY = 'fish_wish_unlocked_device_uid';
 const THEME_KEY = 'household_chore_theme';
 const COLOR_THEME_KEY = 'household_chore_color_theme';
 
 export type SyncStatus = 'offline' | 'connecting' | 'synced' | 'error';
 
-export type DeviceAccessStatus = 'checking' | 'unlocked' | 'locked' | 'no-auth';
+// checking = asking the server · unlocked = Moritz or registered device · locked = must enter the code
+// open = not registered, but no lock configured · offline = no server answer (fall back to local data)
+// no-auth = anonymous sign-in impossible
+export type DeviceAccessStatus = 'checking' | 'unlocked' | 'locked' | 'no-auth' | 'open' | 'offline';
+
+// What the app shell shows: 'app' = normal app, 'gate' = family-code screen, 'pending' = short check
+export type AccessDecision = 'app' | 'gate' | 'pending';
 
 export type SyncOperationStatus = 'idle' | 'uploading' | 'saved' | 'error';
 
@@ -99,6 +107,7 @@ interface AppContextType {
   isMoritzAccount: boolean;
   deviceAccessStatus: DeviceAccessStatus;
   isDeviceLockActive: boolean;
+  accessDecision: AccessDecision;
   unlockDevice: (code: string, label: string) => Promise<UnlockResult>;
 
   // Chore logging
@@ -269,11 +278,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
-          const parsed = JSON.parse(stored);
+          const rawParsed = JSON.parse(stored);
+          // Robust against damaged/partial caches: fill every missing part with defaults
+          const parsed = rawParsed && typeof rawParsed === 'object'
+            ? {
+                ...INITIAL_FAMILY_DATA,
+                ...rawParsed,
+                settings: { ...INITIAL_FAMILY_DATA.settings, ...(rawParsed.settings || {}) }
+              }
+            : null;
           if (parsed && parsed.members && parsed.tasks) {
             if (!parsed.pinnwand || Object.keys(parsed.pinnwand).length === 0) {
               parsed.pinnwand = { ...DEFAULT_PINNWAND_NOTES };
             }
+            // Robust against damaged/partial caches: missing lists must never crash the app
+            if (!Array.isArray(parsed.logs)) parsed.logs = [];
+            if (!parsed.settings || typeof parsed.settings !== 'object') parsed.settings = { ...INITIAL_FAMILY_DATA.settings };
             // Ensure every member's total_points is strictly calculated from all existing logs
             const currentLogs: ChoreLog[] = Array.isArray(parsed.logs) ? parsed.logs : [];
             for (const mId of Object.keys(parsed.members)) {
@@ -717,9 +737,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ---------------------------------------------------------------------------
   const [deviceAccessStatus, setDeviceAccessStatus] = useState<DeviceAccessStatus>('checking');
   const [householdAccessDenied, setHouseholdAccessDenied] = useState(false);
+  // Set after a successful unlock on this device; lets known devices start instantly
+  const [unlockFlagUid, setUnlockFlagUid] = useState<string | null>(() => {
+    try { return localStorage.getItem(UNLOCK_FLAG_KEY); } catch { return null; }
+  });
   const ipCleanupRef = useRef(false);
   const pinMigrationRef = useRef(false);
 
+  const rememberUnlockedDevice = useCallback((uid: string) => {
+    try { localStorage.setItem(UNLOCK_FLAG_KEY, uid); } catch { /* ignore */ }
+    setUnlockFlagUid(uid);
+  }, []);
+
+  // A device that is definitely NOT allowed keeps no household data at all.
+  const wipeLocalHouseholdData = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(ACTIVE_USER_KEY);
+      localStorage.removeItem(UNLOCK_FLAG_KEY);
+    } catch { /* ignore */ }
+    setUnlockFlagUid(null);
+    setData(INITIAL_FAMILY_DATA);
+    setActiveUserIdState(null);
+  }, []);
+
+  // Server check: is this device allowed? Only a definite server answer ever locks a device.
   useEffect(() => {
     if (isAuthResolving) return;
     let cancelled = false;
@@ -734,27 +776,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDeviceAccessStatus('unlocked');
       return;
     }
-    setDeviceAccessStatus('checking');
-    isDeviceUnlocked(firebaseUser.uid).then(ok => {
-      if (!cancelled) setDeviceAccessStatus(ok ? 'unlocked' : 'locked');
-    });
+    const uid = firebaseUser.uid;
+    // Known device (unlocked before on this browser): start right away, verify in the background
+    setDeviceAccessStatus(unlockFlagUid === uid ? 'unlocked' : 'checking');
+
+    (async () => {
+      const reg = await checkDeviceRegistration(uid);
+      if (cancelled) return;
+      if (reg === 'yes') {
+        rememberUnlockedDevice(uid);
+        setDeviceAccessStatus('unlocked');
+        return;
+      }
+      if (reg === 'error') {
+        // No answer: never lock out. Known devices keep working, others use local data.
+        setDeviceAccessStatus(unlockFlagUid === uid ? 'unlocked' : 'offline');
+        return;
+      }
+      // Definitely not registered: is the household protected right now?
+      const probe = await probeHouseholdAccess();
+      if (cancelled) return;
+      if (probe === 'denied') {
+        setHouseholdAccessDenied(true);
+        wipeLocalHouseholdData();
+        setDeviceAccessStatus('locked');
+      } else if (probe === 'error') {
+        setDeviceAccessStatus('offline');
+      } else if (probe.lockEnabled) {
+        wipeLocalHouseholdData();
+        setDeviceAccessStatus('locked');
+      } else {
+        setDeviceAccessStatus('open');
+      }
+    })();
     return () => { cancelled = true; };
   }, [firebaseUser, isMoritzAccount, isAuthResolving]);
 
-  const isDeviceLockActive = Boolean(data.settings.device_lock_enabled) || householdAccessDenied;
+  const isDeviceLockActive = deviceAccessStatus === 'locked' ||
+    (deviceAccessStatus === 'no-auth' && Boolean(data.settings.device_lock_enabled));
+
+  const accessDecision: AccessDecision =
+    deviceAccessStatus === 'unlocked' || deviceAccessStatus === 'open' || deviceAccessStatus === 'offline'
+      ? 'app'
+      : deviceAccessStatus === 'checking'
+        ? 'pending'
+        : deviceAccessStatus === 'locked'
+          ? 'gate'
+          : (Boolean(data.settings.device_lock_enabled) ? 'gate' : 'app'); // no-auth
 
   const unlockDevice = useCallback(async (code: string, label: string): Promise<UnlockResult> => {
     const user = auth.currentUser || await ensureAnonymousAuth();
     if (!user) return 'error';
     const result = await registerDevice(user.uid, code, label);
     if (result === 'ok') {
+      rememberUnlockedDevice(user.uid);
       setDeviceAccessStatus('unlocked');
       setHouseholdAccessDenied(false);
       recordSession(user, null, 'device_unlock');
       retrySync();
     }
     return result;
-  }, [recordSession, retrySync]);
+  }, [recordSession, retrySync, rememberUnlockedDevice]);
+
+  // Revoked while the app is open: the database starts refusing -> check again with the server.
+  useEffect(() => {
+    if (!householdAccessDenied || isMoritzAccount || !firebaseUser) return;
+    if (deviceAccessStatus === 'locked') return;
+    let cancelled = false;
+    (async () => {
+      const reg = await checkDeviceRegistration(firebaseUser.uid);
+      if (cancelled || reg !== 'no') return;
+      wipeLocalHouseholdData();
+      setDeviceAccessStatus('locked');
+    })();
+    return () => { cancelled = true; };
+  }, [householdAccessDenied, isMoritzAccount, firebaseUser, deviceAccessStatus, wipeLocalHouseholdData]);
+
+  // Household data is only loaded once access is confirmed (or the device is offline).
+  const canSync = accessDecision === 'app';
 
   // Firestore Synchronizer (Always Online-First)
   useEffect(() => {
@@ -763,6 +862,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('offline');
       return;
     }
+    // Geräte-Schutz: no household data is fetched (or cached) before access is confirmed
+    if (!canSync) return;
 
     setSyncStatus('connecting');
     setFirebaseError(null);
@@ -1121,7 +1222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubTaskEdits();
       unsubSessions();
     };
-  }, [syncRetryKey, isMoritzAccount, firebaseUser?.uid]);
+  }, [syncRetryKey, isMoritzAccount, firebaseUser?.uid, canSync]);
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
@@ -2546,7 +2647,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sessions, recordSession, blockUserByEmail, unblockUserByEmail, blockedEmails,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
-      isMoritzAccount, deviceAccessStatus, isDeviceLockActive, unlockDevice,
+      isMoritzAccount, deviceAccessStatus, isDeviceLockActive, accessDecision, unlockDevice,
       logChore, updateLog, deleteLog, logPointsAdjustment, createTask, updateTask, deleteTask,
       fishTask, unfishTask, togglePinTask,
       rewardCelebration, triggerRewardCelebration, clearRewardCelebration,
