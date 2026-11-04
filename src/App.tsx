@@ -52,8 +52,13 @@ const MainContent: React.FC = () => {
     currentAppVersion,
     newlyUnlockedBadge,
     clearNewlyUnlockedBadge,
-    updateMemberActiveBadge
+    updateMemberActiveBadge,
+    deviceAccessStatus,
+    isDeviceLockActive
   } = useApp();
+
+  // Geräte-Schutz: show the family-code screen until this device is unlocked
+  const showDeviceGate = isDeviceLockActive && deviceAccessStatus !== 'unlocked' && deviceAccessStatus !== 'checking';
 
   // Multi-App state management
   const [currentApp, setCurrentApp] = useState<MainAppType>('fish_and_wish');
@@ -154,6 +159,8 @@ const MainContent: React.FC = () => {
       </div>
 
       {/* PWA Install Notification Prompt */}
+      {showDeviceGate && <DeviceGate />}
+
       <PWAInstallBanner />
 
       {/* Real-time Cloud Upload & Saved Banner */}
@@ -404,34 +411,11 @@ const MainContent: React.FC = () => {
   );
 };
 
-// Geräte-Schutz: while this device is locked, the main app is NOT mounted at all,
-// so no household data is ever rendered or kept behind the code screen.
-const AppShell: React.FC = () => {
-  const { deviceAccessStatus, isDeviceLockActive } = useApp();
-
-  if (!isDeviceLockActive || deviceAccessStatus === 'unlocked') {
-    return <MainContent />;
-  }
-
-  if (deviceAccessStatus === 'checking') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--m3-surface)] text-[var(--m3-on-surface-variant)]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-[var(--m3-primary)] border-t-transparent animate-spin" />
-          <span className="text-sm font-semibold">Wird geprüft …</span>
-        </div>
-      </div>
-    );
-  }
-
-  return <DeviceGate />;
-};
-
 export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <AppShell />
+        <MainContent />
       </AppProvider>
     </ErrorBoundary>
   );

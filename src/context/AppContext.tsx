@@ -271,11 +271,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.members && parsed.tasks) {
-            // Geräte-Schutz: with a device lock configured, never restore household
-            // data from the local cache on load. Only a successful (unlocked) read shows it.
-            if (parsed.settings && parsed.settings.device_lock_enabled) {
-              return { ...INITIAL_FAMILY_DATA, settings: { ...INITIAL_FAMILY_DATA.settings, ...parsed.settings } };
-            }
             if (!parsed.pinnwand || Object.keys(parsed.pinnwand).length === 0) {
               parsed.pinnwand = { ...DEFAULT_PINNWAND_NOTES };
             }
@@ -760,18 +755,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return result;
   }, [recordSession, retrySync]);
-
-  // Geräte-Schutz: once the database actually blocks this device (enforce on + not unlocked),
-  // keep NO household data locally — wipe the browser cache and the in-memory copy.
-  useEffect(() => {
-    if (!householdAccessDenied) return;
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(ACTIVE_USER_KEY);
-    } catch { /* ignore */ }
-    setData(INITIAL_FAMILY_DATA);
-    setActiveUserIdState(null);
-  }, [householdAccessDenied]);
 
   // Firestore Synchronizer (Always Online-First)
   useEffect(() => {
