@@ -237,7 +237,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }
         return true;
       });
-  }, [data.logs, selectedUserFilter, starFilter, searchQuery, data.tasks, data.members]);
+  }, [data.logs, cycleFilter, data.settings.last_reset_date, selectedUserFilter, starFilter, searchQuery, data.tasks, data.members]);
 
   // Family weekly totals
   const totalPoints = membersWithProgress.reduce((sum, m) => sum + m.cyclePoints, 0);
@@ -1327,12 +1327,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
             className="p-12 text-center rounded-[32px] m3-glass-surface border border-white/5"
           >
             <History className="w-12 h-12 text-[var(--m3-outline)] mx-auto mb-3 opacity-40" />
-            <p className="text-sm font-black text-[var(--m3-on-surface)]">
-              Noch keine Aktivitäten vorhanden.
-            </p>
-            <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1.5 max-w-xs mx-auto">
-              Erfasse eine neue Arbeit oben über den Button, um den Verlauf zu füllen!
-            </p>
+            {cycleFilter === 'current' && data.logs.length > 0 ? (
+              <>
+                <p className="text-sm font-black text-[var(--m3-on-surface)]">
+                  Diese Woche wurde noch nichts erfasst.
+                </p>
+                <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1.5 max-w-xs mx-auto">
+                  {data.settings.last_reset_date
+                    ? `Seit dem Wochen-Reset am ${new Date(data.settings.last_reset_date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })} gibt es noch keine Einträge. `
+                    : ''}
+                  Ältere Einträge findest du im gesamten Verlauf.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCycleFilter('all')}
+                  className="mt-4 px-4 py-2 rounded-xl bg-[var(--m3-primary)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition"
+                >
+                  Gesamten Verlauf anzeigen ({data.logs.length})
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-black text-[var(--m3-on-surface)]">
+                  Noch keine Aktivitäten vorhanden.
+                </p>
+                <p className="text-xs text-[var(--m3-on-surface-variant)] mt-1.5 max-w-xs mx-auto">
+                  Erfasse eine neue Arbeit oben über den Button, um den Verlauf zu füllen!
+                </p>
+              </>
+            )}
           </motion.div>
         ) : (
           <motion.div 
