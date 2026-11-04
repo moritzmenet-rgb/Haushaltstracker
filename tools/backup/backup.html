@@ -18,6 +18,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+// Optional collections (Geraete-Schutz, v2.8.0+) - missing permission is not an error
 import { getFirestore, collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const cfg = __CONFIG__;
@@ -28,6 +29,7 @@ const auth = getAuth(app);
 const HH = 'households/main_household';
 const SUB = ['logs', 'members', 'menu_wishes', 'menus', 'notifications', 'pinnwand', 'recipes', 'task_edits', 'tasks'];
 const ROOT = ['households', 'sessions'];
+const OPTIONAL_SUB = ['devices'];
 const logEl = document.getElementById('log');
 const log = (m) => { logEl.textContent += '\n' + m; };
 
@@ -50,14 +52,25 @@ document.getElementById('go').onclick = async (ev) => {
   ev.target.disabled = true;
   logEl.textContent = 'Anmeldung…';
   try {
-    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-    log('Angemeldet als ' + cred.user.email);
-    const result = { projectId: cfg.projectId, exportedAt: new Date().toISOString(), exportedBy: cred.user.email, collections: {} };
+    // Reuse an existing Google login in this browser, otherwise ask once
+    await auth.authStateReady();
+    let user = auth.currentUser && !auth.currentUser.isAnonymous ? auth.currentUser : null;
+    if (!user) user = (await signInWithPopup(auth, new GoogleAuthProvider())).user;
+    log('Angemeldet als ' + user.email);
+    const result = { projectId: cfg.projectId, exportedAt: new Date().toISOString(), exportedBy: user.email, collections: {} };
     const hh = await getDoc(doc(db, HH));
     result.household = hh.exists() ? plain(hh.data()) : null;
     log('Haushalt-Dokument: ' + (result.household ? 'ok' : 'fehlt'));
     for (const c of ROOT) result.collections[c] = await dump(c);
     for (const c of SUB) result.collections[`${HH}/${c}`] = await dump(`${HH}/${c}`);
+    for (const c of OPTIONAL_SUB) {
+      try {
+        const snap = await getDocs(collection(db, `${HH}/${c}`));
+        const docs = {}; snap.forEach(d => { docs[d.id] = plain(d.data()); });
+        result.collections[`${HH}/${c}`] = { ok: true, count: snap.size, docs };
+        log(`${HH}/${c}: ${snap.size} Einträge`);
+      } catch { log(`${HH}/${c}: (noch nicht vorhanden)`); }
+    }
     const r = await fetch('/save', { method: 'POST', body: JSON.stringify(result, null, 2) });
     const j = await r.json();
     log('\nFERTIG. Gespeichert unter:\n' + j.file);
