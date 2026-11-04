@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Fish & Wish – Datensicherung</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #1e293b; }
+  button { font-size: 16px; padding: 12px 20px; border-radius: 10px; border: 0; background: #4f46e5; color: #fff; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  pre { background: #f1f5f9; padding: 12px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Fish &amp; Wish – Datensicherung</h1>
+<p>Liest alle Daten aus Firestore (nur lesen, nichts wird verändert) und speichert sie als JSON-Datei im Moritz-Ordner.</p>
+<button id="go">Mit Google anmelden &amp; sichern</button>
+<pre id="log">Bereit.</pre>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import { getFirestore, collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+const cfg = __CONFIG__;
+const app = initializeApp(cfg);
+const db = cfg.firestoreDatabaseId && cfg.firestoreDatabaseId !== '(default)' ? getFirestore(app, cfg.firestoreDatabaseId) : getFirestore(app);
+const auth = getAuth(app);
+
+const HH = 'households/main_household';
+const SUB = ['logs', 'members', 'menu_wishes', 'menus', 'notifications', 'pinnwand', 'recipes', 'task_edits', 'tasks'];
+const ROOT = ['households', 'sessions'];
+const logEl = document.getElementById('log');
+const log = (m) => { logEl.textContent += '\n' + m; };
+
+function plain(v) {
+  if (v === null || typeof v !== 'object') return v;
+  if (typeof v.toDate === 'function') return { __timestamp: v.toDate().toISOString() };
+  if (Array.isArray(v)) return v.map(plain);
+  const o = {}; for (const [k, x] of Object.entries(v)) o[k] = plain(x); return o;
+}
+async function dump(p) {
+  try {
+    const snap = await getDocs(collection(db, p));
+    const docs = {}; snap.forEach(d => { docs[d.id] = plain(d.data()); });
+    log(`${p}: ${snap.size} Einträge`);
+    return { ok: true, count: snap.size, docs };
+  } catch (e) { log(`${p}: FEHLER ${e.code || e.message}`); return { ok: false, error: String(e.code || e.message) }; }
+}
+
+document.getElementById('go').onclick = async (ev) => {
+  ev.target.disabled = true;
+  logEl.textContent = 'Anmeldung…';
+  try {
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    log('Angemeldet als ' + cred.user.email);
+    const result = { projectId: cfg.projectId, exportedAt: new Date().toISOString(), exportedBy: cred.user.email, collections: {} };
+    const hh = await getDoc(doc(db, HH));
+    result.household = hh.exists() ? plain(hh.data()) : null;
+    log('Haushalt-Dokument: ' + (result.household ? 'ok' : 'fehlt'));
+    for (const c of ROOT) result.collections[c] = await dump(c);
+    for (const c of SUB) result.collections[`${HH}/${c}`] = await dump(`${HH}/${c}`);
+    const r = await fetch('/save', { method: 'POST', body: JSON.stringify(result, null, 2) });
+    const j = await r.json();
+    log('\nFERTIG. Gespeichert unter:\n' + j.file);
+    window.__backupDone = true;
+  } catch (e) {
+    log('FEHLER: ' + (e.code || e.message));
+    ev.target.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

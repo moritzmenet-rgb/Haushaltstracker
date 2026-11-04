@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Lokale Firestore-Backups (enthalten persoenliche Daten - nie committen)
+backups/
