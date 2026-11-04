@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, UserPlus, Sparkles, Check, Lock, KeyRound, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getInitials } from '../utils';
+import { memberHasPin } from '../utils/pin';
 import { FamilyMember } from '../types';
 import { PinModal } from './PinModal';
 import { UserBadge } from './UserBadge';
@@ -83,7 +84,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
       }
 
       // If already Google authenticated:
-      if (member.pin_code && member.pin_code.trim().length > 0) {
+      if (memberHasPin(member)) {
         setPendingPinMember(member);
       } else {
         if (firebaseUser) {
@@ -96,7 +97,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
     }
 
     // Regular non-admin member: no Google login required
-    if (member.pin_code && member.pin_code.trim().length > 0) {
+    if (memberHasPin(member)) {
       setPendingPinMember(member);
     } else {
       setActiveUserId(member.id);
@@ -114,7 +115,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
         await recordSession(user, pendingAdminMember, 'admin_login');
         setShowGoogleAuthModal(false);
         // If member has PIN, prompt PIN
-        if (pendingAdminMember.pin_code && pendingAdminMember.pin_code.trim().length > 0) {
+        if (memberHasPin(pendingAdminMember)) {
           setPendingPinMember(pendingAdminMember);
         } else {
           setActiveUserId(pendingAdminMember.id);
@@ -302,7 +303,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
                 {membersList.map((member) => {
                   const isCurrent = activeUser?.id === member.id;
                   const initials = getInitials(member.name);
-                  const hasPin = Boolean(member.pin_code && member.pin_code.trim().length > 0);
+                  const hasPin = memberHasPin(member);
 
                   return (
                     <motion.button

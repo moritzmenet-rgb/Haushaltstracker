@@ -25,7 +25,9 @@ import {
   OperationType, 
   User
 } from '../firebase';
-import { doc, collection, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, collection, onSnapshot, setDoc, writeBatch, deleteField } from 'firebase/firestore';
+import { MORITZ_EMAIL, isDeviceUnlocked, registerDevice, UnlockResult } from '../services/deviceAccess';
+import { hashPin, isValidPinFormat } from '../utils/pin';
 import { 
   HOUSEHOLD_ID, 
   seedAllDataToCloud, 
@@ -47,7 +49,8 @@ import {
   saveNotificationToCloud,
   deleteNotificationFromCloud,
   saveTaskEditToCloud,
-  deleteTaskEditFromCloud
+  deleteTaskEditFromCloud,
+  migrateMemberPinInCloud
 } from '../services/firestoreSync';
 
 const STORAGE_KEY = 'household_chore_tracker_data_v5';
@@ -56,6 +59,8 @@ const THEME_KEY = 'household_chore_theme';
 const COLOR_THEME_KEY = 'household_chore_color_theme';
 
 export type SyncStatus = 'offline' | 'connecting' | 'synced' | 'error';
+
+export type DeviceAccessStatus = 'checking' | 'unlocked' | 'locked' | 'no-auth';
 
 export type SyncOperationStatus = 'idle' | 'uploading' | 'saved' | 'error';
 
@@ -89,6 +94,12 @@ interface AppContextType {
   uploadAllToCloud: () => Promise<void>;
   resetFirebaseCompletely: () => Promise<void>;
   retrySync: () => void;
+
+  // Geräte-Schutz (device unlock with the family code)
+  isMoritzAccount: boolean;
+  deviceAccessStatus: DeviceAccessStatus;
+  isDeviceLockActive: boolean;
+  unlockDevice: (code: string, label: string) => Promise<UnlockResult>;
 
   // Chore logging
   logChore: (taskId: string, stars: 1 | 2 | 3, actualDuration: number, notes?: string, customTimestamp?: string) => Promise<number>;
@@ -125,7 +136,7 @@ interface AppContextType {
 
   // Session & Security
   sessions: SessionLog[];
-  recordSession: (user: User, member?: FamilyMember | null, actionType?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat') => Promise<void>;
+  recordSession: (user: User, member?: FamilyMember | null, actionType?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat' | 'device_unlock') => Promise<void>;
   blockUserByEmail: (email: string) => Promise<void>;
   unblockUserByEmail: (email: string) => Promise<void>;
   blockedEmails: string[];
@@ -515,6 +526,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   }, [firebaseUser, activeUserId, dataWithCalculatedPoints.members]);
 
+  // The only real admin account (checked again by the Firestore rules)
+  const isMoritzAccount = useMemo(() => Boolean(
+    firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email?.toLowerCase() === MORITZ_EMAIL
+  ), [firebaseUser]);
+
   const activeUser = useMemo(() => activeUserId ? dataWithCalculatedPoints.members[activeUserId] || null : null, [activeUserId, dataWithCalculatedPoints.members]);
 
   // Automatically trigger the onboarding mini-tutorial on first account/profile opening,
@@ -557,25 +573,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const recordSession = useCallback(async (
     user: User, 
     member?: FamilyMember | null, 
-    actionType: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat' = 'login'
+    actionType: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat' | 'device_unlock' = 'login'
   ) => {
     try {
       // Small delay to ensure auth token is propagated to Firestore
       await new Promise(resolve => setTimeout(resolve, 600));
       
       console.log('Firebase: Attempting to record session for', user.email, 'Action:', actionType, 'Member:', member?.name);
-      // Get IP via public API with timeout fallback
-      let ip = 'unknown';
-      try {
-        const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
-        if (ipRes.ok) {
-          const ipData = await ipRes.json();
-          if (ipData && typeof ipData.ip === 'string') ip = ipData.ip;
-        }
-      } catch {
-        // IP lookup optional
-      }
-      
+      // Privacy: IP addresses are intentionally NOT recorded anymore.
       const userAgent = navigator.userAgent;
       let deviceType = 'Desktop';
       if (/Mobi|Android/i.test(userAgent)) deviceType = 'Mobile';
@@ -589,7 +594,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         photoURL: user.photoURL || undefined,
         member_id: member?.id || undefined,
         member_name: member?.name || undefined,
-        ip_address: ip,
         user_agent: userAgent,
         device_type: deviceType,
         timestamp: new Date().toISOString(),
@@ -597,7 +601,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       const sessionRef = doc(db, 'sessions', session.id);
-      await setDoc(sessionRef, session);
+      // Firestore rejects undefined values -> drop empty optional fields
+      const cleanSession = Object.fromEntries(Object.entries(session).filter(([, v]) => v !== undefined));
+      await setDoc(sessionRef, cleanSession);
       console.log('Firebase: Session recorded successfully:', session.id, session.email, session.action);
     } catch (err) {
       console.warn('Firebase: Session record notice (non-fatal):', err);
@@ -688,8 +694,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (user) {
         try {
           await user.getIdToken();
-          // Record session on login
-          recordSession(user);
+          // Record session on real logins only (not on every anonymous app start)
+          if (!user.isAnonymous) recordSession(user);
         } catch (e) {
           console.warn('Could not refresh auth token:', e);
         }
@@ -705,6 +711,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     return unsub;
   }, [recordSession]);
+
+  // ---------------------------------------------------------------------------
+  // Geräte-Schutz: is this device unlocked with the family code?
+  // ---------------------------------------------------------------------------
+  const [deviceAccessStatus, setDeviceAccessStatus] = useState<DeviceAccessStatus>('checking');
+  const [householdAccessDenied, setHouseholdAccessDenied] = useState(false);
+  const ipCleanupRef = useRef(false);
+  const pinMigrationRef = useRef(false);
+
+  useEffect(() => {
+    if (isAuthResolving) return;
+    let cancelled = false;
+    if (!firebaseUser) {
+      // Anonymous sign-in runs in the background; if it never arrives, it is disabled in Firebase.
+      const t = setTimeout(() => {
+        if (!cancelled && !auth.currentUser) setDeviceAccessStatus('no-auth');
+      }, 4000);
+      return () => { cancelled = true; clearTimeout(t); };
+    }
+    if (isMoritzAccount) {
+      setDeviceAccessStatus('unlocked');
+      return;
+    }
+    setDeviceAccessStatus('checking');
+    isDeviceUnlocked(firebaseUser.uid).then(ok => {
+      if (!cancelled) setDeviceAccessStatus(ok ? 'unlocked' : 'locked');
+    });
+    return () => { cancelled = true; };
+  }, [firebaseUser, isMoritzAccount, isAuthResolving]);
+
+  const isDeviceLockActive = Boolean(data.settings.device_lock_enabled) || householdAccessDenied;
+
+  const unlockDevice = useCallback(async (code: string, label: string): Promise<UnlockResult> => {
+    const user = auth.currentUser || await ensureAnonymousAuth();
+    if (!user) return 'error';
+    const result = await registerDevice(user.uid, code, label);
+    if (result === 'ok') {
+      setDeviceAccessStatus('unlocked');
+      setHouseholdAccessDenied(false);
+      recordSession(user, null, 'device_unlock');
+      retrySync();
+    }
+    return result;
+  }, [recordSession, retrySync]);
 
   // Firestore Synchronizer (Always Online-First)
   useEffect(() => {
@@ -734,6 +784,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!snap.exists()) {
           await seedAllDataToCloud(data);
         } else {
+          setHouseholdAccessDenied(false);
           const cloudData = snap.data();
           const cloudSettings = cloudData as FamilySettings;
           const cloudBlocked = (cloudData as any).blocked_emails || [];
@@ -768,6 +819,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkDone();
     }, (err) => {
       console.warn('Sync notice (Settings):', err);
+      if ((err as any)?.code === 'permission-denied') setHouseholdAccessDenied(true);
       loaded.settings = true;
       checkDone();
     });
@@ -778,8 +830,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const membersMap: Record<string, FamilyMember> = {};
       snap.forEach(d => { 
         const m = d.data() as FamilyMember;
-        membersMap[m.id || d.id] = { ...m, id: m.id || d.id }; 
+        membersMap[m.id || d.id] = { ...m, id: m.id || d.id };
       });
+
+      // One-time migration (fresh cloud data): hash legacy plain-text PINs
+      const legacyPinMembers = Object.values(membersMap).filter(
+        m => !m.pin_hash && typeof m.pin_code === 'string' && m.pin_code.trim().length > 0
+      );
+      // Only the live (production) build migrates, so local testing never changes real PIN data.
+      if (import.meta.env.PROD && legacyPinMembers.length > 0 && !pinMigrationRef.current) {
+        pinMigrationRef.current = true;
+        (async () => {
+          for (const m of legacyPinMembers) {
+            const pinHash = await hashPin(m.id, String(m.pin_code).trim());
+            await migrateMemberPinInCloud(m.id, pinHash);
+          }
+          console.log('Firebase: Migrated plain-text PINs to hashes:', legacyPinMembers.length);
+        })().catch(e => {
+          console.warn('PIN migration notice:', e);
+          pinMigrationRef.current = false;
+        });
+      }
 
       if (Object.keys(membersMap).length > 0) {
         setData(prev => {
@@ -997,12 +1068,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 8. Sessions (Admin only)
     let unsubSessions = () => {};
-    if (isAdmin) {
+    if (isMoritzAccount) {
       console.log('Firebase: Setting up sessions listener (Admin access granted)');
       unsubSessions = onSnapshot(collection(db, 'sessions'), (snap) => {
         if (isCancelled) return;
         const sessList: SessionLog[] = [];
         snap.forEach(d => sessList.push(d.data() as SessionLog));
+
+        // Privacy cleanup: remove IP addresses stored by older app versions (runs once)
+        const withIp = snap.docs.filter(d => 'ip_address' in d.data());
+        if (import.meta.env.PROD && withIp.length > 0 && !ipCleanupRef.current) {
+          ipCleanupRef.current = true;
+          (async () => {
+            for (let i = 0; i < withIp.length; i += 400) {
+              const batch = writeBatch(db);
+              withIp.slice(i, i + 400).forEach(d => batch.update(d.ref, { ip_address: deleteField() }));
+              await batch.commit();
+            }
+            console.log('Firebase: Removed IP addresses from old sessions:', withIp.length);
+          })().catch(e => {
+            console.warn('IP cleanup notice:', e);
+            ipCleanupRef.current = false;
+          });
+        }
+
         console.log(`Firebase: Loaded ${sessList.length} sessions`);
         setSessions(sessList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
       }, (err) => {
@@ -1029,9 +1118,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubMenus();
       unsubWishes();
       unsubNotifications();
+      unsubTaskEdits();
       unsubSessions();
     };
-  }, [syncRetryKey, isAdmin]);
+  }, [syncRetryKey, isMoritzAccount, firebaseUser?.uid]);
 
   // CRUD Implementations (preserving original logic but calling cloud service)
   
@@ -1653,7 +1743,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       avatar_color: avatarColor, 
       total_points: 0, 
       weekly_target: weeklyTarget,
-      pin_code: pinCode
+      pin_hash: pinCode && isValidPinFormat(pinCode) ? await hashPin(id, pinCode) : null
     };
     setData(prev => {
       const nextMembers = { ...prev.members, [id]: newMember };
@@ -1695,7 +1785,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateMember = useCallback(async (id: string, updates: any) => {
     const currentMember = data.members[id];
     if (!currentMember) return;
-    const updated = { ...currentMember, ...updates };
+    // PIN semantics: 4-digit string = set new PIN (stored as hash), null = remove PIN,
+    // undefined/missing = keep the current PIN.
+    const pinFields: Partial<FamilyMember> = {};
+    if (updates && 'pin_code' in updates) {
+      const raw = updates.pin_code;
+      if (typeof raw === 'string' && isValidPinFormat(raw.trim())) {
+        pinFields.pin_hash = await hashPin(id, raw.trim());
+        pinFields.pin_code = undefined;
+      } else if (raw === null) {
+        pinFields.pin_hash = null;
+        pinFields.pin_code = undefined;
+      } else {
+        pinFields.pin_hash = currentMember.pin_hash;
+        pinFields.pin_code = currentMember.pin_code;
+      }
+    }
+    const updated = { ...currentMember, ...updates, ...pinFields };
     setData(prev => {
       const nextMembers = { ...prev.members, [id]: updated };
       const next = { ...prev, members: nextMembers };
@@ -2440,6 +2546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sessions, recordSession, blockUserByEmail, unblockUserByEmail, blockedEmails,
       setActiveUserId, firebaseUser, syncStatus, syncFeedback, firebaseError,
       loginWithGoogle, loginWithApple, logoutFirebase, uploadAllToCloud, resetFirebaseCompletely, retrySync,
+      isMoritzAccount, deviceAccessStatus, isDeviceLockActive, unlockDevice,
       logChore, updateLog, deleteLog, logPointsAdjustment, createTask, updateTask, deleteTask,
       fishTask, unfishTask, togglePinTask,
       rewardCelebration, triggerRewardCelebration, clearRewardCelebration,

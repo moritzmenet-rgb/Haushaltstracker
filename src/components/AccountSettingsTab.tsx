@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { memberHasPin } from '../utils/pin';
 import { 
   User, 
   KeyRound, 
@@ -64,7 +65,7 @@ export const AccountSettingsTab: React.FC = () => {
       setName(activeUser.name || '');
       setAvatarColor(activeUser.avatar_color || '#4F46E5');
       setWeeklyTarget(activeUser.weekly_target || 50);
-      setPinCode(activeUser.pin_code || '');
+      setPinCode(''); // PINs are stored as hash – the field is only for a NEW PIN
       setBiometricEnabled(!!activeUser.biometric_enabled);
       setBiometricCredentialId(activeUser.biometric_credential_id || null);
     }
@@ -192,7 +193,7 @@ export const AccountSettingsTab: React.FC = () => {
     setPinCode('');
     setPinError(null);
     updateProfile({
-      pin_code: undefined
+      pin_code: null
     });
     setSaveSuccess('PIN-Code wurde erfolgreich entfernt. Dein Profil ist jetzt ungeschützt.');
     setTimeout(() => {
@@ -200,7 +201,7 @@ export const AccountSettingsTab: React.FC = () => {
     }, 4000);
   };
 
-  const hasPin = Boolean(activeUser.pin_code && activeUser.pin_code.trim().length === 4);
+  const hasPin = memberHasPin(activeUser);
 
   return (
     <div className="space-y-6">
@@ -474,7 +475,7 @@ export const AccountSettingsTab: React.FC = () => {
                   maxLength={4}
                   pattern="[0-9]*"
                   inputMode="numeric"
-                  placeholder="z. B. 1234"
+                  placeholder={hasPin ? 'Leer lassen = PIN bleibt' : 'z. B. 1234'}
                   value={pinCode}
                   onChange={(e) => {
                     const clean = e.target.value.replace(/\D/g, '').slice(0, 4);

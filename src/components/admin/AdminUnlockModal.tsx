@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, AlertCircle, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { memberHasPin, verifyPin } from '../../utils/pin';
 
 interface AdminUnlockModalProps {
   isOpen: boolean;
@@ -25,17 +26,20 @@ export const AdminUnlockModal: React.FC<AdminUnlockModalProps> = ({
   if (!isOpen) return null;
 
   // Check if any admin has a PIN
-  const adminsWithPin = adminMembers.filter((m) => !!m.pin_code);
+  const adminsWithPin = adminMembers.filter((m) => memberHasPin(m));
 
-  const handleDigit = (digit: string) => {
+  const handleDigit = async (digit: string) => {
     if (pin.length < 4) {
       const nextPin = pin + digit;
       setPin(nextPin);
       setError(false);
 
       if (nextPin.length === 4) {
-        // Verify
-        const matchingAdmin = adminMembers.find((a) => a.pin_code === nextPin);
+        // Verify (PINs are stored as hashes)
+        let matchingAdmin: typeof adminMembers[number] | undefined;
+        for (const a of adminMembers) {
+          if (await verifyPin(a, nextPin)) { matchingAdmin = a; break; }
+        }
         if (matchingAdmin) {
           // Success! Switch to that admin or authorize
           setActiveUserId(matchingAdmin.id);

@@ -1,4 +1,8 @@
-const CACHE_NAME = 'chore-tracker-v2';
+// Fish & Wish service worker
+// - Pages (HTML): network first, so every device gets new versions right away; cache only as offline fallback
+// - Own static files (hashed JS/CSS, icons): cache first
+// - Other origins (Firebase, Google Fonts, ...): not intercepted
+const CACHE_NAME = 'fish-wish-v3';
 const STATIC_ASSETS = [
   './',
   'index.html',
@@ -23,13 +27,34 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('./', copy)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('./') || caches.match('index.html')))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html') || caches.match('index.html') || caches.match('./');
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response.ok && url.pathname.includes('/assets/')) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
         }
+        return response;
       });
     })
   );

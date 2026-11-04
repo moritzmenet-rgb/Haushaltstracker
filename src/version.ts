@@ -4,9 +4,9 @@
  * receives the "Was ist neu?" announcement upon their first visit!
  */
 
-export const CURRENT_VERSION = '2.7.0';
-export const RELEASE_DATE = 'Oktober 2026';
-export const RELEASE_NAME = 'Das Katzen-Zimmer: Virtuelles Haustier, Styling & Familienbesuche';
+export const CURRENT_VERSION = '2.8.0';
+export const RELEASE_DATE = 'November 2026';
+export const RELEASE_NAME = 'Mehr Sicherheit: Familien-Code & geschützte PINs';
 
 export interface ReleaseFeature {
   title: string;
@@ -28,38 +28,36 @@ export interface ReleaseLog {
 
 export const VERSION_HISTORY: ReleaseLog[] = [
   {
-    version: '2.7.0',
-    title: 'Was ist neu in Version 2.7.0?',
-    subtitle: 'Das brandneue Katzen-Zimmer: Dein persönlicher Begleiter im Haushalt! 🐱✨',
-    date: '4. Oktober 2026',
+    version: '2.8.0',
+    title: 'Was ist neu in Version 2.8.0?',
+    subtitle: 'Eure Haushaltsdaten sind jetzt geschützt! 🔐',
+    date: '4. November 2026',
     isLatest: true,
     highlights: [
-      '🐱 Eigenes Katzen-Haustier für jedes Familienmitglied im Familien-Center',
-      '🥣 Pflegesystem: Füttern, Waschen, Kraulen mit Schnurr- und Toneffekten',
-      '🛍️ Katzen-Boutique: Kleidung, Hüte, Frisuren & Fellfarben mit Chips freischalten',
-      '👥 Besuchs-Modus: Besuche die Katzen der anderen & hilf beim Füttern!'
+      '🔐 Familien-Code: Jedes Gerät wird einmal freigeschaltet – Fremde mit dem Link kommen nicht mehr an eure Daten',
+      '🔑 PINs werden nur noch verschlüsselt gespeichert',
+      '🕵️ Weniger Daten: Es werden keine IP-Adressen mehr gespeichert',
+      '🛠️ Der Aktivitäten-Verlauf zeigt den gesamten Verlauf wieder richtig an'
     ],
     features: [
       {
-        title: '🐱 Das persönliche Katzen-Zimmer',
-        description: 'Erreichbar über das Familien-Center: Jedes Familienmitglied hat nun eine eigene Katze, die man liebevoll pflegen und jederzeit umbenennen kann.',
-        iconName: 'sparkles',
+        title: '🔐 Geräte-Freischaltung mit Familien-Code',
+        description: 'Beim ersten Öffnen auf einem neuen Gerät fragt die App einmal nach dem Familien-Code. Den findest du auf dem Zettel in der Küche. Danach läuft alles wie gewohnt.',
+        iconName: 'shield',
         badge: 'Neu',
         category: 'Neu'
       },
       {
-        title: '🛍️ Katzen-Boutique & Friseursalon',
-        description: 'Kaufe Hoodies, Fliegen, Superhelden-Capes, Kronen, Locken und Fellfarben mit verdienten Aufgaben-Chips und style deine Katze individuell.',
-        iconName: 'tag',
-        badge: 'Neu',
-        category: 'Neu'
+        title: '🔑 Verschlüsselte PINs',
+        description: 'Deine Profil-PIN bleibt gleich, wird aber nicht mehr lesbar gespeichert.',
+        iconName: 'shield',
+        category: 'Verbessert'
       },
       {
-        title: '👥 Besuchs- & Fütter-Modus',
-        description: 'Schau in den Zimmern deiner Familienmitglieder vorbei, sieh wie es ihren Katzen geht und spende Futter gegen eine kleine Chip-Geste!',
-        iconName: 'award',
-        badge: 'Neu',
-        category: 'Neu'
+        title: '🛠️ Verlauf repariert',
+        description: '„Gesamter Verlauf“ zeigt wieder alle Einträge, ohne große Lücke über der Liste.',
+        iconName: 'zap',
+        category: 'Behoben'
       }
     ]
   },

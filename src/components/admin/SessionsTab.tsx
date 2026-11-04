@@ -96,15 +96,17 @@ export const SessionsTab: React.FC = () => {
                         <Clock className="w-3.5 h-3.5" />
                         <span>{new Date(session.timestamp).toLocaleString('de-DE')}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Globe className="w-3.5 h-3.5" />
-                        <span>IP: {session.ip_address}</span>
-                      </div>
+                      {session.device_type && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>{session.device_type}{session.action === 'device_unlock' ? ' · Gerät freigeschaltet' : ''}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {!isSelf && (
+                {!isSelf && session.email !== 'unknown' && (
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

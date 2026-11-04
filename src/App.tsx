@@ -27,6 +27,7 @@ import { ChoreCompletionCelebration } from './components/ChoreCompletionCelebrat
 import { WhatsNewModal } from './components/WhatsNewModal';
 import { GlobalInteractiveEffects } from './components/GlobalInteractiveEffects';
 import { AppHubModal } from './components/hub/AppHubModal';
+import { DeviceGate } from './components/DeviceGate';
 import { MenuplannerView } from './components/menu/MenuplannerView';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud, Sparkles } from 'lucide-react';
@@ -51,8 +52,13 @@ const MainContent: React.FC = () => {
     currentAppVersion,
     newlyUnlockedBadge,
     clearNewlyUnlockedBadge,
-    updateMemberActiveBadge
+    updateMemberActiveBadge,
+    deviceAccessStatus,
+    isDeviceLockActive
   } = useApp();
+
+  // Geräte-Schutz: show the family-code screen until this device is unlocked
+  const showDeviceGate = isDeviceLockActive && deviceAccessStatus !== 'unlocked' && deviceAccessStatus !== 'checking';
 
   // Multi-App state management
   const [currentApp, setCurrentApp] = useState<MainAppType>('fish_and_wish');
@@ -153,6 +159,8 @@ const MainContent: React.FC = () => {
       </div>
 
       {/* PWA Install Notification Prompt */}
+      {showDeviceGate && <DeviceGate />}
+
       <PWAInstallBanner />
 
       {/* Real-time Cloud Upload & Saved Banner */}

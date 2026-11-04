@@ -9,3 +9,7 @@ coverage/
 
 # Lokale Firestore-Backups (enthalten persoenliche Daten - nie committen)
 backups/
+
+# Firebase CLI
+firebase-debug.log
+.firebase/

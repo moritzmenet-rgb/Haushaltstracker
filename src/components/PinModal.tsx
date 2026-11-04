@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Delete, X, AlertCircle, Fingerprint } from 'lucide-react';
 import { FamilyMember } from '../types';
 import { getInitials } from '../utils';
+import { verifyPin as checkPin } from '../utils/pin';
 
 interface PinModalProps {
   isOpen: boolean;
@@ -68,9 +69,9 @@ export const PinModal: React.FC<PinModalProps> = ({
     }
   }, [isOpen, member, handleBiometric]);
 
-  const verifyPin = useCallback((enteredPin: string) => {
+  const verifyPin = useCallback(async (enteredPin: string) => {
     if (!member) return;
-    if (enteredPin === member.pin_code) {
+    if (await checkPin(member, enteredPin)) {
       setError(false);
       onSuccess();
     } else {

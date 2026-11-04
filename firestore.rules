@@ -52,23 +52,39 @@ service cloud.firestore {
              get(/databases/$(database)/documents/households/main_household).data.blocked_emails.hasAny([authEmail()]);
     }
     
-    function isVerified() {
-      return isMoritz() || !isBlocked();
+    // -------------------------------------------------------------------------
+    // GERAETE-SCHUTZ (device unlock with the family code)
+    //   households/main_household/private/access  { code, enforce }  -> Moritz only
+    //   households/main_household/devices/{uid}   one doc per unlocked device
+    // -------------------------------------------------------------------------
+
+    function accessPath() {
+      return /databases/$(database)/documents/households/main_household/private/access;
     }
-    
+
+    function isUnlockedDevice() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/households/main_household/devices/$(request.auth.uid));
+    }
+
+    // Database protection switch (Admin > Geraete & Zugang > 3.)
+    function isEnforced() {
+      return exists(accessPath()) && get(accessPath()).data.get('enforce', false) == true;
+    }
+
+    // Who may use the household data:
+    //  - Moritz (Google) always
+    //  - unlocked devices (unless their e-mail is blocked)
+    //  - while protection is NOT enforced yet: everybody who is not blocked (rollout phase)
+    function isVerified() {
+      return isMoritz() ||
+             (isUnlockedDevice() && !isBlocked()) ||
+             (!isEnforced() && !isBlocked());
+    }
+
+    // Admin rights only for Moritz' Google account
     function isAdmin() {
-      return isMoritz() || (
-        isVerified() && (
-          !isSignedIn() ||
-          isAnonymousUser() ||
-          (
-            exists(/databases/$(database)/documents/households/main_household) &&
-            authEmail() != "" && 
-            "allowed_emails" in get(/databases/$(database)/documents/households/main_household).data && 
-            get(/databases/$(database)/documents/households/main_household).data.allowed_emails.hasAny([authEmail()])
-          )
-        )
-      );
+      return isMoritz();
     }
 
     function isValidId(id) {
@@ -104,7 +120,8 @@ service cloud.firestore {
              (!('unlocked_badges' in data) || data.unlocked_badges is map) &&
              (!('showroom_badges' in data) || data.showroom_badges is list) &&
              (!('active_badge_id' in data) || data.active_badge_id == null || (data.active_badge_id is string && data.active_badge_id.size() <= 128)) &&
-             (!('pin_code' in data) || data.pin_code == null || data.pin_code is string) &&
+             (!('pin_code' in data) || data.pin_code == null || data.pin_code == '') &&
+             (!('pin_hash' in data) || data.pin_hash == null || (data.pin_hash is string && data.pin_hash.size() <= 200)) &&
              (!('haptics_enabled' in data) || data.haptics_enabled is bool) &&
              (!('animations_enabled' in data) || data.animations_enabled is bool) &&
              (!('householdId' in data) || data.householdId is string);
@@ -195,7 +212,17 @@ service cloud.firestore {
       return data.keys().hasAll(['id', 'user_id', 'timestamp']) &&
              data.id is string && data.id.size() <= 128 &&
              data.user_id is string && data.user_id.size() <= 128 &&
-             data.timestamp is string && data.timestamp.size() <= 64;
+             data.timestamp is string && data.timestamp.size() <= 64 &&
+             !('ip_address' in data);
+    }
+
+    function isValidDevice(data, uid) {
+      return data.keys().hasOnly(['uid', 'code', 'label', 'device_type', 'created_at']) &&
+             data.uid == uid &&
+             data.code is string && data.code.size() == 8 &&
+             data.label is string && data.label.size() <= 60 &&
+             data.device_type is string && data.device_type.size() <= 20 &&
+             data.created_at is string && data.created_at.size() <= 64;
     }
 
     // -------------------------------------------------------------------------
@@ -210,15 +237,19 @@ service cloud.firestore {
       allow create: if isVerified() && (isMoritz() || !exists(/databases/$(database)/documents/households/main_household));
       
       // Allow update if Verified user and valid household data
-      allow update: if isVerified() && isValidHousehold(incoming());
+      // Access settings (allow/block lists, device lock) can only be changed by Moritz.
+      allow update: if isVerified() && isValidHousehold(incoming()) &&
+                       (isMoritz() || !incoming().diff(resource.data).affectedKeys()
+                         .hasAny(['allowed_emails', 'blocked_emails', 'device_lock_enabled']));
       
       allow delete: if isMoritz();
 
       // Members Subcollection
       match /members/{memberId} {
         allow read: if isVerified();
-        allow create, update: if isVerified() && (isMoritz() || isValidMember(incoming()));
-        allow delete: if (isAdmin() || isVerified()) && (!('role' in resource.data) || resource.data.role != 'admin' || isMoritz());
+        allow create: if isVerified() && (isMoritz() || (isValidMember(incoming()) && incoming().role == 'member'));
+        allow update: if isVerified() && (isMoritz() || (isValidMember(incoming()) && incoming().role == resource.data.role));
+        allow delete: if isMoritz();
       }
 
       // Tasks Subcollection
@@ -274,18 +305,33 @@ service cloud.firestore {
         allow create, update: if isVerified() && (isMoritz() || isValidTaskEdit(incoming()));
         allow delete: if isAdmin() || isMoritz();
       }
+
+      // Unlocked devices: a device may only register itself, and only with the correct family code
+      match /devices/{deviceId} {
+        allow get: if isSignedIn() && (deviceId == request.auth.uid || isMoritz());
+        allow list, update, delete: if isMoritz();
+        allow create: if isSignedIn() && deviceId == request.auth.uid &&
+                         isValidDevice(incoming(), request.auth.uid) &&
+                         exists(accessPath()) &&
+                         get(accessPath()).data.get('code', '') == incoming().code;
+      }
+
+      // Secret access config (family code, protection switch) - nobody but Moritz can read it
+      match /private/{docId} {
+        allow read, write: if isMoritz();
+      }
     }
 
     // Sessions Collection (Top level audit log for admin tracking)
     match /sessions/{sessionId} {
-      allow read: if isAdmin() || isVerified();
-      allow create, update: if isValidSession(incoming()) || isSignedIn() || !isSignedIn() || isMoritz();
-      allow delete: if isAdmin() || isMoritz();
+      allow read: if isMoritz();
+      allow create: if isVerified() && isValidSession(incoming());
+      allow update, delete: if isMoritz();
     }
 
     // Public Test Collection (for connectivity checks)
     match /test/{testId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
   }
 }

@@ -17,6 +17,7 @@ import { useApp } from '../../context/AppContext';
 import { FamilyMember, UserRole } from '../../types';
 import { getInitials } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
+import { memberHasPin } from '../../utils/pin';
 import { UserBadge } from '../UserBadge';
 
 export const UserManagementTab: React.FC = () => {
@@ -44,6 +45,7 @@ export const UserManagementTab: React.FC = () => {
   const [editRole, setEditRole] = useState<UserRole>('member');
   const [editWeeklyTarget, setEditWeeklyTarget] = useState<number>(50);
   const [editPin, setEditPin] = useState('');
+  const [editRemovePin, setEditRemovePin] = useState(false);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -94,7 +96,8 @@ export const UserManagementTab: React.FC = () => {
     setEditColor(member.avatar_color);
     setEditRole(member.role);
     setEditWeeklyTarget(member.weekly_target || data.settings.default_weekly_target || 50);
-    setEditPin(member.pin_code || '');
+    setEditPin(''); // PINs are stored as hash – the field is only for a NEW PIN
+    setEditRemovePin(false);
   };
 
   const handleSaveEditMember = async (e: React.FormEvent) => {
@@ -106,7 +109,8 @@ export const UserManagementTab: React.FC = () => {
       avatar_color: editColor,
       role: editRole,
       weekly_target: editWeeklyTarget,
-      pin_code: cleanPin.length === 4 ? cleanPin : undefined
+      // 4 digits = new PIN, null = remove, undefined = keep current PIN
+      pin_code: cleanPin.length === 4 ? cleanPin : (editRemovePin ? null : undefined)
     });
     setEditingMember(null);
     showToast(`Änderungen an "${editName.trim()}" gespeichert!`);
@@ -232,7 +236,7 @@ export const UserManagementTab: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        {m.pin_code && (
+                        {memberHasPin(m) && (
                           <span className="inline-flex items-center gap-1 text-[11px] text-[var(--m3-outline)] font-bold">
                             <KeyRound className="w-3 h-3 text-emerald-500" />
                             PIN aktiv
@@ -522,23 +526,28 @@ export const UserManagementTab: React.FC = () => {
                   <label className="text-xs font-black uppercase tracking-wider text-[var(--m3-on-surface-variant)]">
                     PIN-Schutz (4 Ziffern)
                   </label>
-                  {editPin && (
+                  {memberHasPin(editingMember) && !editRemovePin && (
                     <button
                       type="button"
-                      onClick={() => setEditPin('')}
+                      onClick={() => { setEditPin(''); setEditRemovePin(true); }}
                       className="text-[11px] text-rose-500 font-bold hover:underline"
                     >
                       PIN entfernen
                     </button>
+                  )}
+                  {editRemovePin && (
+                    <span className="text-[11px] text-rose-500 font-bold">
+                      PIN wird beim Speichern entfernt
+                    </span>
                   )}
                 </div>
                 <input
                   type="password"
                   maxLength={4}
                   inputMode="numeric"
-                  placeholder="Leer lassen für ungeschützt"
+                  placeholder={memberHasPin(editingMember) ? 'Leer lassen = PIN bleibt' : 'Leer lassen für ungeschützt'}
                   value={editPin}
-                  onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => { setEditPin(e.target.value.replace(/\D/g, '')); setEditRemovePin(false); }}
                   className="w-full px-4 py-2.5 rounded-2xl bg-[var(--m3-surface)] border border-[var(--m3-outline)] text-sm tracking-widest font-mono text-[var(--m3-on-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--m3-primary)]"
                 />
               </div>

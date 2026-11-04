@@ -9,7 +9,10 @@ export interface FamilyMember {
   avatar_color: string;
   total_points: number;
   weekly_target: number;
-  pin_code?: string;
+  /** Legacy plain-text PIN. Only read for migration; new PINs are stored as pin_hash. null = remove PIN. */
+  pin_code?: string | null;
+  /** PBKDF2 hash of the 4-digit PIN (see utils/pin.ts) */
+  pin_hash?: string | null;
   biometric_enabled?: boolean;
   biometric_credential_id?: string;
   has_seen_tutorial?: boolean;
@@ -98,6 +101,8 @@ export interface FamilySettings {
   scheduled_reset_minute?: number; // 0 to 59
   auto_reset_enabled?: boolean;
   last_scheduled_run?: string;
+  /** When true, devices must be unlocked once with the family code (Geräte-Schutz). */
+  device_lock_enabled?: boolean;
 }
 
 export interface SessionLog {
@@ -108,11 +113,12 @@ export interface SessionLog {
   photoURL?: string;
   member_id?: string;
   member_name?: string;
-  ip_address: string;
-  user_agent: string;
+  /** Legacy field: no longer recorded, old entries are cleaned up. */
+  ip_address?: string;
+  user_agent?: string;
   device_type: string;
   timestamp: string;
-  action?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat';
+  action?: 'login' | 'admin_login' | 'admin_switch' | 'admin_unlock' | 'heartbeat' | 'device_unlock';
   is_blocked?: boolean;
 }
 

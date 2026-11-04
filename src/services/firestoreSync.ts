@@ -5,7 +5,8 @@ import {
   deleteDoc, 
   getDocs,
   getDoc,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 import { db, auth, isConfigValid, handleFirestoreError, OperationType } from '../firebase';
 import { ChoreLog, FamilyData, FamilyMember, FamilySettings, PinnwandNote, TaskItem, TaskEditLog } from '../types';
@@ -92,8 +93,21 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
 /**
  * Sanitize a family member object for Firestore
  */
+/**
+ * PIN fields: plain-text PINs are never written anymore.
+ * - hashed PIN  -> write pin_hash, delete legacy pin_code
+ * - legacy PIN that is not migrated yet -> leave both fields untouched (merge keeps them)
+ * - no PIN      -> clear both fields
+ */
+function sanitizePinFields(member: FamilyMember): Record<string, any> {
+  if (member.pin_hash) return { pin_hash: String(member.pin_hash), pin_code: deleteField() };
+  if (member.pin_code && String(member.pin_code).trim().length > 0) return {};
+  return { pin_hash: null, pin_code: deleteField() };
+}
+
 function sanitizeMember(member: FamilyMember): Record<string, any> {
   return {
+    ...sanitizePinFields(member),
     id: String(member.id),
     name: String(member.name || 'Familienmitglied'),
     role: member.role === 'admin' ? 'admin' : 'member',
@@ -102,7 +116,6 @@ function sanitizeMember(member: FamilyMember): Record<string, any> {
     weekly_target: Number(member.weekly_target || 50),
     has_seen_tutorial: Boolean(member.has_seen_tutorial),
     last_seen_version: member.last_seen_version ? String(member.last_seen_version) : null,
-    pin_code: String(member.pin_code || ''),
     preferred_theme: member.preferred_theme || null,
     preferred_mode: member.preferred_mode || null,
     unlocked_badges: member.unlocked_badges || {},
@@ -363,6 +376,16 @@ export async function saveMemberToCloud(member: FamilyMember): Promise<void> {
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `households/${HOUSEHOLD_ID}/members/${member.id}`);
   }
+}
+
+/**
+ * One-time migration: replace a legacy plain-text PIN by its hash.
+ * Only touches the two PIN fields, so no other (possibly newer) member data is overwritten.
+ */
+export async function migrateMemberPinInCloud(memberId: string, pinHash: string): Promise<void> {
+  if (!isConfigValid) return;
+  const memberRef = doc(db, 'households', HOUSEHOLD_ID, 'members', memberId);
+  await setDoc(memberRef, { pin_hash: pinHash, pin_code: deleteField() }, { merge: true });
 }
 
 export async function deleteMemberFromCloud(memberId: string): Promise<void> {

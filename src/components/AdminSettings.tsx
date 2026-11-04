@@ -22,16 +22,17 @@ import { SyncSettingsTab } from './admin/SyncSettingsTab';
 import { DataManagementTab } from './admin/DataManagementTab';
 import { SessionsTab } from './admin/SessionsTab';
 import { TaskAuditTab } from './admin/TaskAuditTab';
-import { Lock, History } from 'lucide-react';
+import { DeviceAccessTab } from './admin/DeviceAccessTab';
+import { Lock, History, KeyRound } from 'lucide-react';
 
-type SubTabId = 'profile' | 'theme' | 'general' | 'task_audit' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions';
+type SubTabId = 'profile' | 'theme' | 'general' | 'task_audit' | 'users' | 'rules' | 'categories' | 'sync' | 'data' | 'sessions' | 'devices';
 
 interface AdminSettingsProps {
   onOpenProfileSelector?: () => void;
 }
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelector }) => {
-  const { data, isAdmin, activeUser, firebaseUser, loginWithGoogle, recordSession } = useApp();
+  const { data, isAdmin, isMoritzAccount, activeUser, firebaseUser, loginWithGoogle, recordSession } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('profile');
 
@@ -40,12 +41,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
     label: string;
     icon: React.ReactNode;
     adminOnly?: boolean;
+    moritzOnly?: boolean;
   }> = [
     { id: 'profile', label: 'Mein Profil', icon: <User className="w-4 h-4" /> },
     { id: 'theme', label: 'Farben & Design', icon: <Palette className="w-4 h-4" /> },
     { id: 'task_audit', label: 'Aufgaben-Änderungen', icon: <History className="w-4 h-4" />, adminOnly: true },
     { id: 'general', label: 'Haushalt & Basis', icon: <Building2 className="w-4 h-4" />, adminOnly: true },
     { id: 'users', label: 'Mitglieder & Rollen', icon: <Users className="w-4 h-4" />, adminOnly: true },
+    { id: 'devices', label: 'Geräte & Zugang', icon: <KeyRound className="w-4 h-4" />, adminOnly: true, moritzOnly: true },
     { id: 'sessions', label: 'Sicherheit & Sitzungen', icon: <ShieldCheck className="w-4 h-4" />, adminOnly: true },
     { id: 'rules', label: 'Sterne & Roll-Over', icon: <Calculator className="w-4 h-4" />, adminOnly: true },
     { id: 'categories', label: 'Kategorien', icon: <Layers className="w-4 h-4" />, adminOnly: true },
@@ -55,12 +58,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
 
   // Filter tabs: non-admins simply do not see admin tabs at all
   const visibleTabs = useMemo(() => {
-    return ALL_TABS.filter(tab => !tab.adminOnly || isAdmin);
-  }, [isAdmin]);
+    return ALL_TABS.filter(tab => (!tab.adminOnly || isAdmin) && (!tab.moritzOnly || isMoritzAccount));
+  }, [isAdmin, isMoritzAccount]);
 
   // If a non-admin is active and activeSubTab is an admin-only tab, revert to profile
   useEffect(() => {
-    if (!isAdmin && ['general', 'users', 'rules', 'categories', 'sync', 'data', 'sessions'].includes(activeSubTab)) {
+    if (!isAdmin && ['general', 'users', 'rules', 'categories', 'sync', 'data', 'sessions', 'devices'].includes(activeSubTab)) {
       setActiveSubTab('profile');
     }
   }, [isAdmin, activeSubTab]);
@@ -202,6 +205,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onOpenProfileSelec
               {activeSubTab === 'sync' && <SyncSettingsTab />}
               {activeSubTab === 'data' && <DataManagementTab />}
               {activeSubTab === 'sessions' && <SessionsTab />}
+              {activeSubTab === 'devices' && <DeviceAccessTab />}
             </>
           )}
         </motion.div>
