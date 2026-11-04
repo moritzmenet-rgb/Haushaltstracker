@@ -1319,7 +1319,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* List of Filtered Logs in Material 3 Elevated Cards */}
         {filteredLogs.length === 0 ? (
-          <motion.div 
+          <motion.div
+            key="verlauf-empty"
+            initial="hidden"
+            animate="visible"
             variants={{
               hidden: { opacity: 0, scale: 0.95 },
               visible: { opacity: 1, scale: 1 }
@@ -1358,7 +1361,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
+            key="verlauf-list"
+            initial="hidden"
+            animate="visible"
             variants={{
               hidden: { opacity: 0 },
               visible: {
