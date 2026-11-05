@@ -16,10 +16,11 @@ service cloud.firestore {
         : '';
     }
     
+    // Full admins. Add further admin accounts to this list (email, Google sign-in).
     function isMoritz() {
       return isSignedIn() && (
         request.auth.uid == 'fehEDbG4MDekoD9WMe8xo7HKAdJ2' ||
-        authEmail() == 'moritz.menet.bfsu@gmail.com'
+        authEmail() in ['moritz.menet.bfsu@gmail.com', 'moritz.menet@gmail.com']
       );
     }
 

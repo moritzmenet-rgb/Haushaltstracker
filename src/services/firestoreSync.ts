@@ -75,9 +75,9 @@ function sanitizeSettings(settings?: Partial<FamilySettings>): Record<string, an
     rollover_min_target: Number(s.rollover_min_target ?? 10),
     rollover_max_target: Number(s.rollover_max_target ?? 200),
     week_start_day: s.week_start_day || 'monday',
-    allowed_emails: Array.isArray(s.allowed_emails) 
-      ? s.allowed_emails 
-      : ['moritz.menet.bfsu@gmail.com'],
+    allowed_emails: Array.isArray(s.allowed_emails)
+      ? s.allowed_emails
+      : ['moritz.menet.bfsu@gmail.com', 'moritz.menet@gmail.com'],
     blocked_emails: Array.isArray((s as any).blocked_emails)
       ? (s as any).blocked_emails
       : [],

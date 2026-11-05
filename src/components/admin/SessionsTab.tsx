@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldAlert, Globe, Monitor, Smartphone, Tablet, Ban, Unlock, Clock, Mail, ShieldX } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { isAdminEmail } from '../../services/deviceAccess';
 import { motion } from 'motion/react';
 
 export const SessionsTab: React.FC = () => {
@@ -42,7 +43,7 @@ export const SessionsTab: React.FC = () => {
         ) : (
           sessions.map((session) => {
             const isBlocked = blockedEmails.includes(session.email.toLowerCase());
-            const isSelf = session.email === 'moritz.menet.bfsu@gmail.com';
+            const isSelf = isAdminEmail(session.email);
 
             return (
               <motion.div

@@ -19,7 +19,15 @@ import { HOUSEHOLD_ID } from './firestoreSync';
  * When `enforce` is true, the rules only let unlocked devices (and Moritz) access household data.
  */
 
-export const MORITZ_EMAIL = 'moritz.menet.bfsu@gmail.com';
+// Full admin accounts (Google sign-in). Must stay in sync with isMoritz() in firestore.rules.
+// Add a further admin by appending their Google email here AND in the Firestore rules.
+export const ADMIN_EMAILS = ['moritz.menet.bfsu@gmail.com', 'moritz.menet@gmail.com'];
+
+export const isAdminEmail = (email?: string | null): boolean =>
+  !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+
+// Kept for backwards compatibility (first admin).
+export const MORITZ_EMAIL = ADMIN_EMAILS[0];
 
 // Letters + digits without look-alikes (0/O, 1/I/L)
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

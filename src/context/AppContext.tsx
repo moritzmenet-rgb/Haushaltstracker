@@ -26,7 +26,7 @@ import {
   User
 } from '../firebase';
 import { doc, collection, onSnapshot, setDoc, writeBatch, deleteField } from 'firebase/firestore';
-import { MORITZ_EMAIL, checkDeviceRegistration, probeHouseholdAccess, registerDevice, UnlockResult } from '../services/deviceAccess';
+import { isAdminEmail, checkDeviceRegistration, probeHouseholdAccess, registerDevice, UnlockResult } from '../services/deviceAccess';
 import { hashPin, isValidPinFormat } from '../utils/pin';
 import { 
   HOUSEHOLD_ID, 
@@ -540,7 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Only if the household has zero members yet and the owner is signed in with Google, allow initial setup
     const totalMembers = Object.keys(dataWithCalculatedPoints.members || {}).length;
-    if (totalMembers === 0 && firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email?.toLowerCase() === 'moritz.menet.bfsu@gmail.com') {
+    if (totalMembers === 0 && firebaseUser && !firebaseUser.isAnonymous && isAdminEmail(firebaseUser.email)) {
       return true;
     }
     return false;
@@ -548,7 +548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // The only real admin account (checked again by the Firestore rules)
   const isMoritzAccount = useMemo(() => Boolean(
-    firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email?.toLowerCase() === MORITZ_EMAIL
+    firebaseUser && !firebaseUser.isAnonymous && isAdminEmail(firebaseUser.email)
   ), [firebaseUser]);
 
   const activeUser = useMemo(() => activeUserId ? dataWithCalculatedPoints.members[activeUserId] || null : null, [activeUserId, dataWithCalculatedPoints.members]);
