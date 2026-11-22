@@ -3,37 +3,35 @@ import { checkWichtelPin, createWichtelPin, describeError, subscribePin } from '
 
 export type WichtelPhase = 'loading' | 'create-pin' | 'enter-pin' | 'ready' | 'error';
 
-const UNLOCK_KEY = 'wichteln_unlocked_member';
 const MAX_TRIES = 5;
 const COOLDOWN_MS = 30_000;
+/** Locks again after this long without any touch, click or key press */
+const IDLE_LOCK_MS = 3 * 60_000;
+/** Locks again when the app was in the background (other app, screen off) this long */
+const HIDDEN_LOCK_MS = 60_000;
 
-function readUnlocked(): string | null {
-  try {
-    return localStorage.getItem(UNLOCK_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeUnlocked(memberId: string | null) {
-  try {
-    if (memberId) localStorage.setItem(UNLOCK_KEY, memberId);
-    else localStorage.removeItem(UNLOCK_KEY);
-  } catch {
-    /* private mode: stays unlocked for this visit only */
-  }
+/** Old versions remembered the unlock on the device; never trust that again. */
+const LEGACY_UNLOCK_KEY = 'wichteln_unlocked_member';
+try {
+  localStorage.removeItem(LEGACY_UNLOCK_KEY);
+} catch {
+  /* ignore */
 }
 
 /**
  * Wichtel-PIN of the active Fish & Wish profile:
  * - no PIN yet            -> 'create-pin'
  * - PIN set, not unlocked -> 'enter-pin'
- * - unlocked for this member on this device -> 'ready'
- * Switching to another profile locks Wichteln again (shared tablet).
+ * - unlocked              -> 'ready'
+ *
+ * The unlock is only kept in memory, so it is gone when the person leaves the
+ * Wichteln area, reloads or closes the app, switches profile, is idle for 3
+ * minutes or puts the app in the background for a minute. Nobody can pick up a
+ * phone or the kitchen tablet and see whom the previous person gifts.
  */
 export function useWichtelSession(memberId: string | null) {
   const [pinHash, setPinHash] = useState<string | null | undefined>(undefined);
-  const [unlockedFor, setUnlockedFor] = useState<string | null>(() => readUnlocked());
+  const [unlockedFor, setUnlockedFor] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const wrongTries = useRef(0);
   const blockedUntil = useRef(0);
@@ -45,15 +43,36 @@ export function useWichtelSession(memberId: string | null) {
     return subscribePin(memberId, setPinHash, (err) => setLoadError(describeError(err)));
   }, [memberId]);
 
-  const unlock = useCallback((id: string | null) => {
-    writeUnlocked(id);
-    setUnlockedFor(id);
-  }, []);
+  const lock = useCallback(() => setUnlockedFor(null), []);
 
-  // Another profile is active now: lock, so nobody inherits the previous person's view
+  // Another profile is active now: lock immediately
   useEffect(() => {
-    if (memberId && unlockedFor && unlockedFor !== memberId) unlock(null);
-  }, [memberId, unlockedFor, unlock]);
+    if (unlockedFor && unlockedFor !== memberId) lock();
+  }, [memberId, unlockedFor, lock]);
+
+  // Auto-lock: idle for a while, or the app was in the background for a while
+  useEffect(() => {
+    if (!unlockedFor) return;
+    let idleTimer = setTimeout(lock, IDLE_LOCK_MS);
+    let hiddenAt = 0;
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(lock, IDLE_LOCK_MS);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt >= HIDDEN_LOCK_MS) lock();
+      else resetIdle();
+    };
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, resetIdle, { passive: true }));
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearTimeout(idleTimer);
+      events.forEach((e) => window.removeEventListener(e, resetIdle));
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [unlockedFor, lock]);
 
   const createPin = useCallback(
     async (pin: string) => {
@@ -63,9 +82,9 @@ export function useWichtelSession(memberId: string | null) {
       } catch (err) {
         throw new Error(describeError(err));
       }
-      unlock(memberId);
+      setUnlockedFor(memberId);
     },
-    [memberId, unlock],
+    [memberId],
   );
 
   const enterPin = useCallback(
@@ -85,18 +104,16 @@ export function useWichtelSession(memberId: string | null) {
         throw new Error('Diese PIN stimmt nicht. Versuch es nochmal.');
       }
       wrongTries.current = 0;
-      unlock(memberId);
+      setUnlockedFor(memberId);
     },
-    [memberId, pinHash, unlock],
+    [memberId, pinHash],
   );
-
-  const lock = useCallback(() => unlock(null), [unlock]);
 
   let phase: WichtelPhase;
   if (loadError) phase = 'error';
   else if (pinHash === undefined) phase = 'loading';
   else if (!pinHash) phase = 'create-pin';
-  else if (unlockedFor === memberId) phase = 'ready';
+  else if (memberId && unlockedFor === memberId) phase = 'ready';
   else phase = 'enter-pin';
 
   return { phase, loadError, createPin, enterPin, lock };

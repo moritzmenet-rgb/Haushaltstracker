@@ -14,8 +14,11 @@ interface Props {
 type PendingReset = { kind: 'assign' | 'account'; member: FamilyMember } | null;
 
 /**
- * Only for Moritz (Google admin login). Shows HOW MANY Wichtel each person has,
- * never WHO gifts whom, and lets him reset an assignment or a forgotten PIN.
+ * Only for Moritz (Google admin login). Moritz plays along, so this panel must
+ * never let anyone work out who gifts whom:
+ * - while people are still entering, it only shows WHO has entered (no counts:
+ *   "only Ben entered, Anna and Lena have 1 Wichtel each" would give Ben away)
+ * - only when everybody has entered, it names the people whose count is not 2
  */
 export const WichtelAdmin: React.FC<Props> = ({ season, members }) => {
   const [assignments, setAssignments] = useState<WichtelAssignment[] | null>(null);
@@ -49,9 +52,7 @@ export const WichtelAdmin: React.FC<Props> = ({ season, members }) => {
     const entered = new Set((assignments ?? []).map((a) => a.giver_id));
     const missing = members.filter((m) => !entered.has(m.id));
     const allEntered = missing.length === 0;
-    const wrong = members.filter((m) =>
-      allEntered ? received[m.id] !== RECEIVERS_PER_PERSON : received[m.id] > RECEIVERS_PER_PERSON,
-    );
+    const wrong = allEntered ? members.filter((m) => received[m.id] !== RECEIVERS_PER_PERSON) : [];
     return { received, entered, missing, wrong };
   }, [assignments, members]);
 
@@ -114,8 +115,6 @@ export const WichtelAdmin: React.FC<Props> = ({ season, members }) => {
                   {hasAccount(m.id) ? 'PIN gesetzt' : 'Keine PIN'}
                   {' · '}
                   {stats.entered.has(m.id) ? 'eingetragen' : 'nicht eingetragen'}
-                  {' · '}
-                  hat {stats.received[m.id] ?? 0} Wichtel
                 </td>
                 <td>
                   {stats.entered.has(m.id) && (
@@ -145,7 +144,7 @@ export const WichtelAdmin: React.FC<Props> = ({ season, members }) => {
         text={
           pending?.kind === 'assign'
             ? `${pending.member.name} wählt beim nächsten Öffnen die zwei Personen neu aus. Bereits gemerkte Wünsche bleiben gemerkt.`
-            : `${pending?.member.name ?? ''} legt beim nächsten Öffnen eine neue PIN fest. Die Wünsche bleiben erhalten.`
+            : `${pending?.member.name ?? ''} legt beim nächsten Öffnen eine neue PIN fest. Die Wünsche bleiben erhalten. Wichtig: ${pending?.member.name ?? ''} soll die neue PIN gleich selbst festlegen, bevor jemand anderes Wichteln mit diesem Profil öffnet.`
         }
         confirmLabel="Zurücksetzen"
         cancelLabel="Behalten"
