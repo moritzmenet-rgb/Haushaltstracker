@@ -6,6 +6,7 @@ import { addWish, saveRanking, subscribeWishesOf } from '../wichtelService';
 import type { NewWishInput, Wish } from '../types';
 import { WishCard } from './WishCard';
 import { AddWishSheet } from './AddWishSheet';
+import fensterUrl from '../assets/wichtel-fenster.webp';
 
 interface Props {
   season: string;
@@ -117,6 +118,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openTrigger, showFab }
 
       {order.length === 0 ? (
         <div className="w-empty">
+          <img className="w-empty-figure" src={fensterUrl} alt="" width={168} height={168} />
           <p className="w-empty-title">Was wünschst du dir?</p>
           <p className="w-muted" style={{ marginBottom: 16 }}>
             Schreib deine Wünsche auf. Nur deine zwei Wichtel sehen sie.

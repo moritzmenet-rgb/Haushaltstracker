@@ -13,6 +13,7 @@ import { WichtelSetup } from './components/WichtelSetup';
 import { MyWishes } from './components/MyWishes';
 import { TheirWishes } from './components/TheirWishes';
 import { WichtelAdmin } from './components/WichtelAdmin';
+import { WichtelHeader } from './components/WichtelHeader';
 import './wichteln.css';
 
 interface Props {
@@ -102,24 +103,23 @@ export const WichtelnView: React.FC<Props> = ({ addWishTrigger }) => {
     <div className="wichteln">
       {isMoritzAccount && !tooFew && <WichtelAdmin season={season} members={members} />}
 
-      <header className="w-header">
-        <div>
-          <h1 className="w-title">Wichteln</h1>
-          <div className="w-countdown">{countdownText()}</div>
-        </div>
-        {activeUser && session.phase === 'ready' && (
-          <div className="w-whoami">
-            <span className="w-avatar w-avatar-sm" style={{ backgroundColor: activeUser.avatar_color }}>
-              {getInitials(activeUser.name)}
-            </span>
-            <span>{activeUser.name}</span>
-            <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={session.lock} title="Wichteln auf diesem Gerät sperren">
-              <Lock className="w-4 h-4" />
-              Sperren
-            </button>
-          </div>
-        )}
-      </header>
+      <WichtelHeader
+        countdown={countdownText()}
+        right={
+          activeUser && session.phase === 'ready' ? (
+            <div className="w-whoami">
+              <span className="w-avatar w-avatar-sm" style={{ backgroundColor: activeUser.avatar_color }}>
+                {getInitials(activeUser.name)}
+              </span>
+              <span className="w-hide-xs">{activeUser.name}</span>
+              <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={session.lock} title="Wichteln auf diesem Gerät sperren">
+                <Lock className="w-4 h-4" />
+                Sperren
+              </button>
+            </div>
+          ) : null
+        }
+      />
 
       {tooFew ? (
         <div className="w-body">

@@ -7,6 +7,7 @@ import { haptic } from '../../utils/haptics';
 import { claimWish, subscribeClaimsFor, subscribeWishesOf, unclaimWish } from '../wichtelService';
 import type { Wish, WishClaim } from '../types';
 import { WishCard } from './WishCard';
+import geschenkeUrl from '../assets/wichtel-geschenke.webp';
 
 interface ReceiverProps {
   season: string;
@@ -123,6 +124,7 @@ const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }) => {
             <div className="w-empty" style={{ marginTop: visible.length ? 16 : 0 }}>
               {myCount > 0 ? (
                 <>
+                  <img className="w-empty-figure" src={geschenkeUrl} alt="" width={168} height={168} />
                   <p className="w-empty-title">Alles gemerkt. Gut gemacht.</p>
                   <p className="w-muted">Für {receiver.name} ist kein Wunsch mehr offen.</p>
                 </>

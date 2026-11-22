@@ -21,6 +21,7 @@
   --w-gold: #C9A24A;
   --w-schnee: #DCE6EA;
   --w-zettel: #FFF7D6;
+  --w-stempel: #8E2F33;
   --w-fehler: #B23A2E;
   --w-fehler-bg: #F6E1DC;
   --w-scrim: rgba(43, 42, 40, 0.36);
@@ -34,12 +35,15 @@
 
   font-family: var(--w-sans);
   color: var(--w-tinte);
-  background: var(--w-papier);
+  background-color: var(--w-papier);
+  /* light paper grain (SVG noise, ~1 KB) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .22 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   border: 1px solid var(--w-linie);
   border-radius: 16px;
   font-size: 15px;
   line-height: 1.55;
-  overflow: hidden;
+  /* clip (not hidden) so the sticky fir strip still works */
+  overflow: clip;
 }
 
 .dark .wichteln {
@@ -59,6 +63,7 @@
   --w-gold: #D6B566;
   --w-schnee: #3A4549;
   --w-zettel: #3A3526;
+  --w-stempel: #A33E43;
   --w-fehler: #E2705C;
   --w-fehler-bg: #3A1F1A;
   --w-scrim: rgba(0, 0, 0, 0.5);
@@ -99,8 +104,105 @@
   font-size: 13px;
   color: var(--w-bleistift);
 }
+@media (max-width: 420px) { .w-hide-xs { display: none; } }
 
 .w-body { padding: 24px; }
+
+/* ---------- Picture-book header ---------- */
+.w-hero {
+  position: relative;
+  height: clamp(200px, 35vh, 340px);
+  border-bottom: 1px solid var(--w-linie);
+  overflow: hidden;
+}
+.w-hero-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 62%;
+  mix-blend-mode: multiply; /* the paper of the picture melts into the page */
+  user-select: none; pointer-events: none;
+}
+.dark .w-hero-img { mix-blend-mode: normal; filter: brightness(.78) saturate(.9); }
+.dark .w-hero::after {
+  /* evening light: blend the bright picture into the dark page */
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(27, 30, 28, .55), rgba(27, 30, 28, 0) 55%);
+}
+/* title sits on a soft paper "cloud" so it stays readable over the picture */
+.w-hero-text {
+  position: absolute; left: 8px; top: 8px; z-index: 2;
+  padding: 24px 56px 32px 24px;
+  background: radial-gradient(closest-side, var(--w-papier) 62%, transparent);
+}
+.w-hero .w-title { font-size: 34px; }
+.w-hero .w-countdown { color: var(--w-tinte); }
+.w-hero-tools {
+  position: absolute; right: 16px; top: 16px; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+}
+.w-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--w-linie); background: color-mix(in srgb, var(--w-blatt) 85%, transparent);
+  color: var(--w-tanne-linie); cursor: pointer;
+  transition: background-color 120ms, transform 120ms;
+}
+.w-icon-btn[aria-pressed="false"] { color: var(--w-bleistift); }
+.w-icon-btn:active { transform: scale(.94); }
+.w-hero .w-whoami {
+  background: color-mix(in srgb, var(--w-blatt) 85%, transparent);
+  border: 1px solid var(--w-linie); border-radius: 999px; padding: 2px 4px 2px 4px;
+}
+
+/* Snow: few, slow flakes, header only */
+.w-snow { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.w-snow span {
+  position: absolute; top: -8px; border-radius: 50%;
+  background: #fff; opacity: .85;
+  box-shadow: 0 0 0 .5px rgba(43, 42, 40, .12);
+  animation-name: w-snowfall; animation-timing-function: linear; animation-iteration-count: infinite;
+}
+@keyframes w-snowfall {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--drift, 0), 360px, 0); }
+}
+
+/* Narrow strip with fir silhouette while scrolling (fixed; left/width set from the area) */
+.w-strip {
+  position: fixed; top: 0; left: 0; width: 100%; height: 56px; z-index: 35;
+  pointer-events: none; visibility: hidden; transition: visibility 0s linear 200ms;
+}
+.w-strip.is-visible { visibility: visible; transition-delay: 0s; }
+.w-strip::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 56px;
+  background: var(--w-papier); border: 1px solid var(--w-linie); border-top: 0;
+  border-radius: 0 0 10px 10px;
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity 200ms var(--w-in), transform 200ms var(--w-in);
+}
+.w-firs {
+  position: absolute; left: 0; right: 0; top: 16px; height: 40px; width: 100%;
+  color: var(--w-tanne); opacity: 0; transform: translateY(-8px);
+  transition: opacity 200ms var(--w-in), transform 200ms var(--w-in);
+}
+.w-strip-title {
+  position: absolute; left: 16px; top: 10px; font: 400 20px/1.2 var(--w-serif);
+  padding: 2px 12px 4px 8px; border-radius: 6px;
+  background: var(--w-papier);
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity 200ms var(--w-in), transform 200ms var(--w-in);
+}
+.w-strip.is-visible::before, .w-strip.is-visible .w-firs, .w-strip.is-visible .w-strip-title { opacity: 1; transform: none; }
+.w-strip.is-visible .w-firs { opacity: .9; }
+
+/* Empty state with a picture-book figure */
+.w-empty-figure {
+  width: 176px; height: 176px; margin: -8px auto 8px; display: block;
+  object-fit: contain; mix-blend-mode: multiply;
+  /* soft round fade instead of a hard picture edge */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 58%, transparent 74%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 58%, transparent 74%);
+}
+.dark .w-empty-figure { mix-blend-mode: normal; filter: brightness(.88); }
 
 /* ---------- Typography helpers ---------- */
 .w-h2 {
@@ -304,18 +406,13 @@
 
 /* sits over the ranking number, so the wish text stays readable */
 .w-stamp {
-  position: absolute; left: -2px; top: 50%;
-  width: 64px; height: 64px; margin-top: -30px; border-radius: 50%;
-  border: 2px solid var(--w-weinrot);
-  box-shadow: inset 0 0 0 3px var(--w-tanne), inset 0 0 0 4px var(--w-weinrot);
-  color: #fff; background: var(--w-tanne);
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  font: 500 10px/1.15 var(--w-sans);
+  position: absolute; left: -6px; top: 50%;
+  width: 72px; height: 72px; margin-top: -36px;
   transform: rotate(-14deg);
   animation: w-stamp 300ms var(--w-in);
   pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18));
 }
-.dark .w-stamp { border-color: #E9A0A4; box-shadow: inset 0 0 0 3px var(--w-tanne), inset 0 0 0 4px #E9A0A4; }
 
 @keyframes w-stamp {
   0% { opacity: 0; transform: rotate(-14deg) scale(1.6); }
