@@ -4,9 +4,9 @@
  * receives the "Was ist neu?" announcement upon their first visit!
  */
 
-export const CURRENT_VERSION = '2.8.0';
+export const CURRENT_VERSION = '2.9.0';
 export const RELEASE_DATE = 'November 2026';
-export const RELEASE_NAME = 'Mehr Sicherheit: Familien-Code & geschützte PINs';
+export const RELEASE_NAME = 'Wichteln: geheime Wunschzettel';
 
 export interface ReleaseFeature {
   title: string;
@@ -28,11 +28,38 @@ export interface ReleaseLog {
 
 export const VERSION_HISTORY: ReleaseLog[] = [
   {
+    version: '2.9.0',
+    title: 'Was ist neu in Version 2.9.0?',
+    subtitle: 'Wichteln: eure geheimen Wunschzettel 🎁',
+    date: '22. November 2026',
+    isLatest: true,
+    highlights: [
+      '🎁 Neuer Bereich Wichteln in der Zentrale (oben auf das Logo tippen)',
+      '🔒 Eigene Wichtel-PIN: nur du siehst deine Wichtel-Sachen',
+      '🤫 Deine Wichtel haken Wünsche ab, du merkst davon nichts'
+    ],
+    features: [
+      {
+        title: '🎁 Wichteln',
+        description: 'Trag ein, wen du beschenkst, und schreib deine Wünsche auf. Deine zwei Wichtel sehen sie und können sie abhaken, damit nichts doppelt gekauft wird. Du selbst siehst nie, was schon besorgt wird.',
+        iconName: 'sparkles',
+        badge: 'Neu',
+        category: 'Neu'
+      },
+      {
+        title: '🔒 Wichtel-PIN',
+        description: 'Beim ersten Öffnen legst du eine 6-stellige Wichtel-PIN fest. Vergessen? Moritz kann sie zurücksetzen, deine Wünsche bleiben.',
+        iconName: 'shield',
+        category: 'Neu'
+      }
+    ]
+  },
+  {
     version: '2.8.0',
     title: 'Was ist neu in Version 2.8.0?',
     subtitle: 'Eure Haushaltsdaten sind jetzt geschützt! 🔐',
     date: '4. November 2026',
-    isLatest: true,
+    isLatest: false,
     highlights: [
       '🔐 Familien-Code: Jedes Gerät wird einmal freigeschaltet – Fremde mit dem Link kommen nicht mehr an eure Daten',
       '🔑 PINs werden nur noch verschlüsselt gespeichert',

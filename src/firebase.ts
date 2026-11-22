@@ -12,10 +12,12 @@ import {
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
-  User 
+  connectAuthEmulator,
+  User
 } from 'firebase/auth';
-import { 
-  getFirestore, 
+import {
+  getFirestore,
+  connectFirestoreEmulator,
   doc, 
   getDocFromServer,
   setDoc
@@ -30,7 +32,17 @@ if (isConfigValid) {
   console.log('Firebase: Target Project:', firebaseConfig.projectId);
 }
 
-const app = initializeApp(isConfigValid ? firebaseConfig : {
+/**
+ * Local test mode (`vite --mode emulator`): talks to the Firebase emulators on this
+ * computer with a demo project, never to the live database. Production builds never set it.
+ */
+export const USE_EMULATORS = import.meta.env.MODE === 'emulator';
+
+export const appConfig = USE_EMULATORS
+  ? { ...firebaseConfig, projectId: 'demo-fishwish' }
+  : firebaseConfig;
+
+const app = initializeApp(isConfigValid ? appConfig : {
   apiKey: "mock-key",
   authDomain: "mock.firebaseapp.com",
   projectId: "mock-project"
@@ -55,6 +67,9 @@ if (typeof window !== 'undefined' && isConfigValid) {
 // Primary services
 export const auth = getAuth(app);
 auth.useDeviceLanguage();
+if (USE_EMULATORS) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+}
 
 // Ensure local persistence across redirects, mobile tabs, and reloads
 if (typeof window !== 'undefined') {
@@ -112,6 +127,9 @@ export async function clearAllLocalPersistence(): Promise<void> {
 
 // Standard Firestore initialization - with critical Database ID support
 export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+if (USE_EMULATORS) {
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
 
 export enum OperationType {
   CREATE = 'create',

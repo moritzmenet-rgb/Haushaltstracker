@@ -21,7 +21,8 @@ import {
   GitFork,
   LayoutGrid,
   Vote,
-  Compass
+  Compass,
+  Gift
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -30,7 +31,7 @@ import { UserBadge } from './UserBadge';
 import { ACHIEVEMENTS_DATA } from '../data/achievementsData';
 import { haptic } from '../utils/haptics';
 
-export type MainAppType = 'fish_and_wish' | 'pinnwand' | 'menuplanner';
+export type MainAppType = 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'wichteln';
 export type FishAndWishTab = 'dashboard' | 'tasks' | 'abzeichen' | 'settings';
 export type PinnwandTab = 'canvas' | 'stream' | 'polls' | 'mine';
 export type MenuplannerTab = 'week' | 'ideas' | 'recipes';
@@ -214,6 +215,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           quickActionLabel: 'Wunsch / Plan',
           quickActionBg: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25',
           icon: <Utensils className="w-5 h-5" />
+        };
+      case 'wichteln':
+        return {
+          title: 'Wichteln',
+          shortTitle: 'W',
+          subTitle: 'Wunschzettel der Familie',
+          bgClass: 'bg-[#2F5D50] shadow-[#2F5D50]/25',
+          accentColor: 'text-[#2F5D50]',
+          quickActionLabel: 'Wunsch',
+          quickActionBg: 'bg-[#2F5D50] hover:bg-[#284F44] text-white shadow-[#2F5D50]/25',
+          icon: <Gift className="w-5 h-5" />
         };
       case 'fish_and_wish':
       default:
@@ -467,7 +479,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </header>
 
       {/* Material 3 Expressive Mobile Bottom Navigation Bar (Shown for Fish & Wish and Menüplanung) */}
-      {currentApp !== 'pinnwand' && (
+      {currentApp !== 'pinnwand' && currentApp !== 'wichteln' && (
         <div className="md:hidden fixed bottom-3 inset-x-3 z-50 flex justify-center pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
           <nav 
             aria-label="Mobile Navigation"

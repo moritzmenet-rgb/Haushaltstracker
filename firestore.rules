@@ -17,10 +17,15 @@ service cloud.firestore {
     }
     
     // Full admins. Add further admin accounts to this list (email, Google sign-in).
+    // The e-mail only counts when it comes from a verified Google sign-in: with the
+    // e-mail/password provider enabled (Wichteln), anybody could otherwise create an
+    // unverified password account that claims an admin address.
     function isMoritz() {
       return isSignedIn() && (
         request.auth.uid == 'fehEDbG4MDekoD9WMe8xo7HKAdJ2' ||
-        authEmail() in ['moritz.menet.bfsu@gmail.com', 'moritz.menet@gmail.com']
+        (isGoogleUser() &&
+         request.auth.token.get('email_verified', false) == true &&
+         authEmail() in ['moritz.menet.bfsu@gmail.com', 'moritz.menet@gmail.com'])
       );
     }
 
@@ -227,6 +232,39 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // WICHTELN
+    // The Wichtel-PIN is checked in the app (family decision, no extra login).
+    // The server enforces the structure: wishes are fixed (only the ranking moves),
+    // the first claim wins, an assignment is fixed until the admin resets it.
+    //   households/{hh}/wichteln_pins/{member}            hashed Wichtel-PIN
+    //   households/{hh}/wichteln/{season}/assign/{giver}  whom the giver gifts (exactly 2)
+    //   households/{hh}/wichteln/{season}/wishes/{wish}   wish list entries
+    //   households/{hh}/wichteln/{season}/claims/{wish}   "Ich besorge das"
+    //   households/{hh}/wichteln/{season}/counts/{member} number of wishes (envelopes on the tree)
+    // -------------------------------------------------------------------------
+
+    function isShortText(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    function isOptionalText(data, key, max) {
+      return !(key in data) || data[key] == null || isShortText(data[key], max);
+    }
+
+    function isValidWish(data, wishId) {
+      return data.keys().hasOnly(['id', 'owner_id', 'title', 'price', 'where', 'hint', 'rank', 'created_at']) &&
+             data.keys().hasAll(['id', 'owner_id', 'title', 'rank', 'created_at']) &&
+             data.id == wishId &&
+             isShortText(data.owner_id, 128) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             isOptionalText(data, 'price', 40) &&
+             isOptionalText(data, 'where', 300) &&
+             isOptionalText(data, 'hint', 300) &&
+             data.rank is number &&
+             isShortText(data.created_at, 64);
+    }
+
+    // -------------------------------------------------------------------------
     // SECURITY RULES (ALL COLLECTIONS & SUBCOLLECTIONS)
     // -------------------------------------------------------------------------
 
@@ -320,6 +358,79 @@ service cloud.firestore {
       // Secret access config (family code, protection switch) - nobody but Moritz can read it
       match /private/{docId} {
         allow read, write: if isMoritz();
+      }
+
+      // --- WICHTELN: PIN ---------------------------------------------------
+      match /wichteln_pins/{memberId} {
+        allow read: if isVerified();
+        allow create: if isVerified() &&
+                         incoming().keys().hasOnly(['member_id', 'pin_hash', 'created_at']) &&
+                         incoming().member_id == memberId &&
+                         exists(/databases/$(database)/documents/households/$(householdId)/members/$(memberId)) &&
+                         isShortText(incoming().pin_hash, 200) &&
+                         isShortText(incoming().created_at, 64);
+        // "Wichtel-PIN vergessen": only the admin resets it
+        allow delete: if isMoritz();
+      }
+
+      // --- WICHTELN: one season ---------------------------------------------
+      match /wichteln/{season} {
+
+        // Whom the giver gifts. Fixed once saved; only the admin can reset it.
+        match /assign/{giverId} {
+          allow read: if isVerified();
+          allow create: if isVerified() &&
+                           incoming().keys().hasOnly(['giver_id', 'receivers', 'created_at']) &&
+                           incoming().giver_id == giverId &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/members/$(giverId)) &&
+                           incoming().receivers is list &&
+                           incoming().receivers.size() == 2 &&
+                           incoming().receivers[0] != incoming().receivers[1] &&
+                           !incoming().receivers.hasAny([giverId]) &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().receivers[0])) &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().receivers[1])) &&
+                           isShortText(incoming().created_at, 64);
+          allow delete: if isMoritz();
+        }
+
+        // Wishes are fixed once saved: only the ranking may change, nothing is deleted.
+        match /wishes/{wishId} {
+          allow read: if isVerified();
+          allow create: if isVerified() &&
+                           isValidWish(incoming(), wishId) &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().owner_id));
+          allow update: if isVerified() &&
+                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank']) &&
+                           incoming().rank is number;
+          allow delete: if false;
+        }
+
+        // "Ich besorge das". Doc id = wish id, so the first claim wins
+        // (a second create is an update -> denied). Only a Wichtel of the owner can claim.
+        match /claims/{wishId} {
+          allow read: if isVerified();
+          allow create: if isVerified() &&
+                           incoming().keys().hasOnly(['wish_id', 'owner_id', 'claimed_by', 'claimed_at']) &&
+                           incoming().wish_id == wishId &&
+                           isShortText(incoming().claimed_by, 128) &&
+                           incoming().claimed_by != incoming().owner_id &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/wishes/$(wishId)) &&
+                           get(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/wishes/$(wishId)).data.owner_id == incoming().owner_id &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/assign/$(incoming().claimed_by)) &&
+                           get(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/assign/$(incoming().claimed_by)).data.receivers.hasAny([incoming().owner_id]) &&
+                           isShortText(incoming().claimed_at, 64);
+          allow delete: if isVerified();
+          allow update: if false;
+        }
+
+        // Number of wishes per member (shown as sealed envelopes on other branches later)
+        match /counts/{memberId} {
+          allow read: if isVerified();
+          allow create, update: if isVerified() &&
+                                   incoming().keys().hasOnly(['count']) &&
+                                   incoming().count is int && incoming().count >= 0 && incoming().count <= 500;
+          allow delete: if false;
+        }
       }
     }
 

@@ -29,6 +29,7 @@ import { GlobalInteractiveEffects } from './components/GlobalInteractiveEffects'
 import { AppHubModal } from './components/hub/AppHubModal';
 import { DeviceGate } from './components/DeviceGate';
 import { MenuplannerView } from './components/menu/MenuplannerView';
+import { WichtelnView } from './wichteln/WichtelnView';
 import { TaskItem, ChoreLog } from './types';
 import { Cloud, Sparkles } from 'lucide-react';
 
@@ -63,6 +64,7 @@ const MainContent: React.FC = () => {
   
   // Triggers for Quick Actions
   const [pinnwandQuickTrigger, setPinnwandQuickTrigger] = useState<number>(0);
+  const [wichtelWishTrigger, setWichtelWishTrigger] = useState<number>(0);
   const [isHubOpen, setIsHubOpen] = useState(false);
 
   // Close log modal when celebration triggers without forcibly switching tabs
@@ -139,6 +141,8 @@ const MainContent: React.FC = () => {
       setPinnwandQuickTrigger(prev => prev + 1);
     } else if (currentApp === 'menuplanner') {
       setCurrentMenuTab('ideas');
+    } else if (currentApp === 'wichteln') {
+      setWichtelWishTrigger(prev => prev + 1);
     }
   };
 
@@ -178,7 +182,7 @@ const MainContent: React.FC = () => {
 
       {/* Main Container */}
       <main className={`flex-1 w-full mx-auto px-4 sm:px-6 pt-5 pb-36 sm:pb-24 ${
-        currentApp === 'pinnwand' || currentApp === 'menuplanner' ? 'max-w-6xl' : 'max-w-5xl'
+        currentApp === 'pinnwand' || currentApp === 'menuplanner' || currentApp === 'wichteln' ? 'max-w-6xl' : 'max-w-5xl'
       }`}>
         {/* 1. FISH & WISH APP VIEWS */}
         {currentApp === 'fish_and_wish' && currentFishTab === 'dashboard' && (
@@ -226,6 +230,11 @@ const MainContent: React.FC = () => {
               setCurrentFishTab('dashboard');
             }}
           />
+        )}
+
+        {/* 4. WICHTELN */}
+        {currentApp === 'wichteln' && (
+          <WichtelnView addWishTrigger={wichtelWishTrigger} />
         )}
       </main>
 

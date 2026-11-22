@@ -8,7 +8,8 @@ import {
   CheckSquare, 
   Layers, 
   ArrowRight,
-  Compass
+  Compass,
+  Gift
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { haptic } from '../../utils/haptics';
@@ -16,8 +17,8 @@ import { haptic } from '../../utils/haptics';
 interface AppHubModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentApp: 'fish_and_wish' | 'pinnwand' | 'menuplanner';
-  onSelectHubItem: (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner') => void;
+  currentApp: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'wichteln';
+  onSelectHubItem: (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'wichteln') => void;
 }
 
 export const AppHubModal: React.FC<AppHubModalProps> = ({
@@ -45,8 +46,9 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
   const isFwActive = currentApp === 'fish_and_wish';
   const isPinnwandActive = currentApp === 'pinnwand';
   const isMenuActive = currentApp === 'menuplanner';
+  const isWichtelnActive = currentApp === 'wichteln';
 
-  const handleSelect = (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner') => {
+  const handleSelect = (target: 'fish_and_wish' | 'pinnwand' | 'menuplanner' | 'wichteln') => {
     haptic.medium();
     onSelectHubItem(target);
     onClose();
@@ -124,12 +126,12 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
               {householdName}
             </h2>
             <p className="text-xs sm:text-sm text-[var(--m3-on-surface-variant)] max-w-sm mx-auto mt-0.5 font-medium">
-              Wähle deinen Bereich: Aufgaben, Pinnwand oder Menüplanung.
+              Wähle deinen Bereich: Aufgaben, Pinnwand, Menüplanung oder Wichteln.
             </p>
           </div>
 
           {/* The Hub Logos / Module Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5 mb-5">
             {/* 1. Fish & Wish Card */}
             <motion.button
               type="button"
@@ -223,6 +225,36 @@ export const AppHubModal: React.FC<AppHubModalProps> = ({
                 Wochen-Speisepläne, Rezepte & Mahlzeiten
               </p>
               <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Öffnen</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </motion.button>
+
+            {/* 4. Wichteln Card */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => handleSelect('wichteln')}
+              className={`relative flex flex-col items-center p-4 sm:p-5 rounded-xl border text-center transition-all cursor-pointer group shadow-xs ${
+                isWichtelnActive
+                  ? 'bg-[#2F5D50]/15 border-[#2F5D50] shadow-md shadow-[#2F5D50]/15 ring-2 ring-[#2F5D50]/30'
+                  : 'bg-[var(--m3-surface-container-low)] hover:bg-[var(--m3-surface-container-high)] border-[var(--m3-outline-variant)]/60'
+              }`}
+            >
+              <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-[#8E2F33] text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                {isWichtelnActive ? 'Aktiv' : 'NEU'}
+              </span>
+              <div className="w-12 h-12 rounded-xl bg-[#2F5D50]/15 text-[#2F5D50] dark:text-[#7FBBA8] border border-[#2F5D50]/30 flex items-center justify-center font-black text-xl mb-2.5 shadow-xs group-hover:scale-110 transition-transform">
+                <Gift className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-[var(--m3-on-surface)] tracking-tight">
+                Wichteln
+              </h3>
+              <p className="text-[11px] text-[var(--m3-on-surface-variant)] mt-0.5 font-medium leading-snug">
+                Wunschzettel für eure Wichtel, ganz geheim
+              </p>
+              <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#2F5D50] dark:text-[#7FBBA8] opacity-0 group-hover:opacity-100 transition-opacity">
                 <span>Öffnen</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
