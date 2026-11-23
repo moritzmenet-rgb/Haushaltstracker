@@ -11,9 +11,13 @@ import fensterUrl from '../assets/wichtel-fenster.webp';
 interface Props {
   season: string;
   myId: string;
-  /** increments when the "Wunsch" button in the top bar is pressed */
-  openTrigger: number;
+  /** request to open the add sheet: opens when it differs from `openConsumed` */
+  openRequest: number;
+  openConsumed: number;
+  onOpenConsumed: (n: number) => void;
   showFab: boolean;
+  /** hide the section title (when the surrounding panel already shows one) */
+  hideTitle?: boolean;
 }
 
 const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => void }> = ({ wish, position, onDragEnd }) => {
@@ -51,7 +55,7 @@ const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => v
 };
 
 /** "Meine Wünsche": add (fixed after saving) and sort by priority. Never shows claims. */
-export const MyWishes: React.FC<Props> = ({ season, myId, openTrigger, showFab }) => {
+export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsumed, onOpenConsumed, showFab, hideTitle }) => {
   const [wishes, setWishes] = useState<Wish[] | null>(null);
   const [order, setOrder] = useState<Wish[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -77,10 +81,12 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openTrigger, showFab }
     orderRef.current = order;
   }, [order]);
 
-  const firstTrigger = useRef(openTrigger);
   useEffect(() => {
-    if (openTrigger !== firstTrigger.current) setSheetOpen(true);
-  }, [openTrigger]);
+    if (openRequest !== openConsumed) {
+      setSheetOpen(true);
+      onOpenConsumed(openRequest);
+    }
+  }, [openRequest, openConsumed, onOpenConsumed]);
 
   const persistOrder = async () => {
     draggingRef.current = false;
@@ -106,7 +112,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openTrigger, showFab }
 
   return (
     <div>
-      <h3 className="w-h3 w-only-desktop">Meine Wünsche</h3>
+      {!hideTitle && <h3 className="w-h3 w-only-desktop">Meine Wünsche</h3>}
       {error && <p className="w-error" style={{ marginBottom: 12 }}>{error}</p>}
 
       {order.length > 0 && order.length < 3 && (

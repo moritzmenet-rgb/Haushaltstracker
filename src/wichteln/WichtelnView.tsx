@@ -10,8 +10,7 @@ import type { WichtelAssignment } from './types';
 import { MIN_MEMBERS } from './types';
 import { WichtelPinScreen } from './components/WichtelPinScreen';
 import { WichtelSetup } from './components/WichtelSetup';
-import { MyWishes } from './components/MyWishes';
-import { TheirWishes } from './components/TheirWishes';
+import { TreeBoard } from './components/TreeBoard';
 import { WichtelAdmin } from './components/WichtelAdmin';
 import { WichtelHeader } from './components/WichtelHeader';
 import './wichteln.css';
@@ -20,43 +19,6 @@ interface Props {
   /** increments when the top bar "Wunsch" button is pressed */
   addWishTrigger: number;
 }
-
-const Board: React.FC<{
-  season: string;
-  me: FamilyMember;
-  receivers: FamilyMember[];
-  addWishTrigger: number;
-}> = ({ season, me, receivers, addWishTrigger }) => {
-  const [tab, setTab] = useState<'mine' | 'others'>('mine');
-  const othersLabel = `Für ${receivers.map((r) => r.name).join(' & ')}`;
-
-  useEffect(() => {
-    // the top bar button always means "add my own wish"
-    setTab('mine');
-  }, [addWishTrigger]);
-
-  return (
-    <>
-      <div className="w-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'mine'} className={`w-tab ${tab === 'mine' ? 'is-active' : ''}`} onClick={() => setTab('mine')}>
-          Meine Wünsche
-        </button>
-        <button type="button" role="tab" aria-selected={tab === 'others'} className={`w-tab ${tab === 'others' ? 'is-active' : ''}`} onClick={() => setTab('others')}>
-          {othersLabel}
-        </button>
-      </div>
-      <div className="w-body w-columns">
-        <section style={{ display: tab === 'mine' ? 'block' : 'none' }} aria-label="Meine Wünsche">
-          <MyWishes season={season} myId={me.id} openTrigger={addWishTrigger} showFab={tab === 'mine'} />
-        </section>
-        <section style={{ display: tab === 'others' ? 'block' : 'none' }} aria-label={othersLabel}>
-          <h3 className="w-h3 w-only-desktop">{othersLabel}</h3>
-          <TheirWishes season={season} myId={me.id} receivers={receivers} />
-        </section>
-      </div>
-    </>
-  );
-};
 
 /** After login: first the one-time setup, then the board. */
 const WichtelMain: React.FC<{ season: string; me: FamilyMember; members: FamilyMember[]; addWishTrigger: number }> = ({
@@ -85,7 +47,7 @@ const WichtelMain: React.FC<{ season: string; me: FamilyMember; members: FamilyM
     .map((id) => members.find((m) => m.id === id))
     .filter((m): m is FamilyMember => !!m);
 
-  return <Board season={season} me={me} receivers={receivers} addWishTrigger={addWishTrigger} />;
+  return <TreeBoard season={season} me={me} members={members} receivers={receivers} addWishTrigger={addWishTrigger} />;
 };
 
 export const WichtelnView: React.FC<Props> = ({ addWishTrigger }) => {

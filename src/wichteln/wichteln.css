@@ -139,6 +139,9 @@
   position: absolute; right: 16px; top: 16px; z-index: 2;
   display: flex; align-items: center; gap: 8px;
 }
+@media (max-width: 560px) {
+  .w-hero-tools { top: auto; bottom: 12px; right: 12px; }
+}
 .w-icon-btn {
   width: 36px; height: 36px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
@@ -505,6 +508,124 @@
   animation: w-spin 800ms linear infinite; margin: 48px auto;
 }
 @keyframes w-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Wish tree (Etappe 3) ---------- */
+.w-board { display: grid; gap: 24px; }
+@media (min-width: 900px) {
+  .w-board { grid-template-columns: minmax(320px, 440px) 1fr; align-items: start; gap: 32px; }
+  /* below the fixed fir strip (56px) */
+  .w-board-tree { position: sticky; top: 72px; }
+}
+
+.w-namebar {
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; margin: -4px -2px 0;
+  scrollbar-width: none;
+}
+.w-namebar::-webkit-scrollbar { display: none; }
+.w-name {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 4px 12px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--w-linie); background: var(--w-blatt); color: var(--w-tinte);
+  font: 400 13px/1 var(--w-sans); cursor: pointer;
+  transition: background-color 200ms, border-color 200ms, opacity 200ms, transform 120ms;
+}
+.w-name:active { transform: scale(.97); }
+.w-name.is-tree { padding-left: 12px; color: var(--w-tanne-linie); }
+.w-name.is-other { opacity: .6; }
+.w-name[aria-pressed="true"] { background: var(--w-tanne-100); border-color: var(--w-tanne-linie); opacity: 1; }
+
+.w-tree {
+  /* clip, not hidden: a hidden box can still be scrolled by focus/scrollIntoView */
+  position: relative; width: 100%; aspect-ratio: 3 / 4; overflow: clip;
+  border-radius: 10px; border: 1px solid var(--w-linie); background: var(--w-papier);
+  container-type: inline-size; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.w-tree-layer {
+  position: absolute; inset: 0; transform-origin: 0 0;
+  transition: transform 500ms var(--w-in);
+  will-change: transform;
+}
+.w-tree.is-panning .w-tree-layer { transition: none; }
+.w-tree-img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  mix-blend-mode: multiply; pointer-events: none;
+}
+.dark .w-tree-img { mix-blend-mode: normal; filter: brightness(.8) saturate(.9); }
+.w-tree-star {
+  position: absolute; width: .7cqw; height: .7cqw; border-radius: 50%;
+  background: var(--w-gold); opacity: .6;
+}
+.w-tree-front { pointer-events: none; }
+.w-tree-drift { position: absolute; left: -4%; right: -4%; bottom: -1%; width: 108%; height: 9%; }
+.dark .w-tree-drift path:last-child { fill: var(--w-schnee); opacity: .35; }
+.w-tree-flake {
+  position: absolute; width: 2.4cqw; height: 2.4cqw; border-radius: 50%;
+  background: #fff; opacity: .55; filter: blur(.5cqw);
+}
+.w-tree-flake.is-big { width: 3.6cqw; height: 3.6cqw; }
+
+.w-branch { transition: opacity 400ms var(--w-in); }
+.w-branch.is-other { opacity: .62; }
+.w-branch.is-other .w-hang { transform: translateX(-50%) scale(.86); transform-origin: top center; }
+.w-branch.is-dim { opacity: .28; }
+.w-hang {
+  position: absolute; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none;
+}
+.w-hang-string { display: block; width: .3cqw; min-width: 1px; background: var(--w-gold); opacity: .9; }
+.w-mini-tag {
+  width: calc(var(--w-item, 4.4cqw) * .82); height: calc(var(--w-item, 4.4cqw) * 1.07);
+  margin-top: -.6cqw; display: block; filter: drop-shadow(0 .2cqw .2cqw rgba(43, 42, 40, .18));
+}
+.w-mini-envelope {
+  width: var(--w-item, 4.8cqw); height: calc(var(--w-item, 4.8cqw) * .73);
+  display: block; filter: drop-shadow(0 .2cqw .2cqw rgba(43, 42, 40, .16));
+}
+.w-hang.is-new { animation: w-hang-in 1000ms var(--w-in) both; transform-origin: top center; }
+@keyframes w-hang-in {
+  0% { opacity: 0; transform: translate(-50%, -14cqw) rotate(0deg); }
+  45% { opacity: 1; transform: translate(-50%, 0) rotate(9deg); }
+  65% { transform: translate(-50%, 0) rotate(-6deg); }
+  82% { transform: translate(-50%, 0) rotate(3deg); }
+  100% { transform: translate(-50%, 0) rotate(0deg); }
+}
+.w-branch-label {
+  position: absolute; transform: translate(-50%, -100%);
+  padding: .4cqw 1.6cqw; border-radius: 999px;
+  background: var(--w-blatt); border: 1px solid var(--w-linie); color: var(--w-tinte);
+  font: 500 2.7cqw/1.2 var(--w-sans); white-space: nowrap; pointer-events: none;
+}
+.w-branch.is-me .w-branch-label, .w-branch.is-receiver .w-branch-label { border-color: var(--w-tanne-linie); }
+.w-branch-more {
+  position: absolute; transform: translateX(-50%);
+  font: 500 2.6cqw/1 var(--w-sans); color: var(--w-bleistift); pointer-events: none;
+}
+.w-branch-hit {
+  position: absolute; background: transparent; border: 0; padding: 0; cursor: pointer;
+  border-radius: 8px;
+}
+.w-branch-hit:focus-visible { outline: 2px solid var(--w-tanne-linie); outline-offset: 2px; }
+.w-tree.is-zoomed .w-branch-hit { cursor: zoom-out; }
+.w-tree-back-btn {
+  position: absolute; left: 12px; top: 12px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 36px; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--w-linie); background: var(--w-blatt); color: var(--w-tanne-linie);
+  font: 500 13px/1 var(--w-sans); cursor: pointer;
+  animation: w-fade-in 200ms var(--w-in) 300ms both;
+}
+@keyframes w-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.w-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.w-detail-head .w-h3 { margin: 0; }
+.w-sealed { text-align: center; }
+.w-sealed-envelopes { display: flex; justify-content: center; gap: 8px; margin: 8px 0 16px; flex-wrap: wrap; }
+.w-sealed-envelopes svg { width: 36px; height: 26px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .w-tree-layer { transition: none !important; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .wichteln *, .w-sheet, .w-sheet * { animation-duration: 1ms !important; transition-duration: 1ms !important; }

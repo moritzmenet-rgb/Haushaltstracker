@@ -19,7 +19,7 @@ interface ReceiverProps {
  * One person I gift. Wishes another Wichtel already claimed are left out completely,
  * my own claims stay visible in green with the "Wunsch gemerkt" stamp.
  */
-const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }) => {
+export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }) => {
   const [wishes, setWishes] = useState<Wish[] | null>(null);
   const [claims, setClaims] = useState<Record<string, WishClaim>>({});
   const [error, setError] = useState<string | null>(null);

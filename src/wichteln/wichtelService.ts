@@ -148,6 +148,26 @@ export async function saveRanking(season: string, ordered: Wish[]) {
   if (changes) await batch.commit();
 }
 
+/** Number of wishes per member (sealed envelopes on the branches of everybody else). */
+export function subscribeCounts(
+  season: string,
+  onData: (counts: Record<string, number>) => void,
+  onError: (err: Error) => void,
+) {
+  return onSnapshot(
+    collection(db, `${seasonPath(season)}/counts`),
+    (snap) => {
+      const map: Record<string, number> = {};
+      snap.docs.forEach((d) => {
+        const c = (d.data() as { count?: number }).count;
+        map[d.id] = typeof c === 'number' ? c : 0;
+      });
+      onData(map);
+    },
+    onError,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Claims ("Ich besorge das")
 // ---------------------------------------------------------------------------
