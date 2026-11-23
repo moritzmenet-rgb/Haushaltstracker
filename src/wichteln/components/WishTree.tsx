@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import baumUrl from '../assets/wunschbaum.webp';
 import { branchFocus, MAX_ON_BRANCH, type PlacedBranch } from '../treeLayout';
 import type { TreeData } from '../useTreeData';
-import type { Wish } from '../types';
+import type { Wish, WishClaim } from '../types';
 import { useAdventClock } from '../advent';
 import { TreeDecorations } from './TreeDecorations';
 
@@ -215,11 +215,12 @@ export const WishTree: React.FC<Props> = ({ branches, data, focusId, targetY, on
       const claims = data.receiverClaims[b.member.id] ?? {};
       const meId = branches.find((x) => x.role === 'me')?.member.id;
       // what the other Wichtel took is gone here too, exactly like in the list
-      const visible = all.filter((w) => !claims[w.id] || claims[w.id].claimed_by === meId);
+      const mineClaim = (c?: WishClaim) => !!c && (c.claimed_by === meId || c.with_id === meId);
+      const visible = all.filter((w) => !claims[w.id] || mineClaim(claims[w.id]));
       return {
         items: visible.slice(0, MAX_ON_BRANCH).map((w) => ({
           key: w.id,
-          node: <MiniTag position={all.indexOf(w) + 1} claimed={claims[w.id]?.claimed_by === meId} />,
+          node: <MiniTag position={all.indexOf(w) + 1} claimed={mineClaim(claims[w.id])} />,
         })),
         extra: Math.max(0, visible.length - MAX_ON_BRANCH),
       };

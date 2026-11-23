@@ -20,6 +20,8 @@ export interface Wish {
   where?: string | null;
   hint?: string | null;
   rank: number;
+  /** "Wie wichtig ist dir das?" 1..5 */
+  prio?: number | null;
   created_at: string;
 }
 
@@ -29,6 +31,19 @@ export interface WishClaim {
   owner_id: string;
   claimed_by: string;
   claimed_at: string;
+  /** pooled with the other Wichtel ("Zusammenlegen") */
+  with_id?: string | null;
+}
+
+/** "Zusammenlegen": a Wichtel asks the other Wichtel of the same person. */
+export interface ConnectRequest {
+  wish_id: string;
+  owner_id: string;
+  from_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  to_id?: string;
+  created_at: string;
+  answered_at?: string;
 }
 
 export interface NewWishInput {
@@ -36,6 +51,7 @@ export interface NewWishInput {
   price: string;
   where: string;
   hint: string;
+  prio: number | null;
 }
 
 export const WICHTEL_PIN_LENGTH = 6;

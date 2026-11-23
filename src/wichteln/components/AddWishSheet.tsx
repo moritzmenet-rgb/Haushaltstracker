@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { NewWishInput, Wish } from '../types';
-import { WishCard } from './WishCard';
+import { PrioStars, WishCard } from './WishCard';
 
 interface Props {
   open: boolean;
@@ -10,7 +10,7 @@ interface Props {
   onSave: (input: NewWishInput) => Promise<void>;
 }
 
-const EMPTY: NewWishInput = { title: '', price: '', where: '', hint: '' };
+const EMPTY: NewWishInput = { title: '', price: '', where: '', hint: '', prio: 3 };
 
 /** Note-book sheet: fill in the wish, then confirm "Achtung, der Wunsch ist danach fix." */
 export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onSave }) => {
@@ -75,6 +75,7 @@ export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onS
     price: input.price.trim() || null,
     where: input.where.trim() || null,
     hint: input.hint.trim() || null,
+    prio: input.prio,
     rank: 0,
     created_at: '',
   };
@@ -120,6 +121,10 @@ export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onS
                     aria-invalid={!!titleError}
                   />
                   {titleError && <span className="w-error">{titleError}</span>}
+                </div>
+                <div className="w-field">
+                  <span className="w-label" id="w-prio-label">Wie wichtig ist dir das?</span>
+                  <PrioStars value={input.prio} onChange={(p) => setInput((prev) => ({ ...prev, prio: p }))} showLabel />
                 </div>
                 <div className="w-field">
                   <label className="w-label" htmlFor="w-price">Preis (ungefähr)</label>

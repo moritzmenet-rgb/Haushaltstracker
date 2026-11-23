@@ -50,6 +50,85 @@ const NameBar: React.FC<{ branches: PlacedBranch[]; focusId: string | null; onFo
   </div>
 );
 
+const SEEN_PREFIX = 'wichteln_connect_gesehen_';
+
+function readSeen(myId: string): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_PREFIX + myId) || '[]');
+  } catch {
+    return [];
+  }
+}
+function writeSeen(myId: string, ids: string[]) {
+  try {
+    localStorage.setItem(SEEN_PREFIX + myId, JSON.stringify(ids.slice(-50)));
+  } catch {
+    /* ignore */
+  }
+}
+
+interface Notice {
+  key: string;
+  receiverId: string;
+  text: string;
+}
+
+/**
+ * "Next time you open Wichteln": pooling requests from the other Wichtel (anonymous)
+ * and answers to my own requests. The other Wichtel is only named after a "yes".
+ */
+const ConnectNotices: React.FC<{
+  myId: string;
+  members: FamilyMember[];
+  receivers: FamilyMember[];
+  data: ReturnType<typeof useTreeData>;
+  onOpen: (receiverId: string) => void;
+}> = ({ myId, members, receivers, data, onOpen }) => {
+  const [seen, setSeen] = useState<string[]>(() => readSeen(myId));
+  const nameOf = (id?: string) => members.find((m) => m.id === id)?.name ?? 'Der andere Wichtel';
+
+  const notices: Notice[] = [];
+  for (const r of receivers) {
+    const wishes = data.receiverWishes[r.id] ?? [];
+    for (const req of Object.values(data.receiverConnects[r.id] ?? {})) {
+      const title = wishes.find((w) => w.id === req.wish_id)?.title;
+      if (!title) continue;
+      if (req.status === 'pending' && req.from_id !== myId) {
+        notices.push({ key: `ask-${req.wish_id}`, receiverId: r.id, text: `Ein Wichtel möchte mit dir zusammenlegen: «${title}» für ${r.name}.` });
+      } else if (req.status === 'accepted' && req.from_id === myId) {
+        notices.push({ key: `yes-${req.wish_id}`, receiverId: r.id, text: `${nameOf(req.to_id)} legt bei «${title}» für ${r.name} mit dir zusammen.` });
+      } else if (req.status === 'declined' && req.from_id === myId) {
+        notices.push({ key: `no-${req.wish_id}`, receiverId: r.id, text: `Zu «${title}»: Der andere Wichtel hat schon eigene Ideen. Danke trotzdem.` });
+      }
+    }
+  }
+  // open requests always show; answers only until looked at
+  const shown = notices.filter((n) => n.key.startsWith('ask-') || !seen.includes(n.key));
+  if (shown.length === 0) return null;
+
+  const open = (n: Notice) => {
+    if (!n.key.startsWith('ask-')) {
+      const next = [...seen, n.key];
+      setSeen(next);
+      writeSeen(myId, next);
+    }
+    onOpen(n.receiverId);
+  };
+
+  return (
+    <div role="status">
+      {shown.map((n) => (
+        <div key={n.key} className="w-banner">
+          <span>{n.text}</span>
+          <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={() => open(n)}>
+            Ansehen
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const Sealed: React.FC<{ member: FamilyMember; count: number }> = ({ member, count }) => (
   <div className="w-empty w-sealed">
     <div className="w-sealed-envelopes" aria-hidden="true">
@@ -175,7 +254,7 @@ export const TreeBoard: React.FC<Props> = ({ season, me, members, receivers, add
   } else if (focused?.role === 'receiver') {
     panel = (
       <section aria-label={`Wünsche von ${focused.member.name}`}>
-        <ReceiverList season={season} myId={me.id} receiver={focused.member} />
+        <ReceiverList season={season} myId={me.id} receiver={focused.member} members={members} />
       </section>
     );
   } else if (focused) {
@@ -191,6 +270,7 @@ export const TreeBoard: React.FC<Props> = ({ season, me, members, receivers, add
 
   return (
     <div className="w-body">
+      <ConnectNotices myId={me.id} members={members} receivers={receivers} data={data} onOpen={(id) => focusOn(id)} />
       <NameBar branches={branches} focusId={focus} onFocus={focusOn} />
       <div className="w-board">
         <div className="w-board-tree" ref={treeRef}>

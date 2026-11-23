@@ -6,13 +6,14 @@ import {
   onSnapshot,
   query,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { HOUSEHOLD_ID } from '../services/firestoreSync';
 import { hashPin, verifyPin } from '../utils/pin';
-import type { NewWishInput, Wish, WishClaim, WichtelAssignment, WichtelPin } from './types';
+import type { ConnectRequest, NewWishInput, Wish, WishClaim, WichtelAssignment, WichtelPin } from './types';
 
 /*
  * All Wichteln data lives next to the household data and is protected like it
@@ -126,6 +127,7 @@ export async function addWish(season: string, ownerId: string, input: NewWishInp
     price: clean(input.price)?.slice(0, 40) ?? null,
     where: clean(input.where)?.slice(0, 300) ?? null,
     hint: clean(input.hint)?.slice(0, 300) ?? null,
+    prio: input.prio && input.prio >= 1 && input.prio <= 5 ? Math.round(input.prio) : null,
     rank,
     created_at: nowIso(),
   };
@@ -207,6 +209,86 @@ export async function claimWish(season: string, wish: Wish, myId: string): Promi
     if ((err as { code?: string })?.code === 'permission-denied') return false;
     throw err;
   }
+}
+
+/** The owner changes how important a wish is (1..5). */
+export async function setWishPrio(season: string, wishId: string, prio: number | null) {
+  await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wishId}`), { prio });
+}
+
+// ---------------------------------------------------------------------------
+// "Zusammenlegen" with the other Wichtel of the same person
+// ---------------------------------------------------------------------------
+
+/** Requests on the wishes of one person I gift. Never loaded for my own wishes. */
+export function subscribeConnectsFor(
+  season: string,
+  ownerId: string,
+  onData: (requests: Record<string, ConnectRequest>) => void,
+  onError: (err: Error) => void,
+) {
+  const q = query(collection(db, `${seasonPath(season)}/connects`), where('owner_id', '==', ownerId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const map: Record<string, ConnectRequest> = {};
+      snap.docs.forEach((d) => {
+        const c = d.data() as ConnectRequest;
+        map[c.wish_id] = c;
+      });
+      onData(map);
+    },
+    onError,
+  );
+}
+
+/** Returns false if somebody already asked about this wish. */
+export async function requestConnect(season: string, wish: Wish, myId: string): Promise<boolean> {
+  try {
+    await setDoc(doc(db, `${seasonPath(season)}/connects/${wish.id}`), {
+      wish_id: wish.id,
+      owner_id: wish.owner_id,
+      from_id: myId,
+      status: 'pending',
+      created_at: nowIso(),
+    });
+    return true;
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'permission-denied') return false;
+    throw err;
+  }
+}
+
+/**
+ * The other Wichtel answers. On "yes" the wish is marked as gemerkt for both
+ * together (claim with with_id), so it disappears for nobody of the two.
+ */
+export async function answerConnect(
+  season: string,
+  request: ConnectRequest,
+  myId: string,
+  accept: boolean,
+  myExistingClaim: WishClaim | undefined,
+) {
+  const reqRef = doc(db, `${seasonPath(season)}/connects/${request.wish_id}`);
+  await updateDoc(reqRef, { status: accept ? 'accepted' : 'declined', to_id: myId, answered_at: nowIso() });
+  if (!accept) return;
+  const claimRef = doc(db, `${seasonPath(season)}/claims/${request.wish_id}`);
+  if (myExistingClaim && myExistingClaim.claimed_by === myId && !myExistingClaim.with_id) {
+    await deleteDoc(claimRef);
+  }
+  await setDoc(claimRef, {
+    wish_id: request.wish_id,
+    owner_id: request.owner_id,
+    claimed_by: myId,
+    with_id: request.from_id,
+    claimed_at: nowIso(),
+  });
+}
+
+/** Withdraw a pending request, or dismiss a declined one. */
+export async function removeConnect(season: string, wishId: string) {
+  await deleteDoc(doc(db, `${seasonPath(season)}/connects/${wishId}`));
 }
 
 export async function unclaimWish(season: string, wishId: string) {

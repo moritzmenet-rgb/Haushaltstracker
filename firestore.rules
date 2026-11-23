@@ -251,8 +251,13 @@ service cloud.firestore {
       return !(key in data) || data[key] == null || isShortText(data[key], max);
     }
 
+    // "Wie wichtig ist dir das?" 1..5 (optional)
+    function isValidPrio(data) {
+      return !('prio' in data) || data.prio == null || (data.prio is int && data.prio >= 1 && data.prio <= 5);
+    }
+
     function isValidWish(data, wishId) {
-      return data.keys().hasOnly(['id', 'owner_id', 'title', 'price', 'where', 'hint', 'rank', 'created_at']) &&
+      return data.keys().hasOnly(['id', 'owner_id', 'title', 'price', 'where', 'hint', 'rank', 'prio', 'created_at']) &&
              data.keys().hasAll(['id', 'owner_id', 'title', 'rank', 'created_at']) &&
              data.id == wishId &&
              isShortText(data.owner_id, 128) &&
@@ -261,7 +266,15 @@ service cloud.firestore {
              isOptionalText(data, 'where', 300) &&
              isOptionalText(data, 'hint', 300) &&
              data.rank is number &&
+             isValidPrio(data) &&
              isShortText(data.created_at, 64);
+    }
+
+    // member `giverId` gifts `ownerId` this season
+    function gives(hh, season, giverId, ownerId) {
+      return giverId is string &&
+             exists(/databases/$(database)/documents/households/$(hh)/wichteln/$(season)/assign/$(giverId)) &&
+             get(/databases/$(database)/documents/households/$(hh)/wichteln/$(season)/assign/$(giverId)).data.receivers.hasAny([ownerId]);
     }
 
     // -------------------------------------------------------------------------
@@ -400,8 +413,9 @@ service cloud.firestore {
                            isValidWish(incoming(), wishId) &&
                            exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().owner_id));
           allow update: if isVerified() &&
-                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank']) &&
-                           incoming().rank is number;
+                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank', 'prio']) &&
+                           incoming().rank is number &&
+                           isValidPrio(incoming());
           allow delete: if false;
         }
 
@@ -410,7 +424,12 @@ service cloud.firestore {
         match /claims/{wishId} {
           allow read: if isVerified();
           allow create: if isVerified() &&
-                           incoming().keys().hasOnly(['wish_id', 'owner_id', 'claimed_by', 'claimed_at']) &&
+                           incoming().keys().hasOnly(['wish_id', 'owner_id', 'claimed_by', 'claimed_at', 'with_id']) &&
+                           // pooled with the other Wichtel: the partner must gift the owner too
+                           (!('with_id' in incoming()) || incoming().with_id == null ||
+                             (incoming().with_id != incoming().claimed_by &&
+                              incoming().with_id != incoming().owner_id &&
+                              gives(householdId, season, incoming().with_id, incoming().owner_id))) &&
                            incoming().wish_id == wishId &&
                            isShortText(incoming().claimed_by, 128) &&
                            incoming().claimed_by != incoming().owner_id &&
@@ -421,6 +440,30 @@ service cloud.firestore {
                            isShortText(incoming().claimed_at, 64);
           allow delete: if isVerified();
           allow update: if false;
+        }
+
+        // "Zusammenlegen": a Wichtel asks the other Wichtel of the same person to pool on a wish.
+        // Doc id = wish id (one request per wish). Only answer once: pending -> accepted/declined.
+        match /connects/{wishId} {
+          allow read: if isVerified();
+          allow create: if isVerified() &&
+                           incoming().keys().hasOnly(['wish_id', 'owner_id', 'from_id', 'status', 'created_at']) &&
+                           incoming().wish_id == wishId &&
+                           incoming().status == 'pending' &&
+                           incoming().from_id != incoming().owner_id &&
+                           exists(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/wishes/$(wishId)) &&
+                           get(/databases/$(database)/documents/households/$(householdId)/wichteln/$(season)/wishes/$(wishId)).data.owner_id == incoming().owner_id &&
+                           gives(householdId, season, incoming().from_id, incoming().owner_id) &&
+                           isShortText(incoming().created_at, 64);
+          allow update: if isVerified() &&
+                           resource.data.status == 'pending' &&
+                           incoming().diff(resource.data).affectedKeys().hasOnly(['status', 'to_id', 'answered_at']) &&
+                           incoming().status in ['accepted', 'declined'] &&
+                           incoming().to_id != resource.data.from_id &&
+                           incoming().to_id != resource.data.owner_id &&
+                           gives(householdId, season, incoming().to_id, resource.data.owner_id) &&
+                           isShortText(incoming().answered_at, 64);
+          allow delete: if isVerified();
         }
 
         // Number of wishes per member (shown as sealed envelopes on other branches later)

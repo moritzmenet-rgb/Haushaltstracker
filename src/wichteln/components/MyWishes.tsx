@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { GripVertical, Paperclip, Plus } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
-import { addWish, saveRanking, subscribeWishesOf } from '../wichtelService';
+import { addWish, saveRanking, setWishPrio, subscribeWishesOf } from '../wichtelService';
 import type { NewWishInput, Wish } from '../types';
 import { WishCard } from './WishCard';
 import { AddWishSheet } from './AddWishSheet';
@@ -20,7 +20,7 @@ interface Props {
   hideTitle?: boolean;
 }
 
-const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => void }> = ({ wish, position, onDragEnd }) => {
+const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => void; onPrio: (p: number) => void }> = ({ wish, position, onDragEnd, onPrio }) => {
   const controls = useDragControls();
   return (
     <Reorder.Item
@@ -36,6 +36,7 @@ const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => v
         wish={wish}
         position={position}
         tilt={position % 2 ? -0.5 : 0.5}
+        onPrioChange={onPrio}
         action={
           <button
             type="button"
@@ -103,6 +104,15 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
     setOrder(next);
   };
 
+  const changePrio = async (wish: Wish, p: number) => {
+    const next = wish.prio === p ? null : p; // tapping the same star again clears it
+    try {
+      await setWishPrio(season, wish.id, next);
+    } catch {
+      setError('Die Wichtigkeit konnte nicht gespeichert werden.');
+    }
+  };
+
   const save = async (input: NewWishInput) => {
     await addWish(season, myId, input, wishes ?? []);
     haptic.medium();
@@ -137,7 +147,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
         <>
           <Reorder.Group axis="y" values={order} onReorder={onReorder} as="ol" className="w-list">
             {order.map((w, i) => (
-              <DraggableWish key={w.id} wish={w} position={i + 1} onDragEnd={persistOrder} />
+              <DraggableWish key={w.id} wish={w} position={i + 1} onDragEnd={persistOrder} onPrio={(p) => changePrio(w, p)} />
             ))}
           </Reorder.Group>
           <p className="w-muted" style={{ marginTop: 16 }}>

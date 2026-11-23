@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Gift } from 'lucide-react';
+import { Check, Gift, Users } from 'lucide-react';
 import type { FamilyMember } from '../../types';
 import { getInitials } from '../../utils';
 import { haptic } from '../../utils/haptics';
-import { claimWish, subscribeClaimsFor, subscribeWishesOf, unclaimWish } from '../wichtelService';
-import type { Wish, WishClaim } from '../types';
+import {
+  answerConnect,
+  claimWish,
+  removeConnect,
+  requestConnect,
+  subscribeClaimsFor,
+  subscribeConnectsFor,
+  subscribeWishesOf,
+  unclaimWish,
+} from '../wichtelService';
+import type { ConnectRequest, Wish, WishClaim } from '../types';
 import { WishCard } from './WishCard';
 import geschenkeUrl from '../assets/wichtel-geschenke.webp';
 
@@ -13,15 +22,22 @@ interface ReceiverProps {
   season: string;
   myId: string;
   receiver: FamilyMember;
+  /** all family members, only to name the partner AFTER a pooling request was accepted */
+  members?: FamilyMember[];
 }
 
+/** a claim is "mine" if I claimed it, alone or pooled with the other Wichtel */
+const isMine = (c: WishClaim | undefined, myId: string) => !!c && (c.claimed_by === myId || c.with_id === myId);
+
 /**
- * One person I gift. Wishes another Wichtel already claimed are left out completely,
- * my own claims stay visible in green with the "Wunsch gemerkt" stamp.
+ * One person I gift. Wishes the other Wichtel took are left out completely; my own
+ * (or pooled) claims stay visible in green with the stamp. "Zusammenlegen" asks the
+ * other Wichtel anonymously; names are only shown after a "yes".
  */
-export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }) => {
+export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, members = [] }) => {
   const [wishes, setWishes] = useState<Wish[] | null>(null);
   const [claims, setClaims] = useState<Record<string, WishClaim>>({});
+  const [connects, setConnects] = useState<Record<string, ConnectRequest>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -33,21 +49,16 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }
     () => subscribeClaimsFor(season, receiver.id, setClaims, () => setError('Abhakungen konnten nicht geladen werden.')),
     [season, receiver.id],
   );
+  useEffect(() => subscribeConnectsFor(season, receiver.id, setConnects, () => undefined), [season, receiver.id]);
 
-  const toggle = async (wish: Wish) => {
+  const nameOf = (id?: string | null) => members.find((m) => m.id === id)?.name ?? 'der andere Wichtel';
+
+  const run = async (wishId: string, fn: () => Promise<void>) => {
     if (pending) return;
-    const mine = claims[wish.id]?.claimed_by === myId;
-    setPending(wish.id);
+    setPending(wishId);
     setError(null);
     try {
-      if (mine) {
-        await unclaimWish(season, wish.id);
-        haptic.light();
-      } else {
-        const ok = await claimWish(season, wish, myId);
-        if (ok) haptic.success();
-        else setError('Da war jemand schneller. Dieser Wunsch ist schon vergeben.');
-      }
+      await fn();
     } catch {
       setError('Das hat nicht geklappt. Versuch es nochmal.');
     } finally {
@@ -55,12 +66,102 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }
     }
   };
 
+  const toggle = (wish: Wish) =>
+    run(wish.id, async () => {
+      if (isMine(claims[wish.id], myId)) {
+        await unclaimWish(season, wish.id);
+        haptic.light();
+      } else {
+        const ok = await claimWish(season, wish, myId);
+        if (ok) haptic.success();
+        else setError('Da war jemand schneller. Dieser Wunsch ist schon vergeben.');
+      }
+    });
+
+  const ask = (wish: Wish) =>
+    run(wish.id, async () => {
+      const ok = await requestConnect(season, wish, myId);
+      if (!ok) setError('Für diesen Wunsch gibt es schon eine Anfrage.');
+      else haptic.light();
+    });
+
+  const answer = (req: ConnectRequest, yes: boolean) =>
+    run(req.wish_id, async () => {
+      await answerConnect(season, req, myId, yes, claims[req.wish_id]);
+      if (yes) haptic.success();
+    });
+
   if (wishes === null && !error) return <div className="w-spinner" aria-label="Wird geladen" />;
 
   const all = wishes ?? [];
-  const visible = all.filter((w) => !claims[w.id] || claims[w.id].claimed_by === myId);
+  const visible = all.filter((w) => !claims[w.id] || isMine(claims[w.id], myId));
   const openCount = all.filter((w) => !claims[w.id]).length;
-  const myCount = all.filter((w) => claims[w.id]?.claimed_by === myId).length;
+  const myCount = all.filter((w) => isMine(claims[w.id], myId)).length;
+
+  /** The small row under a card about pooling. Names appear only after a "yes". */
+  const connectRow = (w: Wish) => {
+    const req = connects[w.id];
+    const claim = claims[w.id];
+    if (claim?.with_id && isMine(claim, myId)) {
+      const partner = claim.claimed_by === myId ? claim.with_id : claim.claimed_by;
+      return (
+        <div className="w-connect-row">
+          <span>
+            <Users className="w-4 h-4" style={{ display: 'inline', verticalAlign: '-3px', marginRight: 4 }} />
+            Ihr legt zusammen: du und {nameOf(partner)}
+          </span>
+        </div>
+      );
+    }
+    if (!req) {
+      if (claim) return null; // I took it alone; the other Wichtel cannot see it anyway
+      return (
+        <div className="w-connect-row">
+          <span>Zu gross für dich allein?</span>
+          <button type="button" className="w-link" onClick={() => ask(w)} disabled={pending === w.id}>
+            Mit dem anderen Wichtel zusammenlegen
+          </button>
+        </div>
+      );
+    }
+    if (req.status === 'pending' && req.from_id === myId) {
+      return (
+        <div className="w-connect-row">
+          <span>Anfrage an den anderen Wichtel gesendet. Er sieht sie beim nächsten Öffnen.</span>
+          <button type="button" className="w-link" onClick={() => run(w.id, () => removeConnect(season, w.id))}>
+            Zurückziehen
+          </button>
+        </div>
+      );
+    }
+    if (req.status === 'pending') {
+      // asked by the other Wichtel: who it is stays secret until "yes"
+      return (
+        <div className="w-connect-row is-ask" role="group" aria-label="Anfrage zum Zusammenlegen">
+          <span>Ein Wichtel möchte bei diesem Wunsch mit dir zusammenlegen.</span>
+          <span className="w-connect-actions">
+            <button type="button" className="w-btn w-btn-primary w-btn-small" onClick={() => answer(req, true)} disabled={pending === w.id}>
+              Ja, gerne
+            </button>
+            <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={() => answer(req, false)} disabled={pending === w.id}>
+              Nein, danke
+            </button>
+          </span>
+        </div>
+      );
+    }
+    if (req.status === 'declined' && req.from_id === myId) {
+      return (
+        <div className="w-connect-row">
+          <span>Der andere Wichtel hat schon eigene Ideen für dieses Geschenk.</span>
+          <button type="button" className="w-link" onClick={() => run(w.id, () => removeConnect(season, w.id))}>
+            OK
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div style={{ marginBottom: 32 }}>
@@ -84,7 +185,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }
             <AnimatePresence initial={false}>
               {visible.map((w) => {
                 const position = all.indexOf(w) + 1;
-                const mine = claims[w.id]?.claimed_by === myId;
+                const mine = isMine(claims[w.id], myId);
                 return (
                   <motion.li
                     key={w.id}
@@ -115,6 +216,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver }
                         </button>
                       }
                     />
+                    {connectRow(w)}
                   </motion.li>
                 );
               })}
@@ -149,12 +251,13 @@ interface Props {
   season: string;
   myId: string;
   receivers: FamilyMember[];
+  members?: FamilyMember[];
 }
 
-export const TheirWishes: React.FC<Props> = ({ season, myId, receivers }) => (
+export const TheirWishes: React.FC<Props> = ({ season, myId, receivers, members }) => (
   <div>
     {receivers.map((r) => (
-      <ReceiverList key={r.id} season={season} myId={myId} receiver={r} />
+      <ReceiverList key={r.id} season={season} myId={myId} receiver={r} members={members} />
     ))}
   </div>
 );
