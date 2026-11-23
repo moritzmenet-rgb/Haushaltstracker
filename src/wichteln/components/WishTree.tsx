@@ -4,6 +4,8 @@ import baumUrl from '../assets/wunschbaum.webp';
 import { branchFocus, MAX_ON_BRANCH, type PlacedBranch } from '../treeLayout';
 import type { TreeData } from '../useTreeData';
 import type { Wish } from '../types';
+import { useAdventClock } from '../advent';
+import { TreeDecorations } from './TreeDecorations';
 
 const ZOOM = 2.2;
 /** How much a layer follows the camera: sky lags behind, foreground snow rushes ahead */
@@ -136,6 +138,7 @@ interface Props {
  * sealed envelopes (only the number of wishes, never whether something is taken).
  */
 export const WishTree: React.FC<Props> = ({ branches, data, focusId, targetY, onFocus }) => {
+  const now = useAdventClock();
   const [pan, setPan] = useState(0);
   const [panning, setPanning] = useState(false);
   const drag = useRef<{ x: number; moved: boolean } | null>(null);
@@ -247,6 +250,7 @@ export const WishTree: React.FC<Props> = ({ branches, data, focusId, targetY, on
 
       <div className="w-tree-layer w-tree-mid" style={{ transform: tf('mid') }}>
         <img className="w-tree-img" src={baumUrl} alt="" width={900} height={1200} decoding="async" draggable={false} />
+        <TreeDecorations now={now} />
         {branches.map((b) => {
           const { items, extra } = itemsFor(b);
           return (

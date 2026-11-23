@@ -617,6 +617,25 @@
 }
 @keyframes w-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+/* ---------- Advent decoration (Etappe 4) ---------- */
+.w-deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.dark .w-deco { filter: brightness(.9); }
+.w-orn { transform-box: fill-box; transform-origin: 50% 0%; }
+.w-orn.is-new { animation: w-orn-in 900ms var(--w-in) both; }
+@keyframes w-orn-in {
+  0% { opacity: 0; transform: translateY(-6%) scale(.6); }
+  60% { opacity: 1; transform: translateY(0) scale(1.06) rotate(4deg); }
+  100% { opacity: 1; transform: none; }
+}
+path.w-orn.is-new { animation: w-fade-in 900ms var(--w-in) both; }
+.w-flame { transform-box: fill-box; transform-origin: 50% 100%; }
+.w-flame.is-lighting { animation: w-flame-on 600ms var(--w-in) both; }
+@keyframes w-flame-on {
+  0% { opacity: 0; transform: scale(.2); }
+  60% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .w-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .w-detail-head .w-h3 { margin: 0; }
 .w-sealed { text-align: center; }
