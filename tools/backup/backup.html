@@ -30,6 +30,19 @@ const HH = 'households/main_household';
 const SUB = ['logs', 'members', 'menu_wishes', 'menus', 'notifications', 'pinnwand', 'recipes', 'task_edits', 'tasks'];
 const ROOT = ['households', 'sessions'];
 const OPTIONAL_SUB = ['devices'];
+// Wichteln (v2.9.0+): PINs per household, everything else per season ("2026" = Oktober 2026 – September 2027)
+const WICHTELN_SUB = ['wichteln_pins'];
+const WICHTELN_SEASON_SUB = ['assign', 'wishes', 'claims', 'connects', 'counts'];
+const currentSeason = (d = new Date()) => String(d.getMonth() >= 9 ? d.getFullYear() : d.getFullYear() - 1);
+
+// The Wichteln part reveals who gifts whom. It is stored base64-encoded ("versiegelt"),
+// so nobody spoils the surprise by opening the backup file. Restore: JSON.parse(atob(...)).
+function seal(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
 const logEl = document.getElementById('log');
 const log = (m) => { logEl.textContent += '\n' + m; };
 
@@ -71,6 +84,29 @@ document.getElementById('go').onclick = async (ev) => {
         log(`${HH}/${c}: ${snap.size} Einträge`);
       } catch { log(`${HH}/${c}: (noch nicht vorhanden)`); }
     }
+    // Wichteln: collected separately and sealed (only counts are shown here)
+    const season = currentSeason();
+    const wichteln = { season, collections: {} };
+    const paths = [
+      ...WICHTELN_SUB.map((c) => `${HH}/${c}`),
+      ...WICHTELN_SEASON_SUB.map((c) => `${HH}/wichteln/${season}/${c}`),
+    ];
+    for (const p of paths) {
+      try {
+        const snap = await getDocs(collection(db, p));
+        const docs = {}; snap.forEach(d => { docs[d.id] = plain(d.data()); });
+        wichteln.collections[p] = { ok: true, count: snap.size, docs };
+        log(`${p}: ${snap.size} Einträge (versiegelt)`);
+      } catch (e) {
+        wichteln.collections[p] = { ok: false, error: String(e.code || e.message) };
+        log(`${p}: FEHLER ${e.code || e.message}`);
+      }
+    }
+    result.wichteln_versiegelt = {
+      hinweis: 'Wichteln-Daten (wer wen beschenkt, Abhakungen) base64-verpackt, damit niemand aus Versehen spoilert. Wiederherstellen: Base64 dekodieren (UTF-8) und als JSON lesen.',
+      season,
+      daten: seal(wichteln),
+    };
     const r = await fetch('/save', { method: 'POST', body: JSON.stringify(result, null, 2) });
     const j = await r.json();
     log('\nFERTIG. Gespeichert unter:\n' + j.file);

@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { GripVertical, Paperclip, Plus } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
-import { addWish, saveRanking, setWishPrio, subscribeWishesOf } from '../wichtelService';
+import { addWish, saveRanking, setWishHint, setWishPrio, subscribeWishesOf } from '../wichtelService';
 import type { NewWishInput, Wish } from '../types';
 import { WishCard } from './WishCard';
 import { AddWishSheet } from './AddWishSheet';
+import { EditHintSheet } from './EditHintSheet';
 import fensterUrl from '../assets/wichtel-fenster.webp';
 
 interface Props {
@@ -20,7 +21,13 @@ interface Props {
   hideTitle?: boolean;
 }
 
-const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => void; onPrio: (p: number) => void }> = ({ wish, position, onDragEnd, onPrio }) => {
+const DraggableWish: React.FC<{
+  wish: Wish;
+  position: number;
+  onDragEnd: () => void;
+  onPrio: (p: number) => void;
+  onEdit: () => void;
+}> = ({ wish, position, onDragEnd, onPrio, onEdit }) => {
   const controls = useDragControls();
   return (
     <Reorder.Item
@@ -37,6 +44,7 @@ const DraggableWish: React.FC<{ wish: Wish; position: number; onDragEnd: () => v
         position={position}
         tilt={position % 2 ? -0.5 : 0.5}
         onPrioChange={onPrio}
+        onEdit={onEdit}
         action={
           <button
             type="button"
@@ -61,6 +69,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
   const [order, setOrder] = useState<Wish[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editing, setEditing] = useState<Wish | null>(null);
   const orderRef = useRef<Wish[]>([]);
   const draggingRef = useRef(false);
 
@@ -118,6 +127,11 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
     haptic.medium();
   };
 
+  const saveHint = async (wish: Wish, hint: string) => {
+    await setWishHint(season, wish.id, hint);
+    haptic.light();
+  };
+
   if (wishes === null && !error) return <div className="w-spinner" aria-label="Wird geladen" />;
 
   return (
@@ -147,7 +161,14 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
         <>
           <Reorder.Group axis="y" values={order} onReorder={onReorder} as="ol" className="w-list">
             {order.map((w, i) => (
-              <DraggableWish key={w.id} wish={w} position={i + 1} onDragEnd={persistOrder} onPrio={(p) => changePrio(w, p)} />
+              <DraggableWish
+                key={w.id}
+                wish={w}
+                position={i + 1}
+                onDragEnd={persistOrder}
+                onPrio={(p) => changePrio(w, p)}
+                onEdit={() => setEditing(w)}
+              />
             ))}
           </Reorder.Group>
           <p className="w-muted" style={{ marginTop: 16 }}>
@@ -168,6 +189,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
         onClose={() => setSheetOpen(false)}
         onSave={save}
       />
+      <EditHintSheet wish={editing} onClose={() => setEditing(null)} onSave={saveHint} />
     </div>
   );
 };

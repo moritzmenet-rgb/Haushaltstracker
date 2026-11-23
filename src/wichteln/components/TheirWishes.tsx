@@ -53,6 +53,17 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
 
   const nameOf = (id?: string | null) => members.find((m) => m.id === id)?.name ?? 'der andere Wichtel';
 
+  /** "(bearbeitet)" shows on every card; this extra note only if I had already taken the wish. */
+  const editedNote = (w: Wish) => {
+    const at = w.edited_at ? Date.parse(w.edited_at) : NaN;
+    if (Number.isNaN(at)) return null;
+    const claim = claims[w.id];
+    if (claim && isMine(claim, myId) && Date.parse(claim.claimed_at) < at) {
+      return 'Die Beschreibung wurde geändert, nachdem du den Wunsch gemerkt hast.';
+    }
+    return null;
+  };
+
   const run = async (wishId: string, fn: () => Promise<void>) => {
     if (pending) return;
     setPending(wishId);
@@ -200,6 +211,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
                       position={position}
                       claimed={mine}
                       tilt={position % 2 ? -0.5 : 0.5}
+                      editedNote={editedNote(w)}
                       action={
                         <button
                           type="button"

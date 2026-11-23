@@ -216,6 +216,14 @@ export async function setWishPrio(season: string, wishId: string, prio: number |
   await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wishId}`), { prio });
 }
 
+/** Owner changes the description later. Title, price and place stay fixed. */
+export async function setWishHint(season: string, wishId: string, hint: string) {
+  await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wishId}`), {
+    hint: clean(hint)?.slice(0, 300) ?? null,
+    edited_at: nowIso(),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // "Zusammenlegen" with the other Wichtel of the same person
 // ---------------------------------------------------------------------------

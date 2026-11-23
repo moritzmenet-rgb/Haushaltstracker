@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { Pencil, Star } from 'lucide-react';
 import type { Wish } from '../types';
 
 interface Props {
@@ -12,6 +12,10 @@ interface Props {
   tilt?: number;
   /** owner only: change "wie wichtig" by tapping the stars */
   onPrioChange?: (prio: number) => void;
+  /** owner only: opens the sheet to change the description */
+  onEdit?: () => void;
+  /** Wichtel only: small note that the description changed */
+  editedNote?: string | null;
 }
 
 const PRIO_LABEL = ['', 'Wäre nett', 'Wäre schön', 'Wünsche ich mir', 'Sehr wichtig', 'Herzenswunsch'];
@@ -65,6 +69,17 @@ function WhereText({ value }: { value: string }) {
   return <>{value}</>;
 }
 
+/** "(bearbeitet)" after the description, for everyone who sees the card. Date on hover. */
+const EditedMark: React.FC<{ at: string }> = ({ at }) => {
+  const d = new Date(at);
+  const when = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('de-CH', { day: 'numeric', month: 'long' });
+  return (
+    <span className="w-tag-edited-mark" title={when ? `Bearbeitet am ${when}` : undefined}>
+      (bearbeitet)
+    </span>
+  );
+};
+
 /** Round rubber stamp "Wunsch gemerkt": wine-red ink on a paper disc, text along the rim. */
 const Stamp: React.FC = () => {
   const rimId = `w-rim-${React.useId().replace(/:/g, '')}`;
@@ -90,7 +105,7 @@ const Stamp: React.FC = () => {
 };
 
 /** A wish as a gift tag: punched hole, gold string, big ranking number. */
-export const WishCard: React.FC<Props> = ({ wish, position, claimed, action, tilt = 0, onPrioChange }) => {
+export const WishCard: React.FC<Props> = ({ wish, position, claimed, action, tilt = 0, onPrioChange, onEdit, editedNote }) => {
   const meta = [wish.price ? `ca. ${wish.price.replace(/^ca\.?\s*/i, '')}` : null].filter(Boolean);
   return (
     <div className="w-tag-wrap" style={{ transform: tilt ? `rotate(${tilt}deg)` : undefined }}>
@@ -108,8 +123,25 @@ export const WishCard: React.FC<Props> = ({ wish, position, claimed, action, til
               {wish.where && <WhereText value={wish.where} />}
             </div>
           )}
-          {wish.hint && <div className="w-tag-hint">{wish.hint}</div>}
+          {wish.hint && (
+            <div className="w-tag-hint">
+              {wish.hint}
+              {wish.edited_at && <EditedMark at={wish.edited_at} />}
+            </div>
+          )}
+          {!wish.hint && wish.edited_at && (
+            <div>
+              <EditedMark at={wish.edited_at} />
+            </div>
+          )}
           <PrioStars value={wish.prio} onChange={onPrioChange} />
+          {editedNote && <div className="w-tag-edited">{editedNote}</div>}
+          {onEdit && (
+            <button type="button" className="w-link w-tag-edit" onClick={onEdit}>
+              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+              {wish.hint ? 'Beschreibung ändern' : 'Beschreibung hinzufügen'}
+            </button>
+          )}
         </div>
         <div>{action}</div>
       </div>

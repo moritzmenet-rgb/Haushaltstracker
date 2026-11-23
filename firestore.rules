@@ -412,10 +412,14 @@ service cloud.firestore {
           allow create: if isVerified() &&
                            isValidWish(incoming(), wishId) &&
                            exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().owner_id));
+          // Title, price and place stay fixed. Ranking, importance and the description
+          // can change. Never depends on claims: a failing edit would tell the owner.
           allow update: if isVerified() &&
-                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank', 'prio']) &&
+                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank', 'prio', 'hint', 'edited_at']) &&
                            incoming().rank is number &&
-                           isValidPrio(incoming());
+                           isValidPrio(incoming()) &&
+                           isOptionalText(incoming(), 'hint', 300) &&
+                           isOptionalText(incoming(), 'edited_at', 64);
           allow delete: if false;
         }
 

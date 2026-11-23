@@ -23,6 +23,8 @@ export interface Wish {
   /** "Wie wichtig ist dir das?" 1..5 */
   prio?: number | null;
   created_at: string;
+  /** set when the owner changed the description later (the Wichtel see a note) */
+  edited_at?: string | null;
 }
 
 /** "Ich besorge das". Never readable by the owner of the wish. */
