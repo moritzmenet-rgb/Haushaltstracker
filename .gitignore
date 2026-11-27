@@ -13,3 +13,4 @@ backups/
 # Firebase CLI
 firebase-debug.log
 .firebase/
+/redirect

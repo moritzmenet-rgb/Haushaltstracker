@@ -41,12 +41,10 @@ jobs:
 
       # The app lives at https://fishandwish.web.app (deployed with `firebase deploy --only hosting`).
       # This GitHub Pages address only forwards there.
-      - name: Prepare redirect site
+      - name: Build redirect site (hands the device unlock over to the new address)
         run: |
-          mkdir -p ./redirect
-          cp tools/redirect/index.html ./redirect/index.html
-          cp tools/redirect/index.html ./redirect/404.html
-          cp tools/redirect/sw.js ./redirect/sw.js
+          node node_modules/vite/bin/vite.js build --config tools/redirect/vite.config.ts
+          cp ./redirect/index.html ./redirect/404.html
           touch ./redirect/.nojekyll
 
       - name: Setup Pages

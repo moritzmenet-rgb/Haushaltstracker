@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fish &amp; Wish ist umgezogen</title>
-<meta http-equiv="refresh" content="2; url=https://fishandwish.web.app/">
+<noscript><meta http-equiv="refresh" content="0; url=https://fishandwish.web.app/"></noscript>
 <link rel="canonical" href="https://fishandwish.web.app/">
 <style>
   :root { color-scheme: light dark; }
@@ -22,20 +22,9 @@
 <body>
 <main>
   <h1>Fish &amp; Wish ist umgezogen</h1>
-  <p>Die neue Adresse ist <strong>fishandwish.web.app</strong>. Du wirst gleich weitergeleitet.</p>
+  <p>Die neue Adresse ist <strong>fishandwish.web.app</strong>. Du wirst gleich weitergeleitet, dein Gerät bleibt freigeschaltet.</p>
   <a href="https://fishandwish.web.app/">Zur neuen Adresse</a>
 </main>
-<script>
-  // remove the old app's service worker on this address, then go to the new one
-  (async () => {
-    try {
-      const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
-      await Promise.all(regs.map((r) => r.unregister()));
-      const keys = await caches?.keys?.() ?? [];
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    } catch (e) {}
-    location.replace('https://fishandwish.web.app/');
-  })();
-</script>
+<script type="module" src="./handover.ts"></script>
 </body>
 </html>

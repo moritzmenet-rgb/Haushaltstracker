@@ -2,6 +2,10 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { takeUmzugFromUrl } from './utils/umzug';
+
+// Coming from the old address: take the device handover out of the URL before anything renders
+takeUmzugFromUrl();
 
 console.log('🚀 App booting...');
 

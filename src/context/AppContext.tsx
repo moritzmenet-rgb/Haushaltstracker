@@ -26,6 +26,7 @@ import {
   User
 } from '../firebase';
 import { doc, collection, onSnapshot, setDoc, writeBatch, deleteField } from 'firebase/firestore';
+import { readPendingUmzug, clearPendingUmzug } from '../utils/umzug';
 import { isAdminEmail, checkDeviceRegistration, probeHouseholdAccess, registerDevice, UnlockResult } from '../services/deviceAccess';
 import { hashPin, isValidPinFormat } from '../utils/pin';
 import { 
@@ -2062,6 +2063,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (id) localStorage.setItem(ACTIVE_USER_KEY, id);
     else localStorage.removeItem(ACTIVE_USER_KEY);
   }, []);
+
+  // Move from the old address: unlock this device with the handed-over code, then pick the profile.
+  const umzugTriedRef = useRef(false);
+  useEffect(() => {
+    const pending = readPendingUmzug();
+    if (!pending) return;
+    if (deviceAccessStatus === 'locked' && pending.c && !umzugTriedRef.current) {
+      umzugTriedRef.current = true;
+      unlockDevice(pending.c, pending.l || '').then((result) => {
+        if (result === 'ok') {
+          if (pending.p) setActiveUserId(pending.p);
+          clearPendingUmzug();
+        } else if (result === 'wrong_code') {
+          clearPendingUmzug(); // code changed meanwhile: the normal gate takes over
+        }
+      });
+      return;
+    }
+    if ((deviceAccessStatus === 'unlocked' || deviceAccessStatus === 'open') && !isMoritzAccount) {
+      if (pending.p && !activeUserId) setActiveUserId(pending.p);
+      clearPendingUmzug();
+    }
+  }, [deviceAccessStatus, isMoritzAccount, activeUserId, unlockDevice, setActiveUserId]);
 
   // Pinnwand (Bulletin Board with Threads, Red String, Polls, Reactions)
   const pinnwandNotes = useMemo(() => {
