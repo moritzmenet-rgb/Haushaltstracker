@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Redirect GitHub Pages to fishandwish.web.app
 
 on:
   push:
@@ -36,11 +36,18 @@ jobs:
       - name: Type check
         run: npm run lint
 
-      - name: Build project
+      - name: Build project (check only, the app is served by Firebase Hosting)
+        run: npm run build
+
+      # The app lives at https://fishandwish.web.app (deployed with `firebase deploy --only hosting`).
+      # This GitHub Pages address only forwards there.
+      - name: Prepare redirect site
         run: |
-          npm run build
-          touch ./dist/.nojekyll
-          cp ./dist/index.html ./dist/404.html
+          mkdir -p ./redirect
+          cp tools/redirect/index.html ./redirect/index.html
+          cp tools/redirect/index.html ./redirect/404.html
+          cp tools/redirect/sw.js ./redirect/sw.js
+          touch ./redirect/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
@@ -48,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: './dist'
+          path: './redirect'
           include-hidden-files: true
 
       - name: Deploy to GitHub Pages
