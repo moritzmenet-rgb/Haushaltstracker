@@ -216,12 +216,30 @@ export async function setWishPrio(season: string, wishId: string, prio: number |
   await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wishId}`), { prio });
 }
 
-/** Owner changes the description later. Title, price and place stay fixed. */
-export async function setWishHint(season: string, wishId: string, hint: string) {
-  await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wishId}`), {
-    hint: clean(hint)?.slice(0, 300) ?? null,
-    edited_at: nowIso(),
+/**
+ * Owner changes a wish later (everything except deleting it). Only changed fields
+ * are written; "(bearbeitet)" is set only when the text changed, not for the importance.
+ * Returns false when nothing changed.
+ */
+export async function updateWish(season: string, wish: Wish, input: NewWishInput): Promise<boolean> {
+  const next = {
+    title: input.title.trim().slice(0, 120),
+    price: clean(input.price)?.slice(0, 40) ?? null,
+    where: clean(input.where)?.slice(0, 300) ?? null,
+    hint: clean(input.hint)?.slice(0, 300) ?? null,
+  };
+  if (!next.title) throw new Error('title required');
+  const changes: Record<string, string | number | null> = {};
+  (Object.keys(next) as (keyof typeof next)[]).forEach((k) => {
+    if ((wish[k] ?? null) !== next[k]) changes[k] = next[k];
   });
+  const textChanged = Object.keys(changes).length > 0;
+  const prio = input.prio && input.prio >= 1 && input.prio <= 5 ? Math.round(input.prio) : null;
+  if ((wish.prio ?? null) !== prio) changes.prio = prio;
+  if (!Object.keys(changes).length) return false;
+  if (textChanged) changes.edited_at = nowIso();
+  await updateDoc(doc(db, `${seasonPath(season)}/wishes/${wish.id}`), changes);
+  return true;
 }
 
 // ---------------------------------------------------------------------------

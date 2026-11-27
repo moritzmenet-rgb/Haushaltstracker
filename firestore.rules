@@ -406,16 +406,19 @@ service cloud.firestore {
           allow delete: if isMoritz();
         }
 
-        // Wishes are fixed once saved: only the ranking may change, nothing is deleted.
+        // Wishes can be changed later by anyone verified (the app only offers it to the owner), never deleted.
         match /wishes/{wishId} {
           allow read: if isVerified();
           allow create: if isVerified() &&
                            isValidWish(incoming(), wishId) &&
                            exists(/databases/$(database)/documents/households/$(householdId)/members/$(incoming().owner_id));
-          // Title, price and place stay fixed. Ranking, importance and the description
-          // can change. Never depends on claims: a failing edit would tell the owner.
+          // Everything except id, owner and creation date can change. Never depends on
+          // claims: a failing edit would tell the owner.
           allow update: if isVerified() &&
-                           incoming().diff(resource.data).affectedKeys().hasOnly(['rank', 'prio', 'hint', 'edited_at']) &&
+                           incoming().diff(resource.data).affectedKeys().hasOnly(['title', 'price', 'where', 'hint', 'rank', 'prio', 'edited_at']) &&
+                           incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 120 &&
+                           isOptionalText(incoming(), 'price', 40) &&
+                           isOptionalText(incoming(), 'where', 300) &&
                            incoming().rank is number &&
                            isValidPrio(incoming()) &&
                            isOptionalText(incoming(), 'hint', 300) &&

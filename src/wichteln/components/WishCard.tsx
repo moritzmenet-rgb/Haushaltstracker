@@ -139,7 +139,7 @@ export const WishCard: React.FC<Props> = ({ wish, position, claimed, action, til
           {onEdit && (
             <button type="button" className="w-link w-tag-edit" onClick={onEdit}>
               <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-              {wish.hint ? 'Beschreibung ändern' : 'Beschreibung hinzufügen'}
+              Wunsch bearbeiten
             </button>
           )}
         </div>

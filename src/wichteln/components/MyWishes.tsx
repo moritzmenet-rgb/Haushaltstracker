@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { GripVertical, Paperclip, Plus } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
-import { addWish, saveRanking, setWishHint, setWishPrio, subscribeWishesOf } from '../wichtelService';
+import { addWish, saveRanking, setWishPrio, updateWish, subscribeWishesOf } from '../wichtelService';
 import type { NewWishInput, Wish } from '../types';
 import { WishCard } from './WishCard';
 import { AddWishSheet } from './AddWishSheet';
-import { EditHintSheet } from './EditHintSheet';
+import { EditWishSheet } from './EditWishSheet';
 import fensterUrl from '../assets/wichtel-fenster.webp';
 
 interface Props {
@@ -63,7 +63,7 @@ const DraggableWish: React.FC<{
   );
 };
 
-/** "Meine Wünsche": add (fixed after saving) and sort by priority. Never shows claims. */
+/** "Meine Wünsche": add, edit (never delete) and sort by priority. Never shows claims. */
 export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsumed, onOpenConsumed, showFab, hideTitle }) => {
   const [wishes, setWishes] = useState<Wish[] | null>(null);
   const [order, setOrder] = useState<Wish[]>([]);
@@ -127,9 +127,8 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
     haptic.medium();
   };
 
-  const saveHint = async (wish: Wish, hint: string) => {
-    await setWishHint(season, wish.id, hint);
-    haptic.light();
+  const saveEdit = async (wish: Wish, input: NewWishInput) => {
+    if (await updateWish(season, wish, input)) haptic.light();
   };
 
   if (wishes === null && !error) return <div className="w-spinner" aria-label="Wird geladen" />;
@@ -189,7 +188,7 @@ export const MyWishes: React.FC<Props> = ({ season, myId, openRequest, openConsu
         onClose={() => setSheetOpen(false)}
         onSave={save}
       />
-      <EditHintSheet wish={editing} onClose={() => setEditing(null)} onSave={saveHint} />
+      <EditWishSheet wish={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
     </div>
   );
 };

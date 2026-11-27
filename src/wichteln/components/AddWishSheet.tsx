@@ -12,7 +12,7 @@ interface Props {
 
 const EMPTY: NewWishInput = { title: '', price: '', where: '', hint: '', prio: 3 };
 
-/** Note-book sheet: fill in the wish, then confirm "Achtung, der Wunsch ist danach fix." (description stays editable) */
+/** Note-book sheet: fill in the wish, then confirm "Löschen geht danach nicht mehr." (everything else stays editable) */
 export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onSave }) => {
   const [input, setInput] = useState<NewWishInput>(EMPTY);
   const [step, setStep] = useState<'form' | 'confirm'>('form');
@@ -135,7 +135,7 @@ export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onS
                   <input id="w-where" className="w-input" value={input.where} onChange={set('where')} maxLength={300} placeholder="z. B. Manor oder https://…" />
                 </div>
                 <div className="w-field">
-                  <label className="w-label" htmlFor="w-hint">Beschreibung (optional, später änderbar)</label>
+                  <label className="w-label" htmlFor="w-hint">Beschreibung (optional)</label>
                   <textarea
                     id="w-hint"
                     className="w-input w-textarea"
@@ -154,10 +154,10 @@ export const AddWishSheet: React.FC<Props> = ({ open, nextPosition, onClose, onS
               </form>
             ) : (
               <div>
-                <h2 className="w-sheet-title">Achtung, der Wunsch ist danach fix.</h2>
+                <h2 className="w-sheet-title">Achtung, löschen geht danach nicht mehr.</h2>
                 <p className="w-muted" style={{ marginBottom: 24 }}>
-                  Du kannst ihn nicht mehr löschen. Später ändern kannst du nur die Beschreibung und die Wichtigkeit,
-                  und ihn im Ranking verschieben.
+                  Ändern kannst du ihn später jederzeit, auch im Ranking verschieben. Nur löschen geht nicht,
+                  damit deine Wichtel nicht plötzlich ohne Geschenkidee dastehen.
                 </p>
                 <WishCard wish={preview} position={nextPosition} />
                 {saveError && <p className="w-error" style={{ marginTop: 12 }}>{saveError}</p>}

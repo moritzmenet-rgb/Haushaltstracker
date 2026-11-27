@@ -59,7 +59,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
     if (Number.isNaN(at)) return null;
     const claim = claims[w.id];
     if (claim && isMine(claim, myId) && Date.parse(claim.claimed_at) < at) {
-      return 'Die Beschreibung wurde geändert, nachdem du den Wunsch gemerkt hast.';
+      return 'Der Wunsch wurde geändert, nachdem du ihn gemerkt hast.';
     }
     return null;
   };
