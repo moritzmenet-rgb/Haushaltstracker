@@ -453,6 +453,17 @@ service cloud.firestore {
         // Doc id = wish id (one request per wish). Only answer once: pending -> accepted/declined.
         match /connects/{wishId} {
           allow read: if isVerified();
+          // general "zusammentun" for a person (own idea, no wish): doc id person_{owner}
+          allow create: if isVerified() &&
+                           wishId == 'person_' + incoming().owner_id &&
+                           incoming().keys().hasOnly(['kind', 'owner_id', 'from_id', 'status', 'note', 'created_at']) &&
+                           incoming().kind == 'person' &&
+                           incoming().status == 'pending' &&
+                           isShortText(incoming().from_id, 128) &&
+                           incoming().from_id != incoming().owner_id &&
+                           gives(householdId, season, incoming().from_id, incoming().owner_id) &&
+                           isOptionalText(incoming(), 'note', 300) &&
+                           isShortText(incoming().created_at, 64);
           allow create: if isVerified() &&
                            incoming().keys().hasOnly(['wish_id', 'owner_id', 'from_id', 'status', 'created_at']) &&
                            incoming().wish_id == wishId &&

@@ -91,6 +91,17 @@ const ConnectNotices: React.FC<{
   for (const r of receivers) {
     const wishes = data.receiverWishes[r.id] ?? [];
     for (const req of Object.values(data.receiverConnects[r.id] ?? {})) {
+      if (req.kind === 'person') {
+        const k = `person-${r.id}-${req.created_at}`;
+        if (req.status === 'pending' && req.from_id !== myId) {
+          notices.push({ key: `ask-${k}`, receiverId: r.id, text: `Ein Wichtel möchte sich für ${r.name} mit dir zusammentun.` });
+        } else if (req.status === 'accepted' && req.from_id === myId) {
+          notices.push({ key: `yes-${k}`, receiverId: r.id, text: `${nameOf(req.to_id)} tut sich für ${r.name} mit dir zusammen.` });
+        } else if (req.status === 'declined' && req.from_id === myId) {
+          notices.push({ key: `no-${k}`, receiverId: r.id, text: `Für ${r.name}: Der andere Wichtel möchte lieber allein schenken. Danke trotzdem.` });
+        }
+        continue;
+      }
       const title = wishes.find((w) => w.id === req.wish_id)?.title;
       if (!title) continue;
       if (req.status === 'pending' && req.from_id !== myId) {

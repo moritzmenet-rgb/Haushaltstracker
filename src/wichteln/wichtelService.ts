@@ -259,8 +259,8 @@ export function subscribeConnectsFor(
     (snap) => {
       const map: Record<string, ConnectRequest> = {};
       snap.docs.forEach((d) => {
-        const c = d.data() as ConnectRequest;
-        map[c.wish_id] = c;
+        // keyed by doc id: the wish id, or person_{owner} for a general request
+        map[d.id] = d.data() as ConnectRequest;
       });
       onData(map);
     },
@@ -296,6 +296,7 @@ export async function answerConnect(
   accept: boolean,
   myExistingClaim: WishClaim | undefined,
 ) {
+  if (!request.wish_id) throw new Error('not a wish request');
   const reqRef = doc(db, `${seasonPath(season)}/connects/${request.wish_id}`);
   await updateDoc(reqRef, { status: accept ? 'accepted' : 'declined', to_id: myId, answered_at: nowIso() });
   if (!accept) return;
@@ -312,9 +313,38 @@ export async function answerConnect(
   });
 }
 
-/** Withdraw a pending request, or dismiss a declined one. */
-export async function removeConnect(season: string, wishId: string) {
-  await deleteDoc(doc(db, `${seasonPath(season)}/connects/${wishId}`));
+/** Doc id of the general "zusammentun" request for one person. */
+export const personConnectId = (ownerId: string) => `person_${ownerId}`;
+
+/** Ask the other Wichtel of `ownerId` to team up in general (own idea, not tied to a wish). */
+export async function requestPersonConnect(season: string, ownerId: string, myId: string, note: string): Promise<boolean> {
+  try {
+    await setDoc(doc(db, `${seasonPath(season)}/connects/${personConnectId(ownerId)}`), {
+      kind: 'person',
+      owner_id: ownerId,
+      from_id: myId,
+      status: 'pending',
+      note: clean(note)?.slice(0, 300) ?? null,
+      created_at: nowIso(),
+    });
+    return true;
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'permission-denied') return false;
+    throw err;
+  }
+}
+
+export async function answerPersonConnect(season: string, request: ConnectRequest, myId: string, accept: boolean) {
+  await updateDoc(doc(db, `${seasonPath(season)}/connects/${personConnectId(request.owner_id)}`), {
+    status: accept ? 'accepted' : 'declined',
+    to_id: myId,
+    answered_at: nowIso(),
+  });
+}
+
+/** Withdraw a pending request, or dismiss a declined one (doc id: wish id or person_{owner}). */
+export async function removeConnect(season: string, connectId: string) {
+  await deleteDoc(doc(db, `${seasonPath(season)}/connects/${connectId}`));
 }
 
 export async function unclaimWish(season: string, wishId: string) {

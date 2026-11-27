@@ -693,3 +693,14 @@ path.w-orn.is-new { animation: w-fade-in 900ms var(--w-in) both; }
 @media (prefers-reduced-motion: reduce) {
   .wichteln *, .w-sheet, .w-sheet * { animation-duration: 1ms !important; transition-duration: 1ms !important; }
 }
+
+/* ---------- Zusammentun (general, per person) ---------- */
+.w-team {
+  margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+  background: var(--w-blatt); border: 1px dashed var(--w-linie);
+  font-size: 13px; color: var(--w-bleistift);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+}
+.w-team.is-open { display: grid; gap: 8px; justify-content: stretch; }
+.w-team.is-ask, .w-team.is-yes { background: var(--w-tanne-100); border: 1px solid var(--w-tanne-linie); color: var(--w-tinte); }
+.w-team-note { flex-basis: 100%; font-style: italic; color: var(--w-tinte); }

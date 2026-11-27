@@ -37,9 +37,17 @@ export interface WishClaim {
   with_id?: string | null;
 }
 
-/** "Zusammenlegen": a Wichtel asks the other Wichtel of the same person. */
+/**
+ * "Zusammenlegen": a Wichtel asks the other Wichtel of the same person, either for
+ * one wish (doc id = wish id) or for the person in general (kind 'person',
+ * doc id = person_{owner}, e.g. for an own idea that is not on the list).
+ */
 export interface ConnectRequest {
-  wish_id: string;
+  /** only for wish requests */
+  wish_id?: string;
+  kind?: 'person';
+  /** optional idea the asker writes for a person request */
+  note?: string | null;
   owner_id: string;
   from_id: string;
   status: 'pending' | 'accepted' | 'declined';

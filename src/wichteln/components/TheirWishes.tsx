@@ -6,7 +6,10 @@ import { getInitials } from '../../utils';
 import { haptic } from '../../utils/haptics';
 import {
   answerConnect,
+  answerPersonConnect,
   claimWish,
+  personConnectId,
+  requestPersonConnect,
   removeConnect,
   requestConnect,
   subscribeClaimsFor,
@@ -97,10 +100,22 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
     });
 
   const answer = (req: ConnectRequest, yes: boolean) =>
-    run(req.wish_id, async () => {
-      await answerConnect(season, req, myId, yes, claims[req.wish_id]);
+    run(req.wish_id ?? '', async () => {
+      await answerConnect(season, req, myId, yes, req.wish_id ? claims[req.wish_id] : undefined);
       if (yes) haptic.success();
     });
+
+  // General "zusammentun" for this person (own idea, not tied to a wish)
+  const personReq = connects[personConnectId(receiver.id)];
+  /** the other Wichtel, once known: after a "yes" to a general or wish request */
+  const partnerId = (() => {
+    const accepted = Object.values(connects).find(
+      (c) => c.status === 'accepted' && (c.from_id === myId || c.to_id === myId),
+    );
+    if (!accepted) return null;
+    return accepted.from_id === myId ? accepted.to_id ?? null : accepted.from_id;
+  })();
+  const otherName = partnerId ? nameOf(partnerId) : null;
 
   if (wishes === null && !error) return <div className="w-spinner" aria-label="Wird geladen" />;
 
@@ -138,7 +153,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
     if (req.status === 'pending' && req.from_id === myId) {
       return (
         <div className="w-connect-row">
-          <span>Anfrage an den anderen Wichtel gesendet. Er sieht sie beim nächsten Öffnen.</span>
+          <span>Anfrage an {otherName ?? 'den anderen Wichtel'} gesendet. Sichtbar beim nächsten Öffnen.</span>
           <button type="button" className="w-link" onClick={() => run(w.id, () => removeConnect(season, w.id))}>
             Zurückziehen
           </button>
@@ -149,7 +164,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
       // asked by the other Wichtel: who it is stays secret until "yes"
       return (
         <div className="w-connect-row is-ask" role="group" aria-label="Anfrage zum Zusammenlegen">
-          <span>Ein Wichtel möchte bei diesem Wunsch mit dir zusammenlegen.</span>
+          <span>{otherName ?? 'Ein Wichtel'} möchte bei diesem Wunsch mit dir zusammenlegen.</span>
           <span className="w-connect-actions">
             <button type="button" className="w-btn w-btn-primary w-btn-small" onClick={() => answer(req, true)} disabled={pending === w.id}>
               Ja, gerne
@@ -164,7 +179,7 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
     if (req.status === 'declined' && req.from_id === myId) {
       return (
         <div className="w-connect-row">
-          <span>Der andere Wichtel hat schon eigene Ideen für dieses Geschenk.</span>
+          <span>{otherName ?? 'Der andere Wichtel'} hat schon eigene Ideen für dieses Geschenk.</span>
           <button type="button" className="w-link" onClick={() => run(w.id, () => removeConnect(season, w.id))}>
             OK
           </button>
@@ -184,6 +199,28 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
         {myCount > 0 && <span className="w-muted">· {myCount} gemerkt</span>}
       </div>
       {error && <p className="w-error" style={{ marginBottom: 12 }}>{error}</p>}
+
+      <PersonConnect
+        receiverName={receiver.name}
+        myId={myId}
+        req={personReq}
+        otherName={otherName}
+        busy={pending === 'person'}
+        onAsk={(note) =>
+          run('person', async () => {
+            const ok = await requestPersonConnect(season, receiver.id, myId, note);
+            if (!ok) setError('Es gibt schon eine Anfrage. Lade die Seite neu.');
+            else haptic.light();
+          })
+        }
+        onAnswer={(yes) =>
+          run('person', async () => {
+            if (personReq) await answerPersonConnect(season, personReq, myId, yes);
+            if (yes) haptic.success();
+          })
+        }
+        onRemove={() => run('person', () => removeConnect(season, personConnectId(receiver.id)))}
+      />
 
       {all.length === 0 ? (
         <div className="w-empty">
@@ -257,6 +294,120 @@ export const ReceiverList: React.FC<ReceiverProps> = ({ season, myId, receiver, 
       )}
     </div>
   );
+};
+
+/**
+ * General "zusammentun" with the other Wichtel of this person, e.g. for an own idea
+ * that is not on the list. Anonymous until the other says yes; then both see who it is.
+ */
+const PersonConnect: React.FC<{
+  receiverName: string;
+  myId: string;
+  req: ConnectRequest | undefined;
+  otherName: string | null;
+  busy: boolean;
+  onAsk: (note: string) => void;
+  onAnswer: (yes: boolean) => void;
+  onRemove: () => void;
+}> = ({ receiverName, myId, req, otherName, busy, onAsk, onAnswer, onRemove }) => {
+  const [writing, setWriting] = useState(false);
+  const [note, setNote] = useState('');
+  const noteText = req?.note ? <span className="w-team-note">«{req.note}»</span> : null;
+
+  if (!req) {
+    if (otherName) return null; // already know each other through a pooled wish
+    if (!writing) {
+      return (
+        <div className="w-team">
+          <span>Eine eigene Idee für {receiverName}, die ihr zu zweit schenken wollt?</span>
+          <button type="button" className="w-link" onClick={() => setWriting(true)}>
+            Mit dem anderen Wichtel zusammentun
+          </button>
+        </div>
+      );
+    }
+    return (
+      <form
+        className="w-team is-open"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onAsk(note);
+        }}
+      >
+        <label className="w-label" htmlFor="w-team-note">Deine Idee (optional)</label>
+        <textarea
+          id="w-team-note"
+          className="w-input w-textarea"
+          rows={2}
+          maxLength={300}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={`z. B. Zusammen einen Ausflug für ${receiverName} schenken`}
+        />
+        <p className="w-muted" style={{ fontSize: 13 }}>
+          Der andere Wichtel erfährt erst, wer du bist, wenn er Ja sagt. Dann seht ihr es beide.
+        </p>
+        <span className="w-connect-actions">
+          <button type="submit" className="w-btn w-btn-primary w-btn-small" disabled={busy}>
+            Anfrage senden
+          </button>
+          <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={() => setWriting(false)} disabled={busy}>
+            Abbrechen
+          </button>
+        </span>
+      </form>
+    );
+  }
+
+  if (req.status === 'accepted') {
+    return (
+      <div className="w-team is-yes">
+        <span>
+          <Users className="w-4 h-4" style={{ display: 'inline', verticalAlign: '-3px', marginRight: 4 }} />
+          Ihr wichtelt zusammen für {receiverName}: du und {otherName ?? 'der andere Wichtel'}
+        </span>
+        {noteText}
+      </div>
+    );
+  }
+  if (req.status === 'pending' && req.from_id === myId) {
+    return (
+      <div className="w-team">
+        <span>Anfrage gesendet. Sobald der andere Wichtel Ja sagt, seht ihr beide, wer wer ist.</span>
+        {noteText}
+        <button type="button" className="w-link" onClick={onRemove} disabled={busy}>
+          Zurückziehen
+        </button>
+      </div>
+    );
+  }
+  if (req.status === 'pending') {
+    return (
+      <div className="w-team is-ask" role="group" aria-label="Anfrage zum Zusammentun">
+        <span>Der andere Wichtel von {receiverName} möchte sich mit dir zusammentun.</span>
+        {noteText}
+        <span className="w-connect-actions">
+          <button type="button" className="w-btn w-btn-primary w-btn-small" onClick={() => onAnswer(true)} disabled={busy}>
+            Ja, gerne
+          </button>
+          <button type="button" className="w-btn w-btn-ghost w-btn-small" onClick={() => onAnswer(false)} disabled={busy}>
+            Nein, danke
+          </button>
+        </span>
+      </div>
+    );
+  }
+  if (req.status === 'declined' && req.from_id === myId) {
+    return (
+      <div className="w-team">
+        <span>Der andere Wichtel möchte lieber allein schenken. Danke trotzdem.</span>
+        <button type="button" className="w-link" onClick={onRemove} disabled={busy}>
+          OK
+        </button>
+      </div>
+    );
+  }
+  return null;
 };
 
 interface Props {
