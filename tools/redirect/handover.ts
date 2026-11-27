@@ -50,6 +50,19 @@ async function run() {
   if (profile) payload.p = profile;
   if (theme) payload.t = theme;
   if (color) payload.ct = color;
+  // small device settings that should survive the move
+  const haptics = read('jarvis_haptics_enabled');
+  const snow = read('wichteln_snow');
+  if (haptics) payload.h = haptics;
+  if (snow) payload.s = snow;
+  try {
+    const seen: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('wichteln_connect_gesehen_')) seen[k.slice('wichteln_connect_gesehen_'.length)] = localStorage.getItem(k) ?? '';
+    }
+    if (Object.keys(seen).length) payload.g = JSON.stringify(seen);
+  } catch { /* ignore */ }
 
   const app = initializeApp(EMULATOR ? { ...firebaseConfig, projectId: 'demo-fishwish' } : firebaseConfig);
   const auth = initializeAuth(app, { persistence: [browserLocalPersistence, indexedDBLocalPersistence] });

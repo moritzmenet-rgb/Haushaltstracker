@@ -17,6 +17,9 @@ export interface Umzug {
 const PENDING_KEY = 'fish_wish_umzug';
 const THEME_KEY = 'household_chore_theme';
 const COLOR_THEME_KEY = 'household_chore_color_theme';
+const HAPTICS_KEY = 'jarvis_haptics_enabled';
+const SNOW_KEY = 'wichteln_snow';
+const SEEN_PREFIX = 'wichteln_connect_gesehen_';
 
 export function encodeUmzug(data: Record<string, unknown>): string {
   const bytes = new TextEncoder().encode(JSON.stringify(data));
@@ -55,6 +58,20 @@ export function takeUmzugFromUrl(): void {
     if ((t === 'light' || t === 'dark') && !localStorage.getItem(THEME_KEY)) localStorage.setItem(THEME_KEY, t);
     const ct = str(data.ct, 20);
     if (ct && !localStorage.getItem(COLOR_THEME_KEY)) localStorage.setItem(COLOR_THEME_KEY, ct);
+    const h = str(data.h, 5);
+    if ((h === 'true' || h === 'false') && !localStorage.getItem(HAPTICS_KEY)) localStorage.setItem(HAPTICS_KEY, h);
+    const s = str(data.s, 3);
+    if ((s === 'on' || s === 'off') && !localStorage.getItem(SNOW_KEY)) localStorage.setItem(SNOW_KEY, s);
+    // already seen pooling notices, per member: { memberId: '["key",...]' }
+    const g = str(data.g, 20000);
+    if (g) {
+      const seen = JSON.parse(g) as Record<string, unknown>;
+      Object.entries(seen).forEach(([member, value]) => {
+        if (/^[A-Za-z0-9_-]{1,128}$/.test(member) && typeof value === 'string' && !localStorage.getItem(SEEN_PREFIX + member)) {
+          localStorage.setItem(SEEN_PREFIX + member, value.slice(0, 10000));
+        }
+      });
+    }
   } catch { /* ignore */ }
   const pending: Umzug = { c: str(data.c, 32), l: str(data.l, 60), p: str(data.p, 128) };
   if (!pending.c && !pending.p) return;

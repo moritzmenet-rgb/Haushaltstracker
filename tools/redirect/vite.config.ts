@@ -9,6 +9,8 @@ export default defineConfig({
   root: here,
   base: './',
   envDir: path.resolve(here, '../..'),
+  // own dependency cache, so it can run next to the app's dev server
+  cacheDir: path.resolve(here, '../../node_modules/.vite-redirect'),
   build: { outDir: path.resolve(here, '../../redirect'), emptyOutDir: true },
   server: { port: 3002 },
 });
